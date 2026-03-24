@@ -497,32 +497,34 @@ function TravelTimeCalc({ teamId }) {
     setLog([])
     const lines = []
 
-    // 1. Haal thuislocatie op
+    // 1. Haal thuislocatie op via clubs_registry
     const { data: team } = await supabase
       .from('teams')
-      .select('home_location, clubs(registry_id, clubs_registry(latitude, longitude, address))')
+      .select('clubs(registry_id, clubs_registry(latitude, longitude, street_address, postcode, city, address))')
       .eq('id', teamId)
       .single()
 
     let homeLat = null, homeLng = null
+    const reg = team?.clubs?.clubs_registry
 
-    if (team?.home_location) {
-      const coords = await geocodeAddress(team.home_location)
-      if (coords) { homeLat = coords.lat; homeLng = coords.lng }
-    }
-
-    if (!homeLat) {
-      const reg = team?.clubs?.clubs_registry
-      homeLat = reg?.latitude
-      homeLng = reg?.longitude
-      if (!homeLat && reg?.address) {
-        const coords = await geocodeAddress(reg.address)
-        if (coords) { homeLat = coords.lat; homeLng = coords.lng }
+    if (reg) {
+      homeLat = reg.latitude
+      homeLng = reg.longitude
+      if (!homeLat) {
+        const fullAddress = [reg.street_address, reg.postcode, reg.city].filter(Boolean).join(' ') || reg.address
+        if (fullAddress) {
+          const coords = await geocodeAddress(fullAddress)
+          if (coords) {
+            homeLat = coords.lat; homeLng = coords.lng
+            // Sla op voor later hergebruik
+            await supabase.from('clubs_registry').update({ latitude: homeLat, longitude: homeLng }).eq('id', team.clubs.registry_id)
+          }
+        }
       }
     }
 
     if (!homeLat) {
-      setLog(['Thuislocatie onbekend. Stel een adres in bij Team instellingen.'])
+      setLog(['Thuisclub niet gekoppeld aan clubs_registry. Controleer de club via Supabase.'])
       setRunning(false)
       return
     }
@@ -546,7 +548,7 @@ function TravelTimeCalc({ teamId }) {
     // 3. Locatiedata per league_match ophalen
     const { data: leagueMatches } = await supabase
       .from('league_matches')
-      .select('id, league_teams!home_team_id(registry_id, team_name, clubs_registry(latitude, longitude, address))')
+      .select('id, league_teams!home_team_id(registry_id, team_name, clubs_registry(latitude, longitude, street_address, postcode, city, address))')
       .in('id', awayMatches.map(m => m.league_match_id))
 
     const lmMap = {}
@@ -559,9 +561,15 @@ function TravelTimeCalc({ teamId }) {
       let toLat = reg?.latitude
       let toLng = reg?.longitude
 
-      if (!toLat && reg?.address) {
-        const coords = await geocodeAddress(reg.address)
-        if (coords) { toLat = coords.lat; toLng = coords.lng }
+      if (!toLat && reg) {
+        const fullAddress = [reg.street_address, reg.postcode, reg.city].filter(Boolean).join(' ') || reg.address
+        if (fullAddress) {
+          const coords = await geocodeAddress(fullAddress)
+          if (coords) {
+            toLat = coords.lat; toLng = coords.lng
+            if (reg.latitude === null) await supabase.from('clubs_registry').update({ latitude: toLat, longitude: toLng }).eq('id', lm.league_teams.registry_id)
+          }
+        }
       }
 
       if (!toLat) {

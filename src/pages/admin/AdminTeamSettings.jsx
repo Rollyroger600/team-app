@@ -11,7 +11,6 @@ export default function AdminTeamSettings() {
     gathering_lead_time: 30,
     travel_buffer_minutes: 10,
     match_squad_size: 16,
-    home_location: '',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -25,7 +24,6 @@ export default function AdminTeamSettings() {
       gathering_lead_time: activeTeam.gathering_lead_time ?? 30,
       travel_buffer_minutes: activeTeam.travel_buffer_minutes ?? 10,
       match_squad_size: activeTeam.match_squad_size ?? 16,
-      home_location: activeTeam.home_location || '',
     })
     setLoading(false)
   }, [activeTeam?.id])
@@ -44,7 +42,6 @@ export default function AdminTeamSettings() {
         gathering_lead_time: Number(form.gathering_lead_time),
         travel_buffer_minutes: Number(form.travel_buffer_minutes),
         match_squad_size: Number(form.match_squad_size),
-        home_location: form.home_location || null,
       })
       .eq('id', activeTeam.id)
 
@@ -96,13 +93,6 @@ export default function AdminTeamSettings() {
                    className={inputClass} style={inputStyle} required />
           </div>
 
-          <div>
-            <label className={labelClass}>Thuislocatie (adres)</label>
-            <input type="text" value={form.home_location}
-                   onChange={(e) => handleChange('home_location', e.target.value)}
-                   placeholder="Straat 1, Stad"
-                   className={inputClass} style={inputStyle} />
-          </div>
         </div>
 
         <div className="rounded-xl p-4 border space-y-4" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
