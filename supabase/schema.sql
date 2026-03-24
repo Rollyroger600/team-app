@@ -322,6 +322,8 @@ LEFT JOIN league_matches lm
 GROUP BY lt.league_id, lt.id, lt.team_id, lt.team_name, lt.is_own_team, cr.primary_color;
 
 -- Speler statistieken
+-- NOTE: goals and assists use separate LEFT JOINs to avoid cross-join inflation
+-- with match_availability/match_roster rows.
 CREATE OR REPLACE VIEW v_player_stats AS
 SELECT
   p.id            AS player_id,
@@ -339,14 +341,15 @@ SELECT
   COUNT(DISTINCT ma.match_id) FILTER (
     WHERE ma.status = 'unavailable'
   ) AS times_unavailable,
-  COALESCE(SUM(CASE WHEN g.scorer_id = p.id AND NOT g.is_own_goal THEN 1 ELSE 0 END), 0) AS goals,
-  COALESCE(SUM(CASE WHEN g.assist_id = p.id THEN 1 ELSE 0 END), 0) AS assists,
+  COUNT(DISTINCT g_scored.id) AS goals,
+  COUNT(DISTINCT g_assist.id) AS assists,
   COALESCE(ud.umpire_count, 0) AS umpire_duties
 FROM profiles p
 JOIN team_memberships tm ON tm.player_id = p.id AND tm.active = true
 LEFT JOIN match_roster mr ON mr.player_id = p.id
 LEFT JOIN match_availability ma ON ma.player_id = p.id
-LEFT JOIN goals g ON (g.scorer_id = p.id OR g.assist_id = p.id)
+LEFT JOIN goals g_scored ON g_scored.scorer_id = p.id AND NOT g_scored.is_own_goal
+LEFT JOIN goals g_assist ON g_assist.assist_id = p.id
 LEFT JOIN (
   SELECT player_id, COUNT(*) AS umpire_count
   FROM umpire_duties
