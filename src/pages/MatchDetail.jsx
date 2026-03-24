@@ -9,8 +9,8 @@ import { formatGatheringDisplay } from '../lib/gathering'
 
 export default function MatchDetail() {
   const { id } = useParams()
-  const { user, isAnyTeamAdmin } = useAuthStore()
-  const isAdmin = isAnyTeamAdmin()
+  const { user, isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
+  const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
   const { teamSettings } = useTeamStore()
   const [match, setMatch] = useState(null)
   const [myAvailability, setMyAvailability] = useState(null)

@@ -47,7 +47,19 @@ export default function AdminMatchGoals() {
         .order('minute', { ascending: true, nullsFirst: false }),
     ])
     setMatch(matchRes.data)
-    setRoster(rosterRes.data || [])
+
+    // Als er geen selectie is voor deze wedstrijd, val terug op alle teamleden
+    let players = rosterRes.data || []
+    if (players.length === 0 && matchRes.data?.team_id) {
+      const { data: members } = await supabase
+        .from('team_memberships')
+        .select('player_id, profiles(full_name, nickname, jersey_number)')
+        .eq('team_id', matchRes.data.team_id)
+        .eq('active', true)
+      players = members || []
+    }
+
+    setRoster(players)
     setGoals(goalsRes.data || [])
     setCards(cardsRes.data || [])
     setLoading(false)

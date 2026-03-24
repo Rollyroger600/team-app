@@ -490,11 +490,13 @@ function TravelTimeCalc({ teamId }) {
   const [running, setRunning] = useState(false)
   const [done, setDone] = useState(false)
   const [log, setLog] = useState([])
+  const [progress, setProgress] = useState({ current: 0, total: 0 })
 
   async function calculate() {
     setRunning(true)
     setDone(false)
     setLog([])
+    setProgress({ current: 0, total: 0 })
     const lines = []
 
     // 1. Haal thuislocatie op via clubs_registry
@@ -544,6 +546,8 @@ function TravelTimeCalc({ teamId }) {
       return
     }
 
+    setProgress({ current: 0, total: awayMatches.length })
+
     // 3. Locatiedata per league_match ophalen
     const { data: leagueMatches } = await supabase
       .from('league_matches')
@@ -573,6 +577,7 @@ function TravelTimeCalc({ teamId }) {
 
       if (!toLat) {
         lines.push({ text: `${match.opponent}: geen adres bekend`, ok: false })
+        setProgress(p => ({ ...p, current: p.current + 1 }))
         continue
       }
 
@@ -590,6 +595,7 @@ function TravelTimeCalc({ teamId }) {
       } else {
         lines.push({ text: `${match.opponent}: berekening mislukt`, ok: false })
       }
+      setProgress(p => ({ ...p, current: p.current + 1 }))
     }
 
     const saved = lines.filter(l => l.ok).length
@@ -619,6 +625,21 @@ function TravelTimeCalc({ teamId }) {
           {running ? 'Bezig...' : 'Bereken'}
         </button>
       </div>
+
+      {running && progress.total > 0 && (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            <span>{progress.current}/{progress.total} berekend</span>
+            <span>{Math.round(progress.current / progress.total * 100)}%</span>
+          </div>
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-2)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{ width: `${progress.current / progress.total * 100}%`, backgroundColor: 'var(--color-secondary)' }}
+            />
+          </div>
+        </div>
+      )}
 
       {log.length > 0 && (
         <div className="rounded-lg p-2 text-xs space-y-0.5"
