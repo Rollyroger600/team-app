@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2 } from 'lucide-react'
+import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2, Users, CheckCircle, XCircle, HelpCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
@@ -200,8 +200,124 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
   )
 }
 
+// --- Availability section (compact, used in both upcoming and past match cards) ---
+const STATUS_COLORS = {
+  available:   { bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)',  text: '#4ade80' },
+  unavailable: { bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.4)',  text: '#f87171' },
+  maybe:       { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)', text: '#fbbf24' },
+}
+
+function AvailabilitySection({ matchId, initialPlayers, userId, isUpcoming }) {
+  const [players, setPlayers] = useState(initialPlayers || [])
+  const [saving, setSaving] = useState(false)
+  const [open, setOpen]     = useState(false)
+
+  useEffect(() => { setPlayers(initialPlayers || []) }, [initialPlayers])
+
+  const available   = players.filter(p => p.status === 'available')
+  const unavailable = players.filter(p => p.status === 'unavailable')
+  const maybe       = players.filter(p => p.status === 'maybe')
+  const myStatus    = players.find(p => p.player_id === userId)?.status || null
+
+  function dname(p) { return p.profiles?.nickname || p.profiles?.full_name?.split(' ')[0] || '?' }
+
+  async function setMyAvail(status) {
+    if (saving) return
+    setSaving(true)
+    await supabase.from('match_availability').upsert(
+      { match_id: matchId, player_id: userId, status, responded_at: new Date().toISOString() },
+      { onConflict: 'match_id,player_id' }
+    )
+    setPlayers(prev => {
+      const me = prev.find(p => p.player_id === userId)
+      const rest = prev.filter(p => p.player_id !== userId)
+      return [...rest, { ...(me || { player_id: userId, profiles: null }), status }]
+    })
+    setSaving(false)
+  }
+
+  if (!isUpcoming) {
+    // Past match: show who was there, collapsible
+    if (available.length === 0) return null
+    return (
+      <div className="border-t" style={{ borderColor: 'var(--color-border)' }}>
+        <button onClick={() => setOpen(o => !o)}
+          className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+          style={{ color: 'var(--color-text-muted)' }}>
+          <span className="flex items-center gap-1.5">
+            <Users size={12} />
+            {available.length} aanwezig
+          </span>
+          {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </button>
+        {open && (
+          <div className="px-3 pb-3 flex flex-wrap gap-1">
+            {available.map((p, i) => (
+              <span key={i} className="text-xs px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: STATUS_COLORS.available.bg, color: STATUS_COLORS.available.text }}>
+                {dname(p)}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Upcoming match: my status buttons + counts, expandable player list
+  const myColors = myStatus ? STATUS_COLORS[myStatus] : null
+  const myLabel  = myStatus === 'available' ? 'Beschikbaar' : myStatus === 'unavailable' ? 'Niet beschikbaar' : myStatus === 'maybe' ? 'Misschien' : 'Jouw opgave'
+
+  return (
+    <div className="border-t" style={{ borderColor: 'var(--color-border)' }}>
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+        style={{ color: 'var(--color-text-muted)' }}>
+        <span className="flex items-center gap-2">
+          <Users size={12} />
+          <span style={{ color: myColors?.text || 'var(--color-text-muted)' }}>{myLabel}</span>
+          <span>• {available.length}✓ {unavailable.length}✗ {maybe.length}?</span>
+        </span>
+        {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+
+      {open && (
+        <div className="px-3 pb-3 space-y-2">
+          <div className="flex gap-1.5">
+            {[
+              { status: 'available',   label: 'Beschikbaar' },
+              { status: 'unavailable', label: 'Niet' },
+              { status: 'maybe',       label: 'Misschien' },
+            ].map(({ status, label }) => {
+              const c = STATUS_COLORS[status]
+              const active = myStatus === status
+              return (
+                <button key={status} onClick={() => setMyAvail(status)} disabled={saving}
+                  className="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50"
+                  style={{ backgroundColor: active ? c.bg : 'transparent', borderColor: active ? c.border : 'var(--color-border)', color: active ? c.text : 'var(--color-text-muted)' }}>
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          {players.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {[...available, ...maybe, ...unavailable].map((p, i) => (
+                <span key={i} className="text-xs px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: STATUS_COLORS[p.status].bg, color: STATUS_COLORS[p.status].text }}>
+                  {dname(p)}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // --- Match card for programma/overzicht ---
-function MatchCard({ match, logoMap = {} }) {
+function MatchCard({ match, logoMap = {}, matchId, availability, userId }) {
   const isPlayed = match.score_home !== null && match.score_away !== null
   const homeIsOwn = match.home_team?.is_own_team
   const awayIsOwn = match.away_team?.is_own_team
@@ -244,12 +360,20 @@ function MatchCard({ match, logoMap = {} }) {
           Speelronde {match.matchday}
         </p>
       )}
+      {matchId && userId && (
+        <AvailabilitySection
+          matchId={matchId}
+          initialPlayers={availability?.players || []}
+          userId={userId}
+          isUpcoming
+        />
+      )}
     </div>
   )
 }
 
 // --- Result card for uitslagen tab (includes goal section for own matches) ---
-function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {} }) {
+function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {}, availability, userId }) {
   const homeIsOwn = match.home_team?.is_own_team
   const awayIsOwn = match.away_team?.is_own_team
   const isOwnMatch = homeIsOwn || awayIsOwn
@@ -287,11 +411,19 @@ function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {} }) {
           isAdmin={isAdmin}
         />
       )}
+      {isOwnMatch && matchId && userId && (
+        <AvailabilitySection
+          matchId={matchId}
+          initialPlayers={availability?.players || []}
+          userId={userId}
+          isUpcoming={false}
+        />
+      )}
     </div>
   )
 }
 
-function MatchGroup({ dateStr, matches, resultMode, ownMatchMap, goalsMap, teamMembers, isAdmin, logoMap }) {
+function MatchGroup({ dateStr, matches, resultMode, ownMatchMap, goalsMap, teamMembers, isAdmin, logoMap, availabilityMap, userId }) {
   return (
     <div>
       <p
@@ -311,9 +443,18 @@ function MatchGroup({ dateStr, matches, resultMode, ownMatchMap, goalsMap, teamM
               members={teamMembers}
               isAdmin={isAdmin}
               logoMap={logoMap}
+              availability={availabilityMap?.[ownMatchMap?.[m.id]]}
+              userId={userId}
             />
           ) : (
-            <MatchCard key={m.id} match={m} logoMap={logoMap} />
+            <MatchCard
+              key={m.id}
+              match={m}
+              logoMap={logoMap}
+              matchId={ownMatchMap?.[m.id]}
+              availability={availabilityMap?.[ownMatchMap?.[m.id]]}
+              userId={userId}
+            />
           )
         )}
       </div>
@@ -490,7 +631,7 @@ function MiniStandings({ matches, teams }) {
 
 export default function Matches() {
   const { activeTeam } = useTeamStore()
-  const { isTeamAdmin, isPlatformAdmin } = useAuthStore()
+  const { user, isTeamAdmin, isPlatformAdmin } = useAuthStore()
   const isAdmin = isTeamAdmin(activeTeam?.id) || isPlatformAdmin()
 
   const [activeTab, setActiveTab] = useState('overzicht')
@@ -506,6 +647,8 @@ export default function Matches() {
   const [teamMembers, setTeamMembers] = useState([])
   // leagueTeamId → logo_url
   const [logoMap, setLogoMap] = useState({})
+  // matchId → { players: [{player_id, status, profiles}] }
+  const [availabilityMap, setAvailabilityMap] = useState({})
 
   useEffect(() => {
     if (!activeTeam?.id) return
@@ -567,21 +710,34 @@ export default function Matches() {
     for (const m of ownMatchesRes.data || []) lmMap[m.league_match_id] = m.id
     setOwnMatchMap(lmMap)
 
-    // Load goals for own matches
+    // Load goals + availability for own matches
     const matchIds = (ownMatchesRes.data || []).map(m => m.id)
     if (matchIds.length > 0) {
-      const { data: goalsData } = await supabase
-        .from('goals')
-        .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
-        .in('match_id', matchIds)
-        .order('minute', { ascending: true, nullsFirst: false })
+      const [goalsRes, availRes] = await Promise.all([
+        supabase
+          .from('goals')
+          .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+          .in('match_id', matchIds)
+          .order('minute', { ascending: true, nullsFirst: false }),
+        supabase
+          .from('match_availability')
+          .select('match_id, player_id, status, profiles(full_name, nickname)')
+          .in('match_id', matchIds),
+      ])
 
       const gMap = {}
-      for (const g of goalsData || []) {
+      for (const g of goalsRes.data || []) {
         if (!gMap[g.match_id]) gMap[g.match_id] = []
         gMap[g.match_id].push(g)
       }
       setGoalsMap(gMap)
+
+      const avMap = {}
+      for (const a of availRes.data || []) {
+        if (!avMap[a.match_id]) avMap[a.match_id] = { players: [] }
+        avMap[a.match_id].players.push({ player_id: a.player_id, status: a.status, profiles: a.profiles })
+      }
+      setAvailabilityMap(avMap)
     }
 
     setLoading(false)
@@ -694,7 +850,7 @@ export default function Matches() {
                   Object.entries(overzichtGroups)
                     .sort(([a], [b]) => (a < b ? -1 : 1))
                     .map(([date, group]) => (
-                      <MatchGroup key={date} dateStr={date} matches={group} logoMap={logoMap} />
+                      <MatchGroup key={date} dateStr={date} matches={group} logoMap={logoMap} ownMatchMap={ownMatchMap} availabilityMap={availabilityMap} userId={user?.id} />
                     ))
                 ) : (
                   <div
@@ -776,6 +932,8 @@ export default function Matches() {
                       teamMembers={teamMembers}
                       isAdmin={isAdmin}
                       logoMap={logoMap}
+                      availabilityMap={availabilityMap}
+                      userId={user?.id}
                     />
                   ))
               )}
