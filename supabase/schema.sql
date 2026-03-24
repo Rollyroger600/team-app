@@ -13,7 +13,10 @@ CREATE TABLE IF NOT EXISTS clubs_registry (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name            TEXT NOT NULL,              -- "HC Roomburg"
   short_name      TEXT,                       -- "HCR" (optioneel)
-  address         TEXT,                       -- "Sportlaan 5, 2321 AB Leiden"
+  street_address  TEXT,                       -- "Sportlaan 5"
+  postcode        TEXT,                       -- "2321 AB"
+  city            TEXT,                       -- "Leiden"
+  address         TEXT,                       -- volledig adres (legacy / gecombineerd)
   latitude        DOUBLE PRECISION,           -- geocoded bij aanmaken
   longitude       DOUBLE PRECISION,
   primary_color   TEXT,                       -- optionele clubkleur 1

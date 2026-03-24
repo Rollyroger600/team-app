@@ -48,7 +48,7 @@ export async function searchClubsRegistry(supabase, query) {
   if (!query || query.length < 2) return []
   const { data } = await supabase
     .from('clubs_registry')
-    .select('id, name, short_name, address, latitude, longitude, primary_color, secondary_color, verified')
+    .select('id, name, short_name, street_address, postcode, city, address, latitude, longitude, primary_color, secondary_color, verified')
     .ilike('name', `%${query}%`)
     .order('verified', { ascending: false })
     .order('name')
@@ -60,11 +60,14 @@ export async function searchClubsRegistry(supabase, query) {
  * Add or update a club in the shared registry.
  * Geocodes the address and stores lat/lng for future reuse.
  */
-export async function upsertClubRegistry(supabase, { name, short_name, address, primary_color, secondary_color }) {
+export async function upsertClubRegistry(supabase, { name, short_name, street_address, postcode, city, address, primary_color, secondary_color }) {
+  // Bouw volledig adres op uit losse velden als address niet meegegeven
+  const fullAddress = address || [street_address, postcode, city].filter(Boolean).join(' ')
+
   let lat = null
   let lng = null
-  if (address) {
-    const coords = await geocodeAddress(address)
+  if (fullAddress) {
+    const coords = await geocodeAddress(fullAddress)
     if (coords) { lat = coords.lat; lng = coords.lng }
   }
 
@@ -73,7 +76,10 @@ export async function upsertClubRegistry(supabase, { name, short_name, address, 
     .upsert({
       name,
       short_name: short_name || null,
-      address: address || null,
+      street_address: street_address || null,
+      postcode: postcode || null,
+      city: city || null,
+      address: fullAddress || null,
       latitude: lat,
       longitude: lng,
       primary_color: primary_color || null,
@@ -93,15 +99,16 @@ export async function upsertClubRegistry(supabase, { name, short_name, address, 
 export async function ensureRegistryCoords(supabase, registryId) {
   const { data: club } = await supabase
     .from('clubs_registry')
-    .select('id, address, latitude, longitude')
+    .select('id, street_address, postcode, city, address, latitude, longitude')
     .eq('id', registryId)
     .single()
 
   if (!club || club.latitude) return club  // already has coords
 
-  if (!club.address) return club  // no address to geocode
+  const fullAddress = club.address || [club.street_address, club.postcode, club.city].filter(Boolean).join(' ')
+  if (!fullAddress) return club
 
-  const coords = await geocodeAddress(club.address)
+  const coords = await geocodeAddress(fullAddress)
   if (!coords) return club
 
   await supabase
