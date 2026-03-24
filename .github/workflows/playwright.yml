@@ -25,7 +25,14 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install chromium --with-deps
 
-      - name: Create .env.test
+      - name: Create .env (Vite app config)
+        run: |
+          cat <<EOF > .env
+          VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          EOF
+
+      - name: Create .env.test (Playwright credentials)
         run: |
           cat <<EOF > .env.test
           BASE_URL=http://localhost:5173
