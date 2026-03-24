@@ -229,9 +229,10 @@ CREATE TABLE IF NOT EXISTS goals (
   scorer_id     UUID REFERENCES profiles(id) ON DELETE SET NULL,
   assist_id     UUID REFERENCES profiles(id) ON DELETE SET NULL,
   minute        SMALLINT,
-  is_own_goal   BOOLEAN DEFAULT false,
-  is_penalty    BOOLEAN DEFAULT false,
-  created_at    TIMESTAMPTZ DEFAULT now()
+  is_own_goal          BOOLEAN DEFAULT false,
+  is_penalty           BOOLEAN DEFAULT false,
+  is_penalty_corner    BOOLEAN DEFAULT false,
+  created_at           TIMESTAMPTZ DEFAULT now()
 );
 
 -- ============================================================

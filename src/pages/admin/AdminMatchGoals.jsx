@@ -22,7 +22,7 @@ export default function AdminMatchGoals() {
   const [loading, setLoading] = useState(true)
 
   // Goal form state
-  const [gForm, setGForm] = useState({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false })
+  const [gForm, setGForm] = useState({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false, is_penalty_corner: false })
   const [gSaving, setGSaving] = useState(false)
 
   // Card form state
@@ -38,7 +38,7 @@ export default function AdminMatchGoals() {
         .select('player_id, profiles(full_name, nickname, jersey_number)')
         .eq('match_id', id),
       supabase.from('goals')
-        .select('id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+        .select('id, minute, is_own_goal, is_penalty, is_penalty_corner, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
         .eq('match_id', id)
         .order('minute', { ascending: true, nullsFirst: false }),
       supabase.from('match_cards')
@@ -78,8 +78,9 @@ export default function AdminMatchGoals() {
       minute: gForm.minute ? parseInt(gForm.minute) : null,
       is_own_goal: gForm.is_own_goal,
       is_penalty: gForm.is_penalty,
+      is_penalty_corner: gForm.is_penalty_corner,
     })
-    setGForm({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false })
+    setGForm({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false, is_penalty_corner: false })
     setGSaving(false)
     load()
   }
@@ -177,6 +178,7 @@ export default function AdminMatchGoals() {
                     <span className="text-xs text-slate-400 ml-2">assist: {displayName(g.assist)}</span>
                   )}
                   {g.is_penalty && <span className="text-xs text-amber-400 ml-2">strafbal</span>}
+                  {g.is_penalty_corner && <span className="text-xs text-blue-400 ml-2">strafcorner</span>}
                 </div>
                 <button onClick={() => deleteGoal(g.id)}
                         className="text-slate-600 hover:text-red-400 transition-colors p-1 flex-shrink-0">
@@ -221,7 +223,7 @@ export default function AdminMatchGoals() {
             ))}
           </select>
 
-          <div className="flex gap-3 text-sm">
+          <div className="flex gap-3 text-sm flex-wrap">
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" checked={gForm.is_own_goal}
                      onChange={e => setGForm(p => ({ ...p, is_own_goal: e.target.checked }))}
@@ -233,6 +235,12 @@ export default function AdminMatchGoals() {
                      onChange={e => setGForm(p => ({ ...p, is_penalty: e.target.checked }))}
                      className="accent-amber-400" />
               Strafbal
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={gForm.is_penalty_corner}
+                     onChange={e => setGForm(p => ({ ...p, is_penalty_corner: e.target.checked }))}
+                     className="accent-amber-400" />
+              Strafcorner
             </label>
           </div>
 

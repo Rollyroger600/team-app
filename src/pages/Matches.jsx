@@ -61,7 +61,7 @@ function TeamLogo({ url, name }) {
 function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
   const [open, setOpen] = useState(false)
   const [goals, setGoals] = useState(initialGoals)
-  const [form, setForm] = useState({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false })
+  const [form, setForm] = useState({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false, is_penalty_corner: false })
   const [saving, setSaving] = useState(false)
 
   // Keep in sync if parent reloads
@@ -80,11 +80,12 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
         minute: form.minute ? parseInt(form.minute) : null,
         is_own_goal: form.is_own_goal,
         is_penalty: form.is_penalty,
+        is_penalty_corner: form.is_penalty_corner,
       })
-      .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+      .select('id, match_id, minute, is_own_goal, is_penalty, is_penalty_corner, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
       .single()
     if (data) setGoals(prev => [...prev, data].sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999)))
-    setForm({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false })
+    setForm({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false, is_penalty_corner: false })
     setSaving(false)
   }
 
@@ -169,7 +170,7 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
                   <option key={m.player_id} value={m.player_id}>{displayName(m.profiles)}</option>
                 ))}
               </select>
-              <div className="flex gap-3 text-xs">
+              <div className="flex gap-3 text-xs flex-wrap">
                 <label className="flex items-center gap-1 cursor-pointer">
                   <input type="checkbox" checked={form.is_own_goal}
                     onChange={e => setForm(p => ({ ...p, is_own_goal: e.target.checked }))}
@@ -181,6 +182,12 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
                     onChange={e => setForm(p => ({ ...p, is_penalty: e.target.checked }))}
                     className="accent-amber-400" />
                   Strafbal
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" checked={form.is_penalty_corner}
+                    onChange={e => setForm(p => ({ ...p, is_penalty_corner: e.target.checked }))}
+                    className="accent-amber-400" />
+                  Strafcorner
                 </label>
               </div>
               <button
