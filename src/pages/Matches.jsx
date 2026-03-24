@@ -303,6 +303,27 @@ function MatchGroup({ dateStr, matches, resultMode, ownMatchMap, goalsMap, teamM
   )
 }
 
+function FilterToggle({ ownOnly, onChange }) {
+  return (
+    <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: 'var(--color-border)' }}>
+      <button
+        onClick={() => onChange(true)}
+        className="flex-1 py-2 text-sm font-medium transition-colors"
+        style={{ backgroundColor: ownOnly ? 'var(--color-secondary)' : 'var(--color-surface)', color: ownOnly ? '#0f172a' : 'var(--color-text-muted)' }}
+      >
+        Eigen team
+      </button>
+      <button
+        onClick={() => onChange(false)}
+        className="flex-1 py-2 text-sm font-medium transition-colors"
+        style={{ backgroundColor: !ownOnly ? 'var(--color-secondary)' : 'var(--color-surface)', color: !ownOnly ? '#0f172a' : 'var(--color-text-muted)' }}
+      >
+        Hele poule
+      </button>
+    </div>
+  )
+}
+
 function LoadingSkeleton() {
   return (
     <div className="space-y-3 mt-2">
@@ -554,12 +575,23 @@ export default function Matches() {
     return all
   }, [matches, today, ownOnly])
 
+  // Overzicht: next own match (ownOnly) OR 2-week window (alle poule)
   const overzichtMatches = useMemo(() => {
+    if (ownOnly) {
+      const next = upcomingMatches.find(m => m.home_team?.is_own_team || m.away_team?.is_own_team)
+      return next ? [next] : []
+    }
     const twoWeeksOut = new Date()
     twoWeeksOut.setDate(twoWeeksOut.getDate() + 14)
     const twoWeeksStr = twoWeeksOut.toISOString().split('T')[0]
     return matches.filter((m) => m.match_date >= today && m.match_date <= twoWeeksStr)
-  }, [matches, today])
+  }, [matches, upcomingMatches, today, ownOnly])
+
+  // Programma: filtered by ownOnly
+  const programmaMatchesFiltered = useMemo(() => {
+    if (ownOnly) return upcomingMatches.filter(m => m.home_team?.is_own_team || m.away_team?.is_own_team)
+    return upcomingMatches
+  }, [upcomingMatches, ownOnly])
 
   function groupByDate(list) {
     const groups = {}
@@ -570,7 +602,7 @@ export default function Matches() {
     return groups
   }
 
-  const programmaGroups = groupByDate(upcomingMatches)
+  const programmaGroups = groupByDate(programmaMatchesFiltered)
   const uitslagenGroups = groupByDate(resultsMatches)
   const overzichtGroups = groupByDate(overzichtMatches)
 
@@ -624,10 +656,12 @@ export default function Matches() {
         <>
           {/* OVERZICHT TAB */}
           {activeTab === 'overzicht' && (
-            <div className="space-y-5">
+            <div className="space-y-4">
+              <FilterToggle ownOnly={ownOnly} onChange={setOwnOnly} />
+
               <div>
                 <p className="text-sm font-semibold mb-3">
-                  {overzichtMatches.length > 0 ? 'Komende 2 weken' : 'Aankomende wedstrijden'}
+                  {ownOnly ? 'Volgende wedstrijd' : 'Komende 2 weken'}
                 </p>
                 {overzichtMatches.length > 0 ? (
                   Object.entries(overzichtGroups)
@@ -642,7 +676,7 @@ export default function Matches() {
                   >
                     <Calendar size={28} className="mx-auto mb-2 text-slate-600" />
                     <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                      Geen wedstrijden de komende twee weken
+                      {ownOnly ? 'Geen aankomende wedstrijden' : 'Geen wedstrijden de komende twee weken'}
                     </p>
                   </div>
                 )}
@@ -654,10 +688,12 @@ export default function Matches() {
 
           {/* PROGRAMMA TAB */}
           {activeTab === 'programma' && (
-            <div>
-              {upcomingMatches.length === 0 ? (
+            <div className="space-y-4">
+              <FilterToggle ownOnly={ownOnly} onChange={setOwnOnly} />
+
+              {programmaMatchesFiltered.length === 0 ? (
                 <div
-                  className="rounded-xl p-6 border text-center mt-2"
+                  className="rounded-xl p-6 border text-center"
                   style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                 >
                   <Calendar size={32} className="mx-auto mb-2 text-slate-600" />
@@ -687,29 +723,7 @@ export default function Matches() {
           {/* UITSLAGEN TAB */}
           {activeTab === 'uitslagen' && (
             <div>
-              {/* Toggle: Eigen team / Alle */}
-              <div className="flex rounded-xl overflow-hidden border mb-4" style={{ borderColor: 'var(--color-border)' }}>
-                <button
-                  onClick={() => setOwnOnly(true)}
-                  className="flex-1 py-2 text-sm font-medium transition-colors"
-                  style={{
-                    backgroundColor: ownOnly ? 'var(--color-secondary)' : 'var(--color-surface)',
-                    color: ownOnly ? '#0f172a' : 'var(--color-text-muted)',
-                  }}
-                >
-                  Eigen team
-                </button>
-                <button
-                  onClick={() => setOwnOnly(false)}
-                  className="flex-1 py-2 text-sm font-medium transition-colors"
-                  style={{
-                    backgroundColor: !ownOnly ? 'var(--color-secondary)' : 'var(--color-surface)',
-                    color: !ownOnly ? '#0f172a' : 'var(--color-text-muted)',
-                  }}
-                >
-                  Hele poule
-                </button>
-              </div>
+              <FilterToggle ownOnly={ownOnly} onChange={setOwnOnly} />
 
               {resultsMatches.length === 0 ? (
                 <div
