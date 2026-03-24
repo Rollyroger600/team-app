@@ -529,17 +529,16 @@ function TravelTimeCalc({ teamId }) {
       return
     }
 
-    // 2. Uitwedstrijden zonder reistijd ophalen
+    // 2. Alle uitwedstrijden met league_match_id ophalen (ook al berekende — overschrijven)
     const { data: awayMatches } = await supabase
       .from('matches')
       .select('id, opponent, league_match_id')
       .eq('team_id', teamId)
       .eq('is_home', false)
-      .is('travel_duration_minutes', null)
       .not('league_match_id', 'is', null)
 
     if (!awayMatches?.length) {
-      setLog(['Alle uitwedstrijden hebben al een reistijd.'])
+      setLog([{ text: 'Geen uitwedstrijden met competitiekoppeling gevonden.', ok: false }])
       setRunning(false)
       setDone(true)
       return
@@ -579,13 +578,22 @@ function TravelTimeCalc({ teamId }) {
 
       const minutes = await getTravelDuration(homeLat, homeLng, toLat, toLng)
       if (minutes) {
-        await supabase.from('matches').update({ travel_duration_minutes: minutes }).eq('id', match.id)
-        lines.push({ text: `${match.opponent}: ${minutes} min`, ok: true })
+        const { error: saveErr } = await supabase
+          .from('matches')
+          .update({ travel_duration_minutes: minutes })
+          .eq('id', match.id)
+        if (saveErr) {
+          lines.push({ text: `${match.opponent}: ${minutes} min (opslaan mislukt: ${saveErr.message})`, ok: false })
+        } else {
+          lines.push({ text: `${match.opponent}: ${minutes} min ✓`, ok: true })
+        }
       } else {
         lines.push({ text: `${match.opponent}: berekening mislukt`, ok: false })
       }
     }
 
+    const saved = lines.filter(l => l.ok).length
+    lines.push({ text: `Klaar. ${saved}/${lines.length} opgeslagen. Verzameltijden worden bijgewerkt zodra je teruggaat.`, ok: null })
     setLog(lines)
     setRunning(false)
     setDone(true)
@@ -598,7 +606,7 @@ function TravelTimeCalc({ teamId }) {
         <div>
           <p className="text-sm font-semibold">Reistijden berekenen</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-            Berekent via ORS API voor alle uitwedstrijden
+            Berekent en overschrijft reistijden voor alle uitwedstrijden
           </p>
         </div>
         <button
@@ -616,11 +624,14 @@ function TravelTimeCalc({ teamId }) {
         <div className="rounded-lg p-2 text-xs space-y-0.5"
              style={{ backgroundColor: '#0f172a' }}>
           {log.map((line, i) => (
-            <div key={i} className={typeof line === 'string' ? 'text-red-400' : line.ok ? 'text-green-400' : 'text-amber-400'}>
+            <div key={i} className={
+              typeof line === 'string' ? 'text-slate-400' :
+              line.ok === null ? 'text-slate-400 mt-1 border-t pt-1' :
+              line.ok ? 'text-green-400' : 'text-red-400'
+            }>
               {typeof line === 'string' ? line : line.text}
             </div>
           ))}
-          {done && <div className="text-slate-400 mt-1">Klaar.</div>}
         </div>
       )}
     </div>
