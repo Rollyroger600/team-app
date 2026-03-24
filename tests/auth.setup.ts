@@ -12,11 +12,12 @@ async function login(page: any, email: string, password: string) {
   // Step 1: email
   await page.getByPlaceholder('jouw@email.nl').fill(email)
   await page.getByRole('button', { name: 'Doorgaan' }).click()
-  // Step 2: password
+  // Wait for password step (Supabase RPC can be slow on cold start in CI)
+  await page.getByPlaceholder('Jouw wachtwoord').waitFor({ timeout: 20_000 })
   await page.getByPlaceholder('Jouw wachtwoord').fill(password)
   await page.getByRole('button', { name: 'Inloggen' }).click()
   // Wait for redirect to dashboard
-  await expect(page).toHaveURL('/', { timeout: 15_000 })
+  await expect(page).toHaveURL('/', { timeout: 20_000 })
 }
 
 setup('authenticate as admin', async ({ page }) => {
