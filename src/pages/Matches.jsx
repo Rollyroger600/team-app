@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Trophy, Calendar, PlusCircle, ChevronRight } from 'lucide-react'
+import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
@@ -32,6 +32,10 @@ function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
+function displayName(profile) {
+  return profile?.nickname || profile?.full_name?.split(' ')[0] || '?'
+}
+
 function TeamName({ team }) {
   if (!team) return <span style={{ color: 'var(--color-text-muted)' }}>?</span>
   if (team.is_own_team) {
@@ -40,12 +44,155 @@ function TeamName({ team }) {
   return <span>{team.team_name}</span>
 }
 
+// --- Inline goal section for own matches ---
+function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
+  const [open, setOpen] = useState(false)
+  const [goals, setGoals] = useState(initialGoals)
+  const [form, setForm] = useState({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false })
+  const [saving, setSaving] = useState(false)
+
+  // Keep in sync if parent reloads
+  useEffect(() => { setGoals(initialGoals) }, [initialGoals])
+
+  async function addGoal(e) {
+    e.preventDefault()
+    if (!form.scorer_id && !form.is_own_goal) return
+    setSaving(true)
+    const { data } = await supabase
+      .from('goals')
+      .insert({
+        match_id: matchId,
+        scorer_id: form.scorer_id || null,
+        assist_id: form.assist_id || null,
+        minute: form.minute ? parseInt(form.minute) : null,
+        is_own_goal: form.is_own_goal,
+        is_penalty: form.is_penalty,
+      })
+      .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+      .single()
+    if (data) setGoals(prev => [...prev, data].sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999)))
+    setForm({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false })
+    setSaving(false)
+  }
+
+  async function deleteGoal(goalId) {
+    await supabase.from('goals').delete().eq('id', goalId)
+    setGoals(prev => prev.filter(g => g.id !== goalId))
+  }
+
+  const inputStyle = { backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
+
+  return (
+    <div className="border-t" style={{ borderColor: 'var(--color-border)' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+        style={{ color: 'var(--color-text-muted)' }}
+      >
+        <span className="flex items-center gap-1.5">
+          <Target size={12} />
+          {goals.length > 0 ? `${goals.length} doelpunt${goals.length !== 1 ? 'en' : ''}` : isAdmin ? 'Doelpunten invoeren' : 'Geen doelpunten geregistreerd'}
+        </span>
+        {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+
+      {open && (
+        <div className="px-3 pb-3 space-y-2">
+          {goals.length > 0 && (
+            <div className="space-y-1">
+              {goals.map(g => (
+                <div key={g.id} className="flex items-center gap-2 text-xs">
+                  <span className="w-7 text-right flex-shrink-0" style={{ color: 'var(--color-text-muted)' }}>
+                    {g.minute ? `${g.minute}'` : '–'}
+                  </span>
+                  <span className="flex-1">
+                    {g.is_own_goal ? `${displayName(g.scorer)} (eigen doel)` : displayName(g.scorer)}
+                    {g.assist?.full_name && (
+                      <span className="ml-1.5" style={{ color: 'var(--color-text-muted)' }}>assist: {displayName(g.assist)}</span>
+                    )}
+                    {g.is_penalty && <span className="text-amber-400 ml-1.5">strafbal</span>}
+                  </span>
+                  {isAdmin && (
+                    <button onClick={() => deleteGoal(g.id)} className="text-slate-600 hover:text-red-400 transition-colors p-0.5 flex-shrink-0">
+                      <Trash2 size={11} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isAdmin && (
+            <form onSubmit={addGoal} className="space-y-1.5 pt-1 border-t" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="flex gap-1.5 pt-1.5">
+                <select
+                  value={form.scorer_id}
+                  onChange={e => setForm(p => ({ ...p, scorer_id: e.target.value }))}
+                  className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
+                  style={inputStyle}
+                >
+                  <option value="">Schutter...</option>
+                  {members.map(m => (
+                    <option key={m.player_id} value={m.player_id}>{displayName(m.profiles)}</option>
+                  ))}
+                </select>
+                <input
+                  type="number" min="1" max="90"
+                  value={form.minute}
+                  onChange={e => setForm(p => ({ ...p, minute: e.target.value }))}
+                  placeholder="Min"
+                  className="w-14 px-2 py-1.5 rounded-lg text-xs outline-none text-center"
+                  style={inputStyle}
+                />
+              </div>
+              <select
+                value={form.assist_id}
+                onChange={e => setForm(p => ({ ...p, assist_id: e.target.value }))}
+                className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
+                style={inputStyle}
+              >
+                <option value="">Assist (optioneel)...</option>
+                {members.map(m => (
+                  <option key={m.player_id} value={m.player_id}>{displayName(m.profiles)}</option>
+                ))}
+              </select>
+              <div className="flex gap-3 text-xs">
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" checked={form.is_own_goal}
+                    onChange={e => setForm(p => ({ ...p, is_own_goal: e.target.checked }))}
+                    className="accent-amber-400" />
+                  Eigen doel
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" checked={form.is_penalty}
+                    onChange={e => setForm(p => ({ ...p, is_penalty: e.target.checked }))}
+                    className="accent-amber-400" />
+                  Strafbal
+                </label>
+              </div>
+              <button
+                type="submit"
+                disabled={saving || (!form.scorer_id && !form.is_own_goal)}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
+                style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+              >
+                <Plus size={12} />
+                {saving ? 'Opslaan...' : 'Doelpunt toevoegen'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Match card for programma/overzicht ---
 function MatchCard({ match }) {
   const isPlayed = match.score_home !== null && match.score_away !== null
   const homeIsOwn = match.home_team?.is_own_team
   const awayIsOwn = match.away_team?.is_own_team
 
-  // Winner gets slightly brighter text in results
   let homeStyle = {}
   let awayStyle = {}
   if (isPlayed && !homeIsOwn && !awayIsOwn) {
@@ -59,12 +206,9 @@ function MatchCard({ match }) {
       style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}
     >
       <div className="flex items-center gap-2">
-        {/* Home team */}
         <div className="flex-1 text-right text-sm" style={homeIsOwn ? {} : homeStyle}>
           <TeamName team={match.home_team} />
         </div>
-
-        {/* Center: score or time */}
         <div className="flex-shrink-0 w-20 text-center">
           {isPlayed ? (
             <span className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
@@ -76,13 +220,10 @@ function MatchCard({ match }) {
             </span>
           )}
         </div>
-
-        {/* Away team */}
         <div className="flex-1 text-left text-sm" style={awayIsOwn ? {} : awayStyle}>
           <TeamName team={match.away_team} />
         </div>
       </div>
-
       {match.matchday && (
         <p className="text-center text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
           Speelronde {match.matchday}
@@ -92,7 +233,48 @@ function MatchCard({ match }) {
   )
 }
 
-function MatchGroup({ dateStr, matches }) {
+// --- Result card for uitslagen tab (includes goal section for own matches) ---
+function ResultCard({ match, matchId, goals, members, isAdmin }) {
+  const homeIsOwn = match.home_team?.is_own_team
+  const awayIsOwn = match.away_team?.is_own_team
+  const isOwnMatch = homeIsOwn || awayIsOwn
+
+  return (
+    <div
+      className="rounded-xl border overflow-hidden"
+      style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}
+    >
+      <div className="flex items-center gap-2 px-3 py-3">
+        <div className="flex-1 text-right text-sm">
+          <TeamName team={match.home_team} />
+        </div>
+        <div className="flex-shrink-0 w-20 text-center">
+          <span className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
+            {match.score_home}–{match.score_away}
+          </span>
+        </div>
+        <div className="flex-1 text-left text-sm">
+          <TeamName team={match.away_team} />
+        </div>
+      </div>
+      {match.matchday && (
+        <p className="text-center text-xs pb-2" style={{ color: 'var(--color-text-muted)' }}>
+          Speelronde {match.matchday}
+        </p>
+      )}
+      {isOwnMatch && matchId && (
+        <GoalSection
+          matchId={matchId}
+          goals={goals || []}
+          members={members}
+          isAdmin={isAdmin}
+        />
+      )}
+    </div>
+  )
+}
+
+function MatchGroup({ dateStr, matches, resultMode, ownMatchMap, goalsMap, teamMembers, isAdmin }) {
   return (
     <div>
       <p
@@ -102,9 +284,20 @@ function MatchGroup({ dateStr, matches }) {
         {capitalize(formatMatchDate(dateStr))}
       </p>
       <div className="space-y-2">
-        {matches.map((m) => (
-          <MatchCard key={m.id} match={m} />
-        ))}
+        {matches.map((m) =>
+          resultMode ? (
+            <ResultCard
+              key={m.id}
+              match={m}
+              matchId={ownMatchMap[m.id]}
+              goals={goalsMap[ownMatchMap[m.id]] || []}
+              members={teamMembers}
+              isAdmin={isAdmin}
+            />
+          ) : (
+            <MatchCard key={m.id} match={m} />
+          )
+        )}
       </div>
     </div>
   )
@@ -258,14 +451,20 @@ function MiniStandings({ matches, teams }) {
 
 export default function Matches() {
   const { activeTeam } = useTeamStore()
-  const { isTeamAdmin } = useAuthStore()
-  const isAdmin = isTeamAdmin(activeTeam?.id)
+  const { isTeamAdmin, isPlatformAdmin } = useAuthStore()
+  const isAdmin = isTeamAdmin(activeTeam?.id) || isPlatformAdmin()
 
   const [activeTab, setActiveTab] = useState('overzicht')
+  const [ownOnly, setOwnOnly] = useState(true)
   const [loading, setLoading] = useState(true)
   const [league, setLeague] = useState(null)
   const [leagueTeams, setLeagueTeams] = useState([])
   const [matches, setMatches] = useState([])
+  // leagueMatchId → matchId (from the `matches` table)
+  const [ownMatchMap, setOwnMatchMap] = useState({})
+  // matchId → goals[]
+  const [goalsMap, setGoalsMap] = useState({})
+  const [teamMembers, setTeamMembers] = useState([])
 
   useEffect(() => {
     if (!activeTeam?.id) return
@@ -291,20 +490,52 @@ export default function Matches() {
 
     setLeague(leagueData)
 
-    const [teamsRes, matchesRes] = await Promise.all([
+    const [teamsRes, matchesRes, ownMatchesRes, membersRes] = await Promise.all([
       supabase.from('league_teams').select('*').eq('league_id', leagueData.id),
       supabase
         .from('league_matches')
-        .select(
-          '*, home_team:home_team_id(id,team_name,is_own_team), away_team:away_team_id(id,team_name,is_own_team)'
-        )
+        .select('*, home_team:home_team_id(id,team_name,is_own_team), away_team:away_team_id(id,team_name,is_own_team)')
         .eq('league_id', leagueData.id)
         .order('match_date', { ascending: true })
         .order('match_time', { ascending: true, nullsFirst: false }),
+      supabase
+        .from('matches')
+        .select('id, league_match_id')
+        .eq('team_id', activeTeam.id)
+        .not('league_match_id', 'is', null),
+      supabase
+        .from('team_memberships')
+        .select('player_id, profiles(full_name, nickname)')
+        .eq('team_id', activeTeam.id)
+        .eq('active', true),
     ])
 
     setLeagueTeams(teamsRes.data || [])
     setMatches(matchesRes.data || [])
+    setTeamMembers(membersRes.data || [])
+
+    // Build leagueMatchId → matchId map
+    const lmMap = {}
+    for (const m of ownMatchesRes.data || []) lmMap[m.league_match_id] = m.id
+    setOwnMatchMap(lmMap)
+
+    // Load goals for own matches
+    const matchIds = (ownMatchesRes.data || []).map(m => m.id)
+    if (matchIds.length > 0) {
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+        .in('match_id', matchIds)
+        .order('minute', { ascending: true, nullsFirst: false })
+
+      const gMap = {}
+      for (const g of goalsData || []) {
+        if (!gMap[g.match_id]) gMap[g.match_id] = []
+        gMap[g.match_id].push(g)
+      }
+      setGoalsMap(gMap)
+    }
+
     setLoading(false)
   }
 
@@ -315,13 +546,13 @@ export default function Matches() {
     [matches, today]
   )
 
-  const resultsMatches = useMemo(
-    () =>
-      matches
-        .filter((m) => m.match_date < today && m.score_home !== null)
-        .sort((a, b) => (a.match_date < b.match_date ? 1 : -1)),
-    [matches, today]
-  )
+  const resultsMatches = useMemo(() => {
+    const all = matches
+      .filter((m) => m.match_date < today && m.score_home !== null)
+      .sort((a, b) => (a.match_date < b.match_date ? 1 : -1))
+    if (ownOnly) return all.filter(m => m.home_team?.is_own_team || m.away_team?.is_own_team)
+    return all
+  }, [matches, today, ownOnly])
 
   const overzichtMatches = useMemo(() => {
     const twoWeeksOut = new Date()
@@ -456,6 +687,30 @@ export default function Matches() {
           {/* UITSLAGEN TAB */}
           {activeTab === 'uitslagen' && (
             <div>
+              {/* Toggle: Eigen team / Alle */}
+              <div className="flex rounded-xl overflow-hidden border mb-4" style={{ borderColor: 'var(--color-border)' }}>
+                <button
+                  onClick={() => setOwnOnly(true)}
+                  className="flex-1 py-2 text-sm font-medium transition-colors"
+                  style={{
+                    backgroundColor: ownOnly ? 'var(--color-secondary)' : 'var(--color-surface)',
+                    color: ownOnly ? '#0f172a' : 'var(--color-text-muted)',
+                  }}
+                >
+                  Eigen team
+                </button>
+                <button
+                  onClick={() => setOwnOnly(false)}
+                  className="flex-1 py-2 text-sm font-medium transition-colors"
+                  style={{
+                    backgroundColor: !ownOnly ? 'var(--color-secondary)' : 'var(--color-surface)',
+                    color: !ownOnly ? '#0f172a' : 'var(--color-text-muted)',
+                  }}
+                >
+                  Hele poule
+                </button>
+              </div>
+
               {resultsMatches.length === 0 ? (
                 <div
                   className="rounded-xl p-6 border text-center mt-2"
@@ -463,14 +718,23 @@ export default function Matches() {
                 >
                   <Trophy size={32} className="mx-auto mb-2 text-slate-600" />
                   <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                    Nog geen uitslagen beschikbaar
+                    {ownOnly ? 'Geen eigen uitslagen beschikbaar' : 'Nog geen uitslagen beschikbaar'}
                   </p>
                 </div>
               ) : (
                 Object.entries(uitslagenGroups)
                   .sort(([a], [b]) => (a > b ? -1 : 1))
                   .map(([date, group]) => (
-                    <MatchGroup key={date} dateStr={date} matches={group} />
+                    <MatchGroup
+                      key={date}
+                      dateStr={date}
+                      matches={group}
+                      resultMode
+                      ownMatchMap={ownMatchMap}
+                      goalsMap={goalsMap}
+                      teamMembers={teamMembers}
+                      isAdmin={isAdmin}
+                    />
                   ))
               )}
             </div>
