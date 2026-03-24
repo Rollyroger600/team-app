@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle, XCircle, HelpCircle, Settings, ChevronDown, ChevronUp } from 'lucide-react'
+import { CheckCircle, XCircle, HelpCircle, Settings, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
@@ -25,7 +25,8 @@ function AvailabilityDot({ status }) {
 }
 
 export default function More() {
-  const { user } = useAuthStore()
+  const { user, isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
+  const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
   const { activeTeam } = useTeamStore()
   const [matches, setMatches] = useState([])
   const [members, setMembers] = useState([])           // alle teamleden
@@ -133,13 +134,24 @@ export default function More() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between pt-2">
         <h1 className="text-2xl font-bold">Beschikbaarheid</h1>
-        <Link to="/settings"
-          className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-slate-500"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
-          title="Instellingen"
-        >
-          <Settings size={16} />
-        </Link>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link to="/admin"
+              className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-amber-500/40 hover:text-amber-400"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+              title="Admin"
+            >
+              <ShieldCheck size={16} />
+            </Link>
+          )}
+          <Link to="/settings"
+            className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-slate-500"
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+            title="Instellingen"
+          >
+            <Settings size={16} />
+          </Link>
+        </div>
       </div>
 
       {loading ? (
