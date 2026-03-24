@@ -243,7 +243,7 @@ export default function AdminLeagueResults() {
           <Trophy size={40} className="mx-auto mb-3 text-slate-600" />
           <p className="font-medium mb-1">Nog geen wedstrijden</p>
           <p className="text-sm text-slate-400 mb-4">Voer eerst het wedstrijdprogramma in.</p>
-          <Link to="/admin/league/matches" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}>
+          <Link to="/admin/league/matches" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}>
             Wedstrijden invoeren
           </Link>
         </div>

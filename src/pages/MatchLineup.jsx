@@ -165,7 +165,7 @@ export default function MatchLineup() {
             onClick={handleSave}
             disabled={saving}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-50 transition-colors"
-            style={{ backgroundColor: saved ? '#10b981' : 'var(--color-secondary)', color: '#0f172a' }}
+            style={{ backgroundColor: saved ? '#10b981' : 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
           >
             <Save size={14} />
             {saving ? 'Opslaan...' : saved ? 'Opgeslagen' : 'Opslaan'}
@@ -185,7 +185,7 @@ export default function MatchLineup() {
             <Link
               to={`/admin/matches/${id}/roster`}
               className="inline-block mt-3 px-4 py-2 rounded-xl text-sm font-semibold"
-              style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+              style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
             >
               Selectie instellen
             </Link>

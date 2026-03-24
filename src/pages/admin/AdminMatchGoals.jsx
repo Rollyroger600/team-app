@@ -238,7 +238,7 @@ export default function AdminMatchGoals() {
 
           <button type="submit" disabled={gSaving || (!gForm.scorer_id && !gForm.is_own_goal)}
                   className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
-                  style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}>
+                  style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}>
             <Plus size={14} />
             {gSaving ? 'Opslaan...' : 'Doelpunt toevoegen'}
           </button>

@@ -97,7 +97,7 @@ export default function AdminPlayers() {
         <button
           onClick={() => { setShowInvite(v => !v); setInviteResult(null) }}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold"
-          style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
         >
           <UserPlus size={16} />
           Uitnodigen
@@ -153,7 +153,7 @@ export default function AdminPlayers() {
               type="submit"
               disabled={inviting}
               className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
-              style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+              style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
             >
               {inviting ? 'Versturen...' : 'Uitnodiging versturen'}
             </button>

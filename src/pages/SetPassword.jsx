@@ -125,7 +125,7 @@ export default function SetPassword() {
               type="submit"
               disabled={loading || !password || !confirmPassword}
               className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+              style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
             >
               {loading ? 'Bezig...' : 'Wachtwoord instellen'}
             </button>

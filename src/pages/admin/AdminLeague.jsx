@@ -105,7 +105,7 @@ function CreateLeagueForm({ teamId, onCreated }) {
           type="submit"
           disabled={saving || !name.trim()}
           className="w-full py-3 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
         >
           {saving ? 'Aanmaken...' : 'Poule aanmaken'}
         </button>
@@ -416,7 +416,7 @@ function AddTeamForm({ leagueId, onAdded }) {
               type="submit"
               disabled={saving}
               className="w-full py-2.5 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+              style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
             >
               {saving ? 'Toevoegen...' : 'Team toevoegen'}
             </button>
@@ -619,7 +619,7 @@ function TravelTimeCalc({ teamId }) {
           onClick={calculate}
           disabled={running}
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors"
-          style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
         >
           <Car size={14} />
           {running ? 'Bezig...' : 'Bereken'}

@@ -108,7 +108,7 @@ export default function Settings() {
             onClick={handleSave}
             disabled={saving}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50"
-            style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+            style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
           >
             <Save size={15} />
             {saving ? 'Opslaan...' : 'Opslaan'}

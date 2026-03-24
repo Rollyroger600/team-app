@@ -82,7 +82,7 @@ export default function AdminAnnouncements() {
           type="submit"
           disabled={saving || !form.body.trim()}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
         >
           <Send size={16} />
           {saving ? 'Versturen...' : 'Bericht versturen'}

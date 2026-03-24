@@ -44,6 +44,19 @@ function TeamName({ team }) {
   return <span>{team.team_name}</span>
 }
 
+function TeamLogo({ url, name }) {
+  if (!url) return null
+  return (
+    <img
+      src={url}
+      alt={name || ''}
+      className="rounded-full object-contain flex-shrink-0"
+      style={{ width: 22, height: 22, backgroundColor: 'var(--color-surface)' }}
+      onError={e => { e.target.style.display = 'none' }}
+    />
+  )
+}
+
 // --- Inline goal section for own matches ---
 function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
   const [open, setOpen] = useState(false)
@@ -174,7 +187,7 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
                 type="submit"
                 disabled={saving || (!form.scorer_id && !form.is_own_goal)}
                 className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
-                style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+                style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
               >
                 <Plus size={12} />
                 {saving ? 'Opslaan...' : 'Doelpunt toevoegen'}
@@ -188,7 +201,7 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
 }
 
 // --- Match card for programma/overzicht ---
-function MatchCard({ match }) {
+function MatchCard({ match, logoMap = {} }) {
   const isPlayed = match.score_home !== null && match.score_away !== null
   const homeIsOwn = match.home_team?.is_own_team
   const awayIsOwn = match.away_team?.is_own_team
@@ -206,10 +219,11 @@ function MatchCard({ match }) {
       style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}
     >
       <div className="flex items-center gap-2">
-        <div className="flex-1 text-right text-sm" style={homeIsOwn ? {} : homeStyle}>
+        <div className="flex-1 flex items-center justify-end gap-1.5 text-sm" style={homeIsOwn ? {} : homeStyle}>
           <TeamName team={match.home_team} />
+          <TeamLogo url={logoMap[match.home_team?.id]} name={match.home_team?.team_name} />
         </div>
-        <div className="flex-shrink-0 w-20 text-center">
+        <div className="flex-shrink-0 w-16 text-center">
           {isPlayed ? (
             <span className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
               {match.score_home}–{match.score_away}
@@ -220,7 +234,8 @@ function MatchCard({ match }) {
             </span>
           )}
         </div>
-        <div className="flex-1 text-left text-sm" style={awayIsOwn ? {} : awayStyle}>
+        <div className="flex-1 flex items-center gap-1.5 text-sm" style={awayIsOwn ? {} : awayStyle}>
+          <TeamLogo url={logoMap[match.away_team?.id]} name={match.away_team?.team_name} />
           <TeamName team={match.away_team} />
         </div>
       </div>
@@ -234,7 +249,7 @@ function MatchCard({ match }) {
 }
 
 // --- Result card for uitslagen tab (includes goal section for own matches) ---
-function ResultCard({ match, matchId, goals, members, isAdmin }) {
+function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {} }) {
   const homeIsOwn = match.home_team?.is_own_team
   const awayIsOwn = match.away_team?.is_own_team
   const isOwnMatch = homeIsOwn || awayIsOwn
@@ -245,15 +260,17 @@ function ResultCard({ match, matchId, goals, members, isAdmin }) {
       style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}
     >
       <div className="flex items-center gap-2 px-3 py-3">
-        <div className="flex-1 text-right text-sm">
+        <div className="flex-1 flex items-center justify-end gap-1.5 text-sm">
           <TeamName team={match.home_team} />
+          <TeamLogo url={logoMap[match.home_team?.id]} name={match.home_team?.team_name} />
         </div>
-        <div className="flex-shrink-0 w-20 text-center">
+        <div className="flex-shrink-0 w-16 text-center">
           <span className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
             {match.score_home}–{match.score_away}
           </span>
         </div>
-        <div className="flex-1 text-left text-sm">
+        <div className="flex-1 flex items-center gap-1.5 text-sm">
+          <TeamLogo url={logoMap[match.away_team?.id]} name={match.away_team?.team_name} />
           <TeamName team={match.away_team} />
         </div>
       </div>
@@ -274,7 +291,7 @@ function ResultCard({ match, matchId, goals, members, isAdmin }) {
   )
 }
 
-function MatchGroup({ dateStr, matches, resultMode, ownMatchMap, goalsMap, teamMembers, isAdmin }) {
+function MatchGroup({ dateStr, matches, resultMode, ownMatchMap, goalsMap, teamMembers, isAdmin, logoMap }) {
   return (
     <div>
       <p
@@ -293,9 +310,10 @@ function MatchGroup({ dateStr, matches, resultMode, ownMatchMap, goalsMap, teamM
               goals={goalsMap[ownMatchMap[m.id]] || []}
               members={teamMembers}
               isAdmin={isAdmin}
+              logoMap={logoMap}
             />
           ) : (
-            <MatchCard key={m.id} match={m} />
+            <MatchCard key={m.id} match={m} logoMap={logoMap} />
           )
         )}
       </div>
@@ -309,14 +327,14 @@ function FilterToggle({ ownOnly, onChange }) {
       <button
         onClick={() => onChange(true)}
         className="flex-1 py-2 text-sm font-medium transition-colors"
-        style={{ backgroundColor: ownOnly ? 'var(--color-secondary)' : 'var(--color-surface)', color: ownOnly ? '#0f172a' : 'var(--color-text-muted)' }}
+        style={{ backgroundColor: ownOnly ? 'var(--color-secondary)' : 'var(--color-surface)', color: ownOnly ? 'var(--color-secondary-text)' : 'var(--color-text-muted)' }}
       >
         Eigen team
       </button>
       <button
         onClick={() => onChange(false)}
         className="flex-1 py-2 text-sm font-medium transition-colors"
-        style={{ backgroundColor: !ownOnly ? 'var(--color-secondary)' : 'var(--color-surface)', color: !ownOnly ? '#0f172a' : 'var(--color-text-muted)' }}
+        style={{ backgroundColor: !ownOnly ? 'var(--color-secondary)' : 'var(--color-surface)', color: !ownOnly ? 'var(--color-secondary-text)' : 'var(--color-text-muted)' }}
       >
         Hele poule
       </button>
@@ -353,7 +371,7 @@ function EmptyNoLeague({ isAdmin }) {
         <Link
           to="/admin/league"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-          style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
         >
           <PlusCircle size={16} />
           Poule aanmaken
@@ -486,6 +504,8 @@ export default function Matches() {
   // matchId → goals[]
   const [goalsMap, setGoalsMap] = useState({})
   const [teamMembers, setTeamMembers] = useState([])
+  // leagueTeamId → logo_url
+  const [logoMap, setLogoMap] = useState({})
 
   useEffect(() => {
     if (!activeTeam?.id) return
@@ -512,7 +532,7 @@ export default function Matches() {
     setLeague(leagueData)
 
     const [teamsRes, matchesRes, ownMatchesRes, membersRes] = await Promise.all([
-      supabase.from('league_teams').select('*').eq('league_id', leagueData.id),
+      supabase.from('league_teams').select('id, team_name, is_own_team, registry_id, clubs_registry(logo_url)').eq('league_id', leagueData.id),
       supabase
         .from('league_matches')
         .select('*, home_team:home_team_id(id,team_name,is_own_team), away_team:away_team_id(id,team_name,is_own_team)')
@@ -534,6 +554,13 @@ export default function Matches() {
     setLeagueTeams(teamsRes.data || [])
     setMatches(matchesRes.data || [])
     setTeamMembers(membersRes.data || [])
+
+    // Build logoMap: leagueTeamId → logo_url
+    const lMap = {}
+    for (const t of teamsRes.data || []) {
+      if (t.clubs_registry?.logo_url) lMap[t.id] = t.clubs_registry.logo_url
+    }
+    setLogoMap(lMap)
 
     // Build leagueMatchId → matchId map
     const lmMap = {}
@@ -667,7 +694,7 @@ export default function Matches() {
                   Object.entries(overzichtGroups)
                     .sort(([a], [b]) => (a < b ? -1 : 1))
                     .map(([date, group]) => (
-                      <MatchGroup key={date} dateStr={date} matches={group} />
+                      <MatchGroup key={date} dateStr={date} matches={group} logoMap={logoMap} />
                     ))
                 ) : (
                   <div
@@ -714,7 +741,7 @@ export default function Matches() {
                 Object.entries(programmaGroups)
                   .sort(([a], [b]) => (a < b ? -1 : 1))
                   .map(([date, group]) => (
-                    <MatchGroup key={date} dateStr={date} matches={group} />
+                    <MatchGroup key={date} dateStr={date} matches={group} logoMap={logoMap} />
                   ))
               )}
             </div>
@@ -748,6 +775,7 @@ export default function Matches() {
                       goalsMap={goalsMap}
                       teamMembers={teamMembers}
                       isAdmin={isAdmin}
+                      logoMap={logoMap}
                     />
                   ))
               )}
@@ -761,7 +789,7 @@ export default function Matches() {
         <Link
           to="/admin/league/matches"
           className="fixed bottom-20 right-4 flex items-center gap-2 px-4 py-3 rounded-full shadow-lg text-sm font-semibold z-10"
-          style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
         >
           <PlusCircle size={18} />
           Wedstrijd

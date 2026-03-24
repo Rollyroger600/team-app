@@ -99,7 +99,7 @@ export default function ResetPassword() {
                 type="submit"
                 disabled={loading || !email.trim()}
                 className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+                style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
               >
                 {loading ? 'Bezig...' : 'Reset-link versturen'}
               </button>

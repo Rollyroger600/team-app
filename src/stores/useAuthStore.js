@@ -34,7 +34,7 @@ const useAuthStore = create((set, get) => ({
 
     const { data: memberships } = await supabase
       .from('team_memberships')
-      .select('*, teams(*, clubs(*))')
+      .select('*, teams(*, clubs(*, clubs_registry(primary_color, secondary_color, logo_url)))')
       .eq('player_id', user.id)
 
     set({ profile, memberships: memberships || [] })

@@ -27,7 +27,7 @@ const useTeamStore = create((set, get) => ({
   refreshTeam: async (teamId) => {
     const { data: team } = await supabase
       .from('teams')
-      .select('*, clubs(*)')
+      .select('*, clubs(*, clubs_registry(primary_color, secondary_color, logo_url))')
       .eq('id', teamId)
       .single()
 

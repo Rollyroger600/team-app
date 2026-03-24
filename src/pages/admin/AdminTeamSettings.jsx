@@ -130,7 +130,7 @@ export default function AdminTeamSettings() {
           type="submit"
           disabled={saving}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}
+          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
         >
           <Save size={16} />
           {saving ? 'Opslaan...' : 'Instellingen opslaan'}

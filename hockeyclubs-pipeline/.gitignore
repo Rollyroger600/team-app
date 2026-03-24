@@ -1,0 +1,8 @@
+.env
+logos/
+check/
+data/club_logo_mapping.json
+data/club_kleuren.json
+data/*_verrijkt.xlsx
+__pycache__/
+*.pyc

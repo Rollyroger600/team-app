@@ -257,7 +257,7 @@ export default function AdminLeagueMatches() {
         <div className="rounded-xl p-8 border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
           <Calendar size={40} className="mx-auto mb-3 text-slate-600" />
           <p className="font-medium mb-2">Geen competitie aangemaakt</p>
-          <Link to="/admin/league" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium mt-4" style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}>
+          <Link to="/admin/league" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium mt-4" style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}>
             Naar competitie-instellingen
           </Link>
         </div>
@@ -357,7 +357,7 @@ export default function AdminLeagueMatches() {
       ) : (
         <button onClick={handleSave} disabled={saving}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-secondary)', color: '#0f172a' }}>
+          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}>
           <Save size={16} />{saving ? 'Opslaan...' : `Speelronde ${matchday} opslaan`}
         </button>
       )}
