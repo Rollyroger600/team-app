@@ -58,7 +58,7 @@ function TeamLogo({ url, name }) {
 }
 
 // --- Inline goal section for own matches ---
-function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
+function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals }) {
   const [open, setOpen] = useState(false)
   const [goals, setGoals] = useState(initialGoals)
   const [form, setForm] = useState({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false, is_penalty_corner: false })
@@ -66,6 +66,8 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
 
   // Keep in sync if parent reloads
   useEffect(() => { setGoals(initialGoals) }, [initialGoals])
+
+  const atMax = maxGoals != null && goals.length >= maxGoals
 
   async function addGoal(e) {
     e.preventDefault()
@@ -105,7 +107,14 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
       >
         <span className="flex items-center gap-1.5">
           <Target size={12} />
-          {goals.length > 0 ? `${goals.length} doelpunt${goals.length !== 1 ? 'en' : ''}` : isAdmin ? 'Doelpunten invoeren' : 'Geen doelpunten geregistreerd'}
+          {maxGoals != null
+            ? <span style={{ color: goals.length < maxGoals ? 'var(--color-unavailable)' : 'var(--color-available)' }}>
+                {goals.length}/{maxGoals} doelpunten ingevoerd
+              </span>
+            : goals.length > 0
+              ? `${goals.length} doelpunt${goals.length !== 1 ? 'en' : ''}`
+              : isAdmin ? 'Doelpunten invoeren' : 'Geen doelpunten geregistreerd'
+          }
         </span>
         {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </button>
@@ -125,6 +134,7 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
                       <span className="ml-1.5" style={{ color: 'var(--color-text-muted)' }}>assist: {displayName(g.assist)}</span>
                     )}
                     {g.is_penalty && <span className="text-amber-400 ml-1.5">strafbal</span>}
+                    {g.is_penalty_corner && <span className="text-blue-400 ml-1.5">strafcorner</span>}
                   </span>
                   {isAdmin && (
                     <button onClick={() => deleteGoal(g.id)} className="text-slate-600 hover:text-red-400 transition-colors p-0.5 flex-shrink-0">
@@ -190,15 +200,21 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin }) {
                   Strafcorner
                 </label>
               </div>
-              <button
-                type="submit"
-                disabled={saving || (!form.scorer_id && !form.is_own_goal)}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
-                style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
-              >
-                <Plus size={12} />
-                {saving ? 'Opslaan...' : 'Doelpunt toevoegen'}
-              </button>
+              {atMax ? (
+                <p className="text-xs text-center py-1" style={{ color: 'var(--color-available)' }}>
+                  Alle {maxGoals} doelpunten ingevoerd ✓
+                </p>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={saving || (!form.scorer_id && !form.is_own_goal)}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+                >
+                  <Plus size={12} />
+                  {saving ? 'Opslaan...' : maxGoals != null ? `Doelpunt toevoegen (${goals.length}/${maxGoals})` : 'Doelpunt toevoegen'}
+                </button>
+              )}
             </form>
           )}
         </div>
@@ -385,10 +401,20 @@ function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {}, ava
   const awayIsOwn = match.away_team?.is_own_team
   const isOwnMatch = homeIsOwn || awayIsOwn
 
+  // Score van ons team
+  const ourScore = isOwnMatch
+    ? (homeIsOwn ? match.score_home : match.score_away)
+    : null
+  const goalsCount = (goals || []).length
+  const incomplete = isAdmin && isOwnMatch && matchId && ourScore != null && ourScore > 0 && goalsCount < ourScore
+
   return (
     <div
       className="rounded-xl border overflow-hidden"
-      style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}
+      style={{
+        backgroundColor: 'var(--color-surface-2)',
+        borderColor: incomplete ? 'var(--color-unavailable)' : 'var(--color-border)',
+      }}
     >
       <div className="flex items-center gap-2 px-3 py-3">
         <div className="flex-1 flex items-center justify-end gap-1.5 text-sm">
@@ -416,6 +442,7 @@ function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {}, ava
           goals={goals || []}
           members={members}
           isAdmin={isAdmin}
+          maxGoals={ourScore}
         />
       )}
       {isOwnMatch && matchId && userId && (

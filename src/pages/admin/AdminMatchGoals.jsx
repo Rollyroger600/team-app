@@ -148,9 +148,18 @@ export default function AdminMatchGoals() {
           <p className="text-xs text-slate-400 mt-1">
             {match.is_home ? `Ons team – ${match.opponent}` : `${match.opponent} – Ons team`}
           </p>
-          <p className="text-xs text-amber-400 mt-0.5">
-            {goals.filter(g => !g.is_own_goal).length} geregistreerde doelpunten
-          </p>
+          {(() => {
+            const ourScore = match.is_home ? match.score_home : match.score_away
+            const registered = goals.length
+            const complete = ourScore != null && registered >= ourScore
+            return (
+              <p className="text-xs mt-0.5" style={{ color: complete ? '#22c55e' : '#f59e0b' }}>
+                {ourScore != null
+                  ? `${registered}/${ourScore} doelpunten ingevoerd${complete ? ' ✓' : ''}`
+                  : `${registered} doelpunten geregistreerd`}
+              </p>
+            )
+          })()}
         </div>
       )}
 
@@ -244,12 +253,23 @@ export default function AdminMatchGoals() {
             </label>
           </div>
 
-          <button type="submit" disabled={gSaving || (!gForm.scorer_id && !gForm.is_own_goal)}
-                  className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
-                  style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}>
-            <Plus size={14} />
-            {gSaving ? 'Opslaan...' : 'Doelpunt toevoegen'}
-          </button>
+          {(() => {
+            const ourScore = match ? (match.is_home ? match.score_home : match.score_away) : null
+            const atMax = ourScore != null && goals.length >= ourScore
+            if (atMax) return (
+              <p className="text-sm text-center py-1" style={{ color: '#22c55e' }}>
+                Alle {ourScore} doelpunten ingevoerd ✓
+              </p>
+            )
+            return (
+              <button type="submit" disabled={gSaving || (!gForm.scorer_id && !gForm.is_own_goal)}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
+                      style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}>
+                <Plus size={14} />
+                {gSaving ? 'Opslaan...' : ourScore != null ? `Doelpunt toevoegen (${goals.length}/${ourScore})` : 'Doelpunt toevoegen'}
+              </button>
+            )
+          })()}
         </form>
       </div>
 
