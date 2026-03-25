@@ -37,7 +37,7 @@ export default function More() {
   const [allAvail, setAllAvail] = useState({})   // optimistic: match_id → [{player_id, status}]
 
   const { data, isLoading } = useQuery({
-    queryKey: ['matches', activeTeam?.id],
+    queryKey: ['moreAvailability', activeTeam?.id],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0]
 
@@ -115,7 +115,7 @@ export default function More() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['matches', activeTeam?.id] })
+      queryClient.invalidateQueries({ queryKey: ['moreAvailability', activeTeam?.id] })
     },
   })
 
