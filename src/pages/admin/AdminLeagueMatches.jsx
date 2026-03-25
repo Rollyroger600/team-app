@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Save, Trash2, ChevronDown, Check, AlertCircle, Calendar, Copy } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 
@@ -86,46 +87,46 @@ function MatchRow({ row, teams, ownTeamId, matchdayDate, onChange, onRemove }) {
 export default function AdminLeagueMatches() {
   const { activeTeam } = useTeamStore()
   const teamId = activeTeam?.id
-
-  const [league, setLeague] = useState(null)
-  const [leagueTeams, setLeagueTeams] = useState([])
-  const [ownTeamId, setOwnTeamId] = useState(null)
-  const [existingMatches, setExistingMatches] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   const [matchday, setMatchday] = useState(1)
   const [matchdayDate, setMatchdayDate] = useState('') // gedeelde datum voor deze speelronde
   const [rows, setRows] = useState(() => buildRows(1))
 
-  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [mirroring, setMirroring] = useState(false)
   const [mirrorDone, setMirrorDone] = useState(false)
 
-  useEffect(() => {
-    if (!teamId) return
-    async function load() {
-      setLoading(true)
+  const { data, isLoading } = useQuery({
+    queryKey: ['adminLeagueMatches', teamId],
+    queryFn: async () => {
       const { data: lg } = await supabase.from('leagues').select('*').eq('team_id', teamId)
         .order('created_at', { ascending: false }).limit(1).maybeSingle()
-      if (!lg) { setLoading(false); return }
-      setLeague(lg)
+      if (!lg) return { league: null, leagueTeams: [], ownTeamId: null, existingMatches: [] }
 
       const { data: lt } = await supabase.from('league_teams').select('id, team_name, is_own_team')
         .eq('league_id', lg.id).order('team_name')
       const teams = (lt || []).map((t) => ({ id: t.id, display_name: t.team_name, is_own_team: t.is_own_team }))
-      setLeagueTeams(teams)
       const own = teams.find((t) => t.is_own_team)
-      if (own) setOwnTeamId(own.id)
 
       const { data: em } = await supabase.from('league_matches').select('*').eq('league_id', lg.id)
         .order('matchday', { ascending: true })
-      setExistingMatches(em || [])
-      setLoading(false)
-    }
-    load()
-  }, [teamId])
+
+      return {
+        league: lg,
+        leagueTeams: teams,
+        ownTeamId: own?.id || null,
+        existingMatches: em || [],
+      }
+    },
+    enabled: !!teamId,
+  })
+
+  const league = data?.league || null
+  const leagueTeams = data?.leagueTeams || []
+  const ownTeamId = data?.ownTeamId || null
+  const existingMatches = data?.existingMatches || []
 
   // Laad rows + gedeelde datum wanneer speelronde wijzigt
   useEffect(() => {
@@ -162,33 +163,39 @@ export default function AdminLeagueMatches() {
     setSaved(false)
   }
 
+  const saveMutation = useMutation({
+    mutationFn: async ({ leagueId, matchdayNum, toSave, matchdayDateVal }) => {
+      await supabase.from('league_matches').delete().eq('league_id', leagueId).eq('matchday', matchdayNum)
+      const inserts = toSave.map((r) => ({
+        league_id: leagueId, matchday: matchdayNum,
+        match_date: r.date || matchdayDateVal || null,
+        match_time: r.time ? r.time + ':00' : null,
+        home_team_id: r.home_team_id, away_team_id: r.away_team_id,
+      }))
+      const { error: insertErr } = await supabase.from('league_matches').insert(inserts)
+      if (insertErr) throw insertErr
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminLeagueMatches', teamId] })
+      setSaved(true)
+    },
+    onError: (err) => {
+      setSaveError(err.message)
+    },
+  })
+
   async function handleSave() {
     if (!league) return
-    setSaving(true); setSaveError(''); setSaved(false)
+    setSaveError(''); setSaved(false)
 
     // Gebruik matchdayDate als fallback voor rijen zonder eigen datum
     const toSave = rows.filter((r) => r.home_team_id && r.away_team_id && (r.date || matchdayDate))
     if (toSave.length === 0) {
       setSaveError('Vul minstens thuis, uit én (speelronde)datum in.')
-      setSaving(false); return
+      return
     }
 
-    await supabase.from('league_matches').delete().eq('league_id', league.id).eq('matchday', matchday)
-
-    const inserts = toSave.map((r) => ({
-      league_id: league.id, matchday,
-      match_date: r.date || matchdayDate || null,
-      match_time: r.time ? r.time + ':00' : null,
-      home_team_id: r.home_team_id, away_team_id: r.away_team_id,
-    }))
-
-    const { error: insertErr } = await supabase.from('league_matches').insert(inserts)
-    if (insertErr) { setSaveError(insertErr.message); setSaving(false); return }
-
-    const { data: em } = await supabase.from('league_matches').select('*').eq('league_id', league.id)
-      .order('matchday', { ascending: true })
-    setExistingMatches(em || [])
-    setSaving(false); setSaved(true)
+    await saveMutation.mutateAsync({ leagueId: league.id, matchdayNum: matchday, toSave, matchdayDateVal: matchdayDate })
   }
 
   // Genereer 2e helft: kopieer ronden 1..N naar N+1..2N met thuis/uit omgedraaid
@@ -222,9 +229,7 @@ export default function AdminLeagueMatches() {
 
     const { error } = await supabase.from('league_matches').insert(inserts)
     if (!error) {
-      const { data: em } = await supabase.from('league_matches').select('*').eq('league_id', league.id)
-        .order('matchday', { ascending: true })
-      setExistingMatches(em || [])
+      queryClient.invalidateQueries({ queryKey: ['adminLeagueMatches', teamId] })
       setMirrorDone(true)
     }
     setMirroring(false)
@@ -235,7 +240,9 @@ export default function AdminLeagueMatches() {
   // Toon mirror knop als er speelronden zijn en de 2e helft nog niet volledig gegenereerd is
   const secondHalfExists = filledMatchdays.some((d) => d > N / 2 + 0.5)
 
-  if (loading) {
+  const saving = saveMutation.isPending
+
+  if (isLoading) {
     return (
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-3 pt-2">

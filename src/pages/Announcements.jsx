@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { MessageSquare } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import PageLoader from '../components/ui/PageLoader'
@@ -8,27 +8,25 @@ import { formatDateLong } from '../lib/utils'
 
 export default function Announcements() {
   const { activeTeam } = useTeamStore()
-  const [announcements, setAnnouncements] = useState([])
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!activeTeam?.id) return
-    supabase
-      .from('announcements')
-      .select('*, profiles(full_name)')
-      .eq('team_id', activeTeam.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setAnnouncements(data || [])
-        setLoading(false)
-      })
-  }, [activeTeam?.id])
+  const { data: announcements = [], isLoading } = useQuery({
+    queryKey: ['announcements', activeTeam?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('announcements')
+        .select('*, profiles(full_name)')
+        .eq('team_id', activeTeam.id)
+        .order('created_at', { ascending: false })
+      return data || []
+    },
+    enabled: !!activeTeam?.id,
+  })
 
   return (
     <div className="p-4 space-y-4">
       <h1 className="text-2xl font-bold pt-2">Berichten</h1>
 
-      {loading ? (
+      {isLoading ? (
         <PageLoader />
       ) : announcements.length === 0 ? (
         <EmptyState icon={MessageSquare}>Geen berichten</EmptyState>

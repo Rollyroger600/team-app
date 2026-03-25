@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Flag } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import PageLoader from '../components/ui/PageLoader'
@@ -64,37 +64,38 @@ function UmpireCard({ duty, isOwn, past }) {
 export default function Umpire() {
   const { user } = useAuthStore()
   const { activeTeam } = useTeamStore()
-  const [upcoming, setUpcoming] = useState([])
-  const [past, setPast] = useState([])
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!activeTeam?.id || !user?.id) return
+  const { data, isLoading } = useQuery({
+    queryKey: ['umpire', activeTeam?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('umpire_duties')
+        .select('id, match_id, player_id, umpire_match_desc, notes, status, profiles(full_name, nickname), matches(match_date, opponent, is_home)')
+        .eq('team_id', activeTeam.id)
+        .order('created_at', { ascending: true })
 
-    supabase
-      .from('umpire_duties')
-      .select('id, match_id, player_id, umpire_match_desc, notes, status, profiles(full_name, nickname), matches(match_date, opponent, is_home)')
-      .eq('team_id', activeTeam.id)
-      .order('created_at', { ascending: true })
-      .then(({ data }) => {
-        const all = data || []
-        const today = new Date().toISOString().split('T')[0]
+      const all = data || []
+      const today = new Date().toISOString().split('T')[0]
 
-        // Spleet op zaterdag-datum (match_date - 1 dag)
-        const withDate = all.map(d => ({
-          ...d,
-          umpire_date: d.matches?.match_date
-            ? subDays(parseISO(d.matches.match_date), 1)
-            : null,
-        }))
+      const withDate = all.map(d => ({
+        ...d,
+        umpire_date: d.matches?.match_date
+          ? subDays(parseISO(d.matches.match_date), 1)
+          : null,
+      }))
 
-        setUpcoming(withDate.filter(d => !d.umpire_date || !isPast(d.umpire_date) || d.umpire_date.toISOString().split('T')[0] >= today))
-        setPast(withDate.filter(d => d.umpire_date && isPast(d.umpire_date) && d.umpire_date.toISOString().split('T')[0] < today).reverse())
-        setLoading(false)
-      })
-  }, [activeTeam?.id, user?.id])
+      return {
+        upcoming: withDate.filter(d => !d.umpire_date || !isPast(d.umpire_date) || d.umpire_date.toISOString().split('T')[0] >= today),
+        past: withDate.filter(d => d.umpire_date && isPast(d.umpire_date) && d.umpire_date.toISOString().split('T')[0] < today).reverse(),
+      }
+    },
+    enabled: !!activeTeam?.id && !!user?.id,
+  })
 
-  if (loading) {
+  const upcoming = data?.upcoming || []
+  const past = data?.past || []
+
+  if (isLoading) {
     return <PageLoader />
   }
 

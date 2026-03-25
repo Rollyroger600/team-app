@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Flag, Wand2, Trash2, UserPlus } from 'lucide-react'
+import { ArrowLeft, Flag, Wand2, Trash2 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
@@ -16,41 +17,61 @@ function saturdayBefore(matchDate) {
 
 export default function AdminUmpire() {
   const { activeTeam } = useTeamStore()
-  const [duties, setDuties] = useState([])      // gegroepeerd per match
-  const [matches, setMatches] = useState([])
-  const [players, setPlayers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [generating, setGenerating] = useState(false)
   const [genResult, setGenResult] = useState('')
 
-  const load = useCallback(async () => {
-    if (!activeTeam?.id) return
-    setLoading(true)
-    const today = new Date().toISOString().split('T')[0]
+  const { data, isLoading } = useQuery({
+    queryKey: ['adminUmpire', activeTeam?.id],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0]
 
-    const [dutiesRes, matchesRes, playersRes] = await Promise.all([
+      const [dutiesRes, matchesRes, playersRes] = await Promise.all([
+        supabase.from('umpire_duties')
+          .select('id, match_id, player_id, umpire_match_desc, notes, status, profiles(full_name, nickname)')
+          .eq('team_id', activeTeam.id)
+          .order('created_at', { ascending: true }),
+        supabase.from('matches')
+          .select('id, match_date, match_time, opponent, is_home')
+          .eq('team_id', activeTeam.id)
+          .gte('match_date', today)
+          .order('match_date', { ascending: true }),
+        supabase.from('team_memberships')
+          .select('player_id, profiles(full_name, nickname)')
+          .eq('team_id', activeTeam.id)
+          .eq('active', true),
+      ])
+
+      return {
+        duties: dutiesRes.data || [],
+        matches: matchesRes.data || [],
+        players: playersRes.data || [],
+      }
+    },
+    enabled: !!activeTeam?.id,
+  })
+
+  const duties = data?.duties || []
+  const matches = data?.matches || []
+  const players = data?.players || []
+
+  const assignMutation = useMutation({
+    mutationFn: ({ dutyId, playerId }) =>
       supabase.from('umpire_duties')
-        .select('id, match_id, player_id, umpire_match_desc, notes, status, profiles(full_name, nickname)')
-        .eq('team_id', activeTeam.id)
-        .order('created_at', { ascending: true }),
-      supabase.from('matches')
-        .select('id, match_date, match_time, opponent, is_home')
-        .eq('team_id', activeTeam.id)
-        .gte('match_date', today)
-        .order('match_date', { ascending: true }),
-      supabase.from('team_memberships')
-        .select('player_id, profiles(full_name, nickname)')
-        .eq('team_id', activeTeam.id)
-        .eq('active', true),
-    ])
+        .update({ player_id: playerId || null })
+        .eq('id', dutyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminUmpire', activeTeam?.id] })
+    },
+  })
 
-    setDuties(dutiesRes.data || [])
-    setMatches(matchesRes.data || [])
-    setPlayers(playersRes.data || [])
-    setLoading(false)
-  }, [activeTeam?.id])
-
-  useEffect(() => { load() }, [load])
+  const deleteMutation = useMutation({
+    mutationFn: (dutyId) =>
+      supabase.from('umpire_duties').delete().eq('id', dutyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminUmpire', activeTeam?.id] })
+    },
+  })
 
   async function generateDuties() {
     setGenerating(true)
@@ -86,23 +107,15 @@ export default function AdminUmpire() {
 
     setGenResult(created > 0 ? `${created} fluitbeurt${created > 1 ? 'en' : ''} aangemaakt.` : 'Alle thuiswedstrijden hebben al 2 fluitbeurten.')
     setGenerating(false)
-    load()
+    queryClient.invalidateQueries({ queryKey: ['adminUmpire', activeTeam?.id] })
   }
 
   async function assignPlayer(dutyId, playerId) {
-    await supabase.from('umpire_duties')
-      .update({ player_id: playerId || null })
-      .eq('id', dutyId)
-    setDuties(prev => prev.map(d =>
-      d.id === dutyId
-        ? { ...d, player_id: playerId || null, profiles: players.find(p => p.player_id === playerId)?.profiles || null }
-        : d
-    ))
+    await assignMutation.mutateAsync({ dutyId, playerId })
   }
 
   async function deleteDuty(dutyId) {
-    await supabase.from('umpire_duties').delete().eq('id', dutyId)
-    setDuties(prev => prev.filter(d => d.id !== dutyId))
+    await deleteMutation.mutateAsync(dutyId)
   }
 
   // Groepeer duties per match
@@ -142,7 +155,7 @@ export default function AdminUmpire() {
       </div>
 
       {/* Per match: open slots + toewijzing */}
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center h-20">
           <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin"
                style={{ borderColor: 'var(--color-secondary)' }} />

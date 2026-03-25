@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClient } from './lib/queryClient'
 import useAuthStore from './stores/useAuthStore'
 import useTeamStore from './stores/useTeamStore'
 import AppShell from './components/layout/AppShell'
@@ -54,13 +56,14 @@ export default function App() {
 
   if (!initialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
+      <div className="min-h-screen flex items-center justify-center bg-bg">
         <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-secondary)' }} />
       </div>
     )
   }
 
   return (
+    <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -101,5 +104,6 @@ export default function App() {
       </Routes>
       <DevSwitcher />
     </BrowserRouter>
+    </QueryClientProvider>
   )
 }

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Clock, MapPin, CheckCircle, XCircle, HelpCircle, Users, Share2, Target, ShieldCheck } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
@@ -13,42 +14,57 @@ export default function MatchDetail() {
   const { user, isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
   const { teamSettings } = useTeamStore()
-  const [match, setMatch] = useState(null)
+  const queryClient = useQueryClient()
   const [myAvailability, setMyAvailability] = useState(null)
-  const [availability, setAvailability] = useState([])
-  const [loading, setLoading] = useState(true)
 
+  const { data, isLoading } = useQuery({
+    queryKey: ['matchDetail', id, user?.id],
+    queryFn: async () => {
+      const [matchRes, myAvRes, allAvRes] = await Promise.all([
+        supabase.from('matches').select('*').eq('id', id).single(),
+        supabase.from('match_availability').select('status').eq('match_id', id).eq('player_id', user.id).maybeSingle(),
+        supabase.from('match_availability').select('status, profiles(full_name)').eq('match_id', id)
+      ])
+      return {
+        match: matchRes.data || null,
+        myAvailability: myAvRes.data?.status || null,
+        availability: allAvRes.data || [],
+      }
+    },
+    enabled: !!id && !!user?.id,
+  })
+
+  // Sync server myAvailability to local optimistic state
   useEffect(() => {
-    if (!id || !user?.id) return
-    loadMatch()
-  }, [id, user?.id])
+    if (data) {
+      setMyAvailability(data.myAvailability)
+    }
+  }, [data?.myAvailability])
 
-  async function loadMatch() {
-    setLoading(true)
-    const [matchRes, myAvRes, allAvRes] = await Promise.all([
-      supabase.from('matches').select('*').eq('id', id).single(),
-      supabase.from('match_availability').select('status').eq('match_id', id).eq('player_id', user.id).maybeSingle(),
-      supabase.from('match_availability').select('status, profiles(full_name)').eq('match_id', id)
-    ])
-    setMatch(matchRes.data)
-    setMyAvailability(myAvRes.data?.status || null)
-    setAvailability(allAvRes.data || [])
-    setLoading(false)
-  }
+  const match = data?.match || null
+  const displayMyAvailability = myAvailability !== null ? myAvailability : (data?.myAvailability ?? null)
+  const availability = data?.availability || []
+
+  const availMutation = useMutation({
+    mutationFn: (status) =>
+      supabase.from('match_availability').upsert({
+        match_id: match.id,
+        player_id: user.id,
+        status,
+        responded_at: new Date().toISOString()
+      }, { onConflict: 'match_id,player_id' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['matchDetail', id, user?.id] })
+    },
+  })
 
   async function setAvail(status) {
     if (!match || !user) return
-    await supabase.from('match_availability').upsert({
-      match_id: match.id,
-      player_id: user.id,
-      status,
-      responded_at: new Date().toISOString()
-    }, { onConflict: 'match_id,player_id' })
-    setMyAvailability(status)
-    loadMatch()
+    setMyAvailability(status) // optimistic
+    await availMutation.mutateAsync(status)
   }
 
-  if (loading) {
+  if (isLoading) {
     return <PageLoader />
   }
 
@@ -136,7 +152,7 @@ export default function MatchDetail() {
               key={status}
               onClick={() => setAvail(status)}
               className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-lg border text-xs font-medium transition-all ${
-                myAvailability === status ? color : 'border-slate-700 text-slate-500 hover:border-slate-500'
+                displayMyAvailability === status ? color : 'border-slate-700 text-slate-500 hover:border-slate-500'
               }`}
             >
               <Icon size={20} />

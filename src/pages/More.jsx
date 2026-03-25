@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckCircle, XCircle, HelpCircle, Settings, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
@@ -29,71 +30,94 @@ export default function More() {
   const { user, isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
   const { activeTeam } = useTeamStore()
-  const [matches, setMatches] = useState([])
-  const [members, setMembers] = useState([])           // alle teamleden
-  const [myAvail, setMyAvail] = useState({})           // match_id → my status
-  const [allAvail, setAllAvail] = useState({})         // match_id → [{ player_id, status }]
+  const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(new Set())
   const [saving, setSaving] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [myAvail, setMyAvail] = useState({})     // optimistic: match_id → status
+  const [allAvail, setAllAvail] = useState({})   // optimistic: match_id → [{player_id, status}]
 
-  const load = useCallback(async () => {
-    if (!activeTeam?.id || !user?.id) return
-    setLoading(true)
+  const { data, isLoading } = useQuery({
+    queryKey: ['matches', activeTeam?.id],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0]
 
-    const today = new Date().toISOString().split('T')[0]
-
-    const [matchRes, membersRes] = await Promise.all([
-      supabase
-        .from('matches')
-        .select('id, opponent, match_date, match_time, is_home, status')
-        .eq('team_id', activeTeam.id)
-        .gte('match_date', today)
-        .order('match_date', { ascending: true }),
-      supabase
-        .from('team_memberships')
-        .select('player_id, profiles(full_name, nickname)')
-        .eq('team_id', activeTeam.id)
-        .eq('active', true),
-    ])
-
-    const matchList = matchRes.data || []
-    const memberList = (membersRes.data || []).map(m => ({
-      id: m.player_id,
-      name: m.profiles?.nickname || m.profiles?.full_name?.split(' ')[0] || '?',
-    }))
-
-    setMatches(matchList)
-    setMembers(memberList)
-
-    if (matchList.length > 0) {
-      const [myAvRes, allAvRes] = await Promise.all([
+      const [matchRes, membersRes] = await Promise.all([
         supabase
-          .from('match_availability')
-          .select('match_id, status')
-          .eq('player_id', user.id),
+          .from('matches')
+          .select('id, opponent, match_date, match_time, is_home, status')
+          .eq('team_id', activeTeam.id)
+          .gte('match_date', today)
+          .order('match_date', { ascending: true }),
         supabase
-          .from('match_availability')
-          .select('match_id, player_id, status')
-          .in('match_id', matchList.map(m => m.id)),
+          .from('team_memberships')
+          .select('player_id, profiles(full_name, nickname)')
+          .eq('team_id', activeTeam.id)
+          .eq('active', true),
       ])
 
-      const myMap = {}
-      for (const a of myAvRes.data || []) myMap[a.match_id] = a.status
-      setMyAvail(myMap)
+      const matchList = matchRes.data || []
+      const memberList = (membersRes.data || []).map(m => ({
+        id: m.player_id,
+        name: m.profiles?.nickname || m.profiles?.full_name?.split(' ')[0] || '?',
+      }))
 
-      const allMap = {}
-      for (const a of allAvRes.data || []) {
-        if (!allMap[a.match_id]) allMap[a.match_id] = []
-        allMap[a.match_id].push(a)
+      let myAvailMap = {}
+      let allAvailMap = {}
+
+      if (matchList.length > 0) {
+        const [myAvRes, allAvRes] = await Promise.all([
+          supabase
+            .from('match_availability')
+            .select('match_id, status')
+            .eq('player_id', user.id),
+          supabase
+            .from('match_availability')
+            .select('match_id, player_id, status')
+            .in('match_id', matchList.map(m => m.id)),
+        ])
+
+        for (const a of myAvRes.data || []) myAvailMap[a.match_id] = a.status
+
+        for (const a of allAvRes.data || []) {
+          if (!allAvailMap[a.match_id]) allAvailMap[a.match_id] = []
+          allAvailMap[a.match_id].push(a)
+        }
       }
-      setAllAvail(allMap)
+
+      return { matches: matchList, members: memberList, myAvailMap, allAvailMap }
+    },
+    enabled: !!activeTeam?.id && !!user?.id,
+  })
+
+  // Sync availability from server (after invalidation)
+  useEffect(() => {
+    if (data) {
+      setMyAvail(data.myAvailMap)
+      setAllAvail(data.allAvailMap)
     }
+  }, [data])
 
-    setLoading(false)
-  }, [activeTeam?.id, user?.id])
+  const matches = data?.matches || []
+  const members = data?.members || []
 
-  useEffect(() => { load() }, [load])
+  const availMutation = useMutation({
+    mutationFn: async ({ matchId, next }) => {
+      if (next) {
+        return supabase.from('match_availability').upsert(
+          { match_id: matchId, player_id: user.id, status: next, responded_at: new Date().toISOString() },
+          { onConflict: 'match_id,player_id' }
+        )
+      } else {
+        return supabase.from('match_availability')
+          .delete()
+          .eq('match_id', matchId)
+          .eq('player_id', user.id)
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['matches', activeTeam?.id] })
+    },
+  })
 
   async function setStatus(matchId, status) {
     const current = myAvail[matchId]
@@ -109,17 +133,7 @@ export default function More() {
       return { ...prev, [matchId]: list }
     })
 
-    if (next) {
-      await supabase.from('match_availability').upsert(
-        { match_id: matchId, player_id: user.id, status: next, responded_at: new Date().toISOString() },
-        { onConflict: 'match_id,player_id' }
-      )
-    } else {
-      await supabase.from('match_availability')
-        .delete()
-        .eq('match_id', matchId)
-        .eq('player_id', user.id)
-    }
+    await availMutation.mutateAsync({ matchId, next })
     setSaving(null)
   }
 
@@ -153,7 +167,7 @@ export default function More() {
         </div>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <PageLoader />
       ) : matches.length === 0 ? (
         <div className="rounded-xl p-8 border text-center bg-surface border-border">

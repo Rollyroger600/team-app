@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Trophy, Search, X, Check, Trash2, ChevronRight, PlusCircle, MapPin, Car } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
@@ -621,50 +622,55 @@ function TravelTimeCalc({ teamId }) {
 // --- Main component ---
 export default function AdminLeague() {
   const { activeTeam } = useTeamStore()
-  const [loading, setLoading] = useState(true)
-  const [league, setLeague] = useState(null)
-  const [teams, setTeams] = useState([])
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    if (!activeTeam?.id) return
-    loadLeague()
-  }, [activeTeam?.id])
+  const { data, isLoading } = useQuery({
+    queryKey: ['adminLeague', activeTeam?.id],
+    queryFn: async () => {
+      const { data: leagueData } = await supabase
+        .from('leagues')
+        .select('*')
+        .eq('team_id', activeTeam.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-  async function loadLeague() {
-    setLoading(true)
-    const { data } = await supabase
-      .from('leagues')
-      .select('*')
-      .eq('team_id', activeTeam.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+      if (!leagueData) return { league: null, teams: [] }
 
-    setLeague(data || null)
-    if (data) await loadTeams(data.id)
-    setLoading(false)
-  }
+      const { data: teamsData } = await supabase
+        .from('league_teams')
+        .select('*')
+        .eq('league_id', leagueData.id)
+        .order('created_at', { ascending: true })
 
-  async function loadTeams(leagueId) {
-    const { data } = await supabase
-      .from('league_teams')
-      .select('*')
-      .eq('league_id', leagueId)
-      .order('created_at', { ascending: true })
-    setTeams(data || [])
-  }
+      return { league: leagueData, teams: teamsData || [] }
+    },
+    enabled: !!activeTeam?.id,
+  })
+
+  const league = data?.league || null
+  const teams = data?.teams || []
+
+  const deleteTeamMutation = useMutation({
+    mutationFn: (teamId) => supabase.from('league_teams').delete().eq('id', teamId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminLeague', activeTeam?.id] })
+    },
+  })
 
   async function handleDelete(teamId) {
-    await supabase.from('league_teams').delete().eq('id', teamId)
-    setTeams((prev) => prev.filter((t) => t.id !== teamId))
+    await deleteTeamMutation.mutateAsync(teamId)
   }
 
   function handleLeagueCreated(newLeague) {
-    setLeague(newLeague)
-    setTeams([])
+    queryClient.invalidateQueries({ queryKey: ['adminLeague', activeTeam?.id] })
   }
 
-  if (loading) {
+  function handleTeamAdded() {
+    queryClient.invalidateQueries({ queryKey: ['adminLeague', activeTeam?.id] })
+  }
+
+  if (isLoading) {
     return (
       <div className="p-4">
         <div className="flex items-center gap-3 pt-2 mb-6">
@@ -744,7 +750,7 @@ export default function AdminLeague() {
           {/* Add team form */}
           <AddTeamForm
             leagueId={league.id}
-            onAdded={() => loadTeams(league.id)}
+            onAdded={handleTeamAdded}
           />
 
           {/* Teams list */}

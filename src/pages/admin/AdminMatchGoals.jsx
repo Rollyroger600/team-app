@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Trash2, Target, Square } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
 import { formatDate, formatTime } from '../../lib/utils'
@@ -16,63 +17,92 @@ function displayName(profile) {
 
 export default function AdminMatchGoals() {
   const { id } = useParams()
-  const [match, setMatch] = useState(null)
-  const [roster, setRoster] = useState([])   // spelers in selectie
-  const [goals, setGoals] = useState([])
-  const [cards, setCards] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   // Goal form state
   const [gForm, setGForm] = useState({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false, is_penalty_corner: false })
-  const [gSaving, setGSaving] = useState(false)
 
   // Card form state
   const [cForm, setCForm] = useState({ player_id: '', card_type: 'yellow', minute: '' })
-  const [cSaving, setCSaving] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!id) return
-    setLoading(true)
-    const [matchRes, rosterRes, goalsRes, cardsRes] = await Promise.all([
-      supabase.from('matches').select('*').eq('id', id).single(),
-      supabase.from('match_roster')
-        .select('player_id, profiles(full_name, nickname, jersey_number)')
-        .eq('match_id', id),
-      supabase.from('goals')
-        .select('id, minute, is_own_goal, is_penalty, is_penalty_corner, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
-        .eq('match_id', id)
-        .order('minute', { ascending: true, nullsFirst: false }),
-      supabase.from('match_cards')
-        .select('id, player_id, card_type, minute, profiles(full_name, nickname)')
-        .eq('match_id', id)
-        .order('minute', { ascending: true, nullsFirst: false }),
-    ])
-    setMatch(matchRes.data)
+  const { data, isLoading } = useQuery({
+    queryKey: ['adminMatchGoals', id],
+    queryFn: async () => {
+      const [matchRes, rosterRes, goalsRes, cardsRes] = await Promise.all([
+        supabase.from('matches').select('*').eq('id', id).single(),
+        supabase.from('match_roster')
+          .select('player_id, profiles(full_name, nickname, jersey_number)')
+          .eq('match_id', id),
+        supabase.from('goals')
+          .select('id, minute, is_own_goal, is_penalty, is_penalty_corner, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+          .eq('match_id', id)
+          .order('minute', { ascending: true, nullsFirst: false }),
+        supabase.from('match_cards')
+          .select('id, player_id, card_type, minute, profiles(full_name, nickname)')
+          .eq('match_id', id)
+          .order('minute', { ascending: true, nullsFirst: false }),
+      ])
 
-    // Als er geen selectie is voor deze wedstrijd, val terug op alle teamleden
-    let players = rosterRes.data || []
-    if (players.length === 0 && matchRes.data?.team_id) {
-      const { data: members } = await supabase
-        .from('team_memberships')
-        .select('player_id, profiles(full_name, nickname, jersey_number)')
-        .eq('team_id', matchRes.data.team_id)
-        .eq('active', true)
-      players = members || []
-    }
+      const matchData = matchRes.data
 
-    setRoster(players)
-    setGoals(goalsRes.data || [])
-    setCards(cardsRes.data || [])
-    setLoading(false)
-  }, [id])
+      // Als er geen selectie is voor deze wedstrijd, val terug op alle teamleden
+      let players = rosterRes.data || []
+      if (players.length === 0 && matchData?.team_id) {
+        const { data: members } = await supabase
+          .from('team_memberships')
+          .select('player_id, profiles(full_name, nickname, jersey_number)')
+          .eq('team_id', matchData.team_id)
+          .eq('active', true)
+        players = members || []
+      }
 
-  useEffect(() => { load() }, [load])
+      return {
+        match: matchData,
+        roster: players,
+        goals: goalsRes.data || [],
+        cards: cardsRes.data || [],
+      }
+    },
+    enabled: !!id,
+  })
+
+  const match = data?.match || null
+  const roster = data?.roster || []
+  const goals = data?.goals || []
+  const cards = data?.cards || []
+
+  const addGoalMutation = useMutation({
+    mutationFn: (values) => supabase.from('goals').insert(values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminMatchGoals', id] })
+    },
+  })
+
+  const deleteGoalMutation = useMutation({
+    mutationFn: (goalId) => supabase.from('goals').delete().eq('id', goalId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminMatchGoals', id] })
+    },
+  })
+
+  const addCardMutation = useMutation({
+    mutationFn: (values) => supabase.from('match_cards').insert(values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminMatchGoals', id] })
+    },
+  })
+
+  const deleteCardMutation = useMutation({
+    mutationFn: (cardId) => supabase.from('match_cards').delete().eq('id', cardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminMatchGoals', id] })
+    },
+  })
 
   async function addGoal(e) {
     e.preventDefault()
     if (!gForm.scorer_id && !gForm.is_own_goal) return
-    setGSaving(true)
-    await supabase.from('goals').insert({
+    await addGoalMutation.mutateAsync({
       match_id: id,
       scorer_id: gForm.scorer_id || null,
       assist_id: gForm.assist_id || null,
@@ -82,38 +112,34 @@ export default function AdminMatchGoals() {
       is_penalty_corner: gForm.is_penalty_corner,
     })
     setGForm({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false, is_penalty_corner: false })
-    setGSaving(false)
-    load()
   }
 
   async function deleteGoal(goalId) {
-    await supabase.from('goals').delete().eq('id', goalId)
-    setGoals(prev => prev.filter(g => g.id !== goalId))
+    await deleteGoalMutation.mutateAsync(goalId)
   }
 
   async function addCard(e) {
     e.preventDefault()
     if (!cForm.player_id) return
-    setCSaving(true)
-    await supabase.from('match_cards').insert({
+    await addCardMutation.mutateAsync({
       match_id: id,
       player_id: cForm.player_id,
       card_type: cForm.card_type,
       minute: cForm.minute ? parseInt(cForm.minute) : null,
     })
     setCForm({ player_id: '', card_type: 'yellow', minute: '' })
-    setCSaving(false)
-    load()
   }
 
   async function deleteCard(cardId) {
-    await supabase.from('match_cards').delete().eq('id', cardId)
-    setCards(prev => prev.filter(c => c.id !== cardId))
+    await deleteCardMutation.mutateAsync(cardId)
   }
 
-  if (loading) {
+  if (isLoading) {
     return <PageLoader />
   }
+
+  const gSaving = addGoalMutation.isPending
+  const cSaving = addCardMutation.isPending
 
   const selectClass = "flex-1 px-2.5 py-2 rounded-lg text-sm outline-none focus:border-amber-400"
   const selectStyle = { backgroundColor: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }

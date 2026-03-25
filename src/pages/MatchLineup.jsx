@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Save } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
@@ -56,50 +57,64 @@ export default function MatchLineup() {
   const { id } = useParams()
   const { isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
+  const queryClient = useQueryClient()
 
-  const [match, setMatch] = useState(null)
-  const [roster, setRoster] = useState([])         // match_roster rows met profiles
-  const [available, setAvailable] = useState([])   // beschikbaar maar niet in roster
-  const [absent, setAbsent] = useState([])         // afwezig / geen opgave
   const [positions, setPositions] = useState({})   // player_id → position key
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!id) return
-    setLoading(true)
+  const { data, isLoading } = useQuery({
+    queryKey: ['matchLineup', id],
+    queryFn: async () => {
+      const [matchRes, rosterRes, availRes] = await Promise.all([
+        supabase.from('matches').select('*').eq('id', id).single(),
+        supabase.from('match_roster')
+          .select('player_id, position_in_lineup, roster_status, sort_order, profiles(full_name, nickname, jersey_number, position)')
+          .eq('match_id', id),
+        supabase.from('match_availability')
+          .select('player_id, status, profiles(full_name, nickname, jersey_number, position)')
+          .eq('match_id', id),
+      ])
 
-    const [matchRes, rosterRes, availRes] = await Promise.all([
-      supabase.from('matches').select('*').eq('id', id).single(),
-      supabase.from('match_roster')
-        .select('player_id, position_in_lineup, roster_status, sort_order, profiles(full_name, nickname, jersey_number, position)')
-        .eq('match_id', id),
-      supabase.from('match_availability')
-        .select('player_id, status, profiles(full_name, nickname, jersey_number, position)')
-        .eq('match_id', id),
-    ])
+      const rosterList = rosterRes.data || []
+      const rosterIds = new Set(rosterList.map(r => r.player_id))
 
-    setMatch(matchRes.data)
+      const posMap = {}
+      for (const r of rosterList) {
+        posMap[r.player_id] = r.position_in_lineup || r.profiles?.position || 'midfielder'
+      }
 
-    const rosterList = rosterRes.data || []
-    const rosterIds = new Set(rosterList.map(r => r.player_id))
-    setRoster(rosterList)
+      const allAvail = availRes.data || []
+      return {
+        match: matchRes.data,
+        roster: rosterList,
+        posMap,
+        available: allAvail.filter(a => a.status === 'available' && !rosterIds.has(a.player_id)),
+        absent: allAvail.filter(a => a.status !== 'available'),
+      }
+    },
+    enabled: !!id,
+  })
 
-    // Bouw posities map: positie uit roster, of voorkeurspositie uit profiel
-    const posMap = {}
-    for (const r of rosterList) {
-      posMap[r.player_id] = r.position_in_lineup || r.profiles?.position || 'midfielder'
+  // Sync positions from server data
+  useEffect(() => {
+    if (data?.posMap) {
+      setPositions(data.posMap)
     }
-    setPositions(posMap)
+  }, [data?.posMap])
 
-    const allAvail = availRes.data || []
-    setAvailable(allAvail.filter(a => a.status === 'available' && !rosterIds.has(a.player_id)))
-    setAbsent(allAvail.filter(a => a.status !== 'available'))
-    setLoading(false)
-  }, [id])
+  const match = data?.match || null
+  const roster = data?.roster || []
+  const available = data?.available || []
+  const absent = data?.absent || []
 
-  useEffect(() => { load() }, [load])
+  const saveMutation = useMutation({
+    mutationFn: (updates) =>
+      supabase.from('match_roster').upsert(updates, { onConflict: 'match_id,player_id' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['matchLineup', id] })
+    },
+  })
 
   function cyclePosition(playerId) {
     setPositions(prev => {
@@ -120,14 +135,13 @@ export default function MatchLineup() {
       roster_status: r.roster_status || 'starting',
       sort_order: r.sort_order,
     }))
-    await supabase.from('match_roster')
-      .upsert(updates, { onConflict: 'match_id,player_id' })
+    await saveMutation.mutateAsync(updates)
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
-  if (loading) {
+  if (isLoading) {
     return <PageLoader />
   }
 

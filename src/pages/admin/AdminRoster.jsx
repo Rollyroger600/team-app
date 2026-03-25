@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Users, Check, X } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
@@ -9,34 +10,60 @@ import useTeamStore from '../../stores/useTeamStore'
 export default function AdminRoster() {
   const { id } = useParams()
   const { activeTeam } = useTeamStore()
-  const [match, setMatch] = useState(null)
-  const [availability, setAvailability] = useState([])
+  const queryClient = useQueryClient()
   const [roster, setRoster] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [rosterInitialized, setRosterInitialized] = useState(false)
 
+  const { data, isLoading } = useQuery({
+    queryKey: ['adminRoster', id, activeTeam?.id],
+    queryFn: async () => {
+      const [matchRes, availRes, rosterRes] = await Promise.all([
+        supabase.from('matches').select('*').eq('id', id).single(),
+        supabase.from('match_availability')
+          .select('player_id, status, profiles(full_name, nickname, jersey_number, position)')
+          .eq('match_id', id)
+          .eq('status', 'available'),
+        supabase.from('match_roster')
+          .select('player_id, position_override, sort_order')
+          .eq('match_id', id)
+      ])
+      return {
+        match: matchRes.data,
+        availability: availRes.data || [],
+        rosterIds: rosterRes.data?.map(r => r.player_id) || [],
+      }
+    },
+    enabled: !!id && !!activeTeam?.id,
+  })
+
+  // Initialize roster from server on first load only
   useEffect(() => {
-    if (!id || !activeTeam?.id) return
-    loadData()
-  }, [id, activeTeam?.id])
+    if (data && !rosterInitialized) {
+      setRoster(data.rosterIds)
+      setRosterInitialized(true)
+    }
+  }, [data, rosterInitialized])
 
-  async function loadData() {
-    setLoading(true)
-    const [matchRes, availRes, rosterRes] = await Promise.all([
-      supabase.from('matches').select('*').eq('id', id).single(),
-      supabase.from('match_availability')
-        .select('player_id, status, profiles(full_name, nickname, jersey_number, position)')
-        .eq('match_id', id)
-        .eq('status', 'available'),
-      supabase.from('match_roster')
-        .select('player_id, position_override, sort_order')
-        .eq('match_id', id)
-    ])
-    setMatch(matchRes.data)
-    setAvailability(availRes.data || [])
-    setRoster(rosterRes.data?.map(r => r.player_id) || [])
-    setLoading(false)
-  }
+  const match = data?.match || null
+  const availability = data?.availability || []
+
+  const saveRosterMutation = useMutation({
+    mutationFn: async (rosterList) => {
+      await supabase.from('match_roster').delete().eq('match_id', id)
+      if (rosterList.length > 0) {
+        await supabase.from('match_roster').insert(
+          rosterList.map((playerId, index) => ({
+            match_id: id,
+            player_id: playerId,
+            sort_order: index + 1
+          }))
+        )
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminRoster', id, activeTeam?.id] })
+    },
+  })
 
   function togglePlayer(playerId) {
     setRoster(prev =>
@@ -47,23 +74,14 @@ export default function AdminRoster() {
   }
 
   async function saveRoster() {
-    setSaving(true)
-    await supabase.from('match_roster').delete().eq('match_id', id)
-    if (roster.length > 0) {
-      await supabase.from('match_roster').insert(
-        roster.map((playerId, index) => ({
-          match_id: id,
-          player_id: playerId,
-          sort_order: index + 1
-        }))
-      )
-    }
-    setSaving(false)
+    await saveRosterMutation.mutateAsync(roster)
   }
 
-  if (loading) {
+  if (isLoading) {
     return <PageLoader />
   }
+
+  const saving = saveRosterMutation.isPending
 
   return (
     <div className="p-4 space-y-4">

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { BarChart2, ChevronDown, ChevronRight } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import EmptyState from '../components/ui/EmptyState'
 import { supabase } from '../lib/supabase'
@@ -8,27 +9,25 @@ import { formatDate } from '../lib/utils'
 
 export default function Stats() {
   const { activeTeam } = useTeamStore()
-  const [stats, setStats] = useState([])
-  const [goalMap, setGoalMap] = useState({})   // player_id → [{match, goals, assists}]
   const [expanded, setExpanded] = useState({}) // player_id → bool
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!activeTeam?.id) return
+  const { data, isLoading } = useQuery({
+    queryKey: ['stats', activeTeam?.id],
+    queryFn: async () => {
+      const [statsRes, goalsRes] = await Promise.all([
+        supabase
+          .from('v_player_stats')
+          .select('*')
+          .eq('team_id', activeTeam.id)
+          .order('goals', { ascending: false }),
+        supabase
+          .from('goals')
+          .select('scorer_id, assist_id, is_own_goal, minute, match:matches!goals_match_id_fkey(id, opponent, match_date, is_home, score_home, score_away)')
+          .eq('matches.team_id', activeTeam.id)
+          .not('match', 'is', null),
+      ])
 
-    Promise.all([
-      supabase
-        .from('v_player_stats')
-        .select('*')
-        .eq('team_id', activeTeam.id)
-        .order('goals', { ascending: false }),
-      supabase
-        .from('goals')
-        .select('scorer_id, assist_id, is_own_goal, minute, match:matches!goals_match_id_fkey(id, opponent, match_date, is_home, score_home, score_away)')
-        .eq('matches.team_id', activeTeam.id)
-        .not('match', 'is', null),
-    ]).then(([statsRes, goalsRes]) => {
-      setStats(statsRes.data || [])
+      const stats = statsRes.data || []
 
       // Build per-player breakdown: group goals by player → match
       const map = {}
@@ -49,16 +48,20 @@ export default function Stats() {
       }
 
       // Convert per-player maps to sorted arrays
-      const sorted = {}
+      const goalMap = {}
       for (const [pid, matches] of Object.entries(map)) {
-        sorted[pid] = Object.values(matches).sort(
+        goalMap[pid] = Object.values(matches).sort(
           (a, b) => new Date(a.match.match_date) - new Date(b.match.match_date)
         )
       }
-      setGoalMap(sorted)
-      setLoading(false)
-    })
-  }, [activeTeam?.id])
+
+      return { stats, goalMap }
+    },
+    enabled: !!activeTeam?.id,
+  })
+
+  const stats = data?.stats || []
+  const goalMap = data?.goalMap || {}
 
   function toggle(playerId) {
     setExpanded(prev => ({ ...prev, [playerId]: !prev[playerId] }))
@@ -68,7 +71,7 @@ export default function Stats() {
     <div className="p-4 space-y-4">
       <h1 className="text-2xl font-bold pt-2">Statistieken</h1>
 
-      {loading ? (
+      {isLoading ? (
         <PageLoader />
       ) : stats.length === 0 ? (
         <EmptyState icon={BarChart2}>Nog geen statistieken beschikbaar</EmptyState>

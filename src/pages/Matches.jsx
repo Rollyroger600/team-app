@@ -1,6 +1,7 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2, Users, CheckCircle, XCircle, HelpCircle } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
@@ -658,112 +659,103 @@ export default function Matches() {
 
   const [activeTab, setActiveTab] = useState('overzicht')
   const [ownOnly, setOwnOnly] = useState(true)
-  const [loading, setLoading] = useState(true)
-  const [league, setLeague] = useState(null)
-  const [leagueTeams, setLeagueTeams] = useState([])
-  const [matches, setMatches] = useState([])
-  // leagueMatchId → matchId (from the `matches` table)
-  const [ownMatchMap, setOwnMatchMap] = useState({})
-  // matchId → goals[]
-  const [goalsMap, setGoalsMap] = useState({})
-  const [teamMembers, setTeamMembers] = useState([])
-  // leagueTeamId → logo_url
-  const [logoMap, setLogoMap] = useState({})
-  // matchId → { players: [{player_id, status, profiles}] }
-  const [availabilityMap, setAvailabilityMap] = useState({})
 
-  useEffect(() => {
-    if (!activeTeam?.id) return
-    loadData()
-  }, [activeTeam?.id])
-
-  async function loadData() {
-    setLoading(true)
-
-    const { data: leagueData } = await supabase
-      .from('leagues')
-      .select('*')
-      .eq('team_id', activeTeam.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (!leagueData) {
-      setLeague(null)
-      setLoading(false)
-      return
-    }
-
-    setLeague(leagueData)
-
-    const [teamsRes, matchesRes, ownMatchesRes, membersRes] = await Promise.all([
-      supabase.from('league_teams').select('id, team_name, is_own_team, registry_id, clubs_registry(logo_url)').eq('league_id', leagueData.id),
-      supabase
-        .from('league_matches')
-        .select('*, home_team:home_team_id(id,team_name,is_own_team), away_team:away_team_id(id,team_name,is_own_team)')
-        .eq('league_id', leagueData.id)
-        .order('match_date', { ascending: true })
-        .order('match_time', { ascending: true, nullsFirst: false }),
-      supabase
-        .from('matches')
-        .select('id, league_match_id')
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['matches', activeTeam?.id],
+    queryFn: async () => {
+      const { data: leagueData } = await supabase
+        .from('leagues')
+        .select('*')
         .eq('team_id', activeTeam.id)
-        .not('league_match_id', 'is', null),
-      supabase
-        .from('team_memberships')
-        .select('player_id, profiles(full_name, nickname)')
-        .eq('team_id', activeTeam.id)
-        .eq('active', true),
-    ])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-    setLeagueTeams(teamsRes.data || [])
-    setMatches(matchesRes.data || [])
-    setTeamMembers(membersRes.data || [])
+      if (!leagueData) {
+        return { league: null, leagueTeams: [], matches: [], ownMatchMap: {}, goalsMap: {}, teamMembers: [], logoMap: {}, availabilityMap: {} }
+      }
 
-    // Build logoMap: leagueTeamId → logo_url
-    const lMap = {}
-    for (const t of teamsRes.data || []) {
-      if (t.clubs_registry?.logo_url) lMap[t.id] = t.clubs_registry.logo_url
-    }
-    setLogoMap(lMap)
-
-    // Build leagueMatchId → matchId map
-    const lmMap = {}
-    for (const m of ownMatchesRes.data || []) lmMap[m.league_match_id] = m.id
-    setOwnMatchMap(lmMap)
-
-    // Load goals + availability for own matches
-    const matchIds = (ownMatchesRes.data || []).map(m => m.id)
-    if (matchIds.length > 0) {
-      const [goalsRes, availRes] = await Promise.all([
+      const [teamsRes, matchesRes, ownMatchesRes, membersRes] = await Promise.all([
+        supabase.from('league_teams').select('id, team_name, is_own_team, registry_id, clubs_registry(logo_url)').eq('league_id', leagueData.id),
         supabase
-          .from('goals')
-          .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
-          .in('match_id', matchIds)
-          .order('minute', { ascending: true, nullsFirst: false }),
+          .from('league_matches')
+          .select('*, home_team:home_team_id(id,team_name,is_own_team), away_team:away_team_id(id,team_name,is_own_team)')
+          .eq('league_id', leagueData.id)
+          .order('match_date', { ascending: true })
+          .order('match_time', { ascending: true, nullsFirst: false }),
         supabase
-          .from('match_availability')
-          .select('match_id, player_id, status, profiles(full_name, nickname)')
-          .in('match_id', matchIds),
+          .from('matches')
+          .select('id, league_match_id')
+          .eq('team_id', activeTeam.id)
+          .not('league_match_id', 'is', null),
+        supabase
+          .from('team_memberships')
+          .select('player_id, profiles(full_name, nickname)')
+          .eq('team_id', activeTeam.id)
+          .eq('active', true),
       ])
 
-      const gMap = {}
-      for (const g of goalsRes.data || []) {
-        if (!gMap[g.match_id]) gMap[g.match_id] = []
-        gMap[g.match_id].push(g)
+      // Build logoMap: leagueTeamId → logo_url
+      const lMap = {}
+      for (const t of teamsRes.data || []) {
+        if (t.clubs_registry?.logo_url) lMap[t.id] = t.clubs_registry.logo_url
       }
-      setGoalsMap(gMap)
 
-      const avMap = {}
-      for (const a of availRes.data || []) {
-        if (!avMap[a.match_id]) avMap[a.match_id] = { players: [] }
-        avMap[a.match_id].players.push({ player_id: a.player_id, status: a.status, profiles: a.profiles })
+      // Build leagueMatchId → matchId map
+      const lmMap = {}
+      for (const m of ownMatchesRes.data || []) lmMap[m.league_match_id] = m.id
+
+      // Load goals + availability for own matches
+      const matchIds = (ownMatchesRes.data || []).map(m => m.id)
+      let goalsMap = {}
+      let availabilityMap = {}
+
+      if (matchIds.length > 0) {
+        const [goalsRes, availRes] = await Promise.all([
+          supabase
+            .from('goals')
+            .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+            .in('match_id', matchIds)
+            .order('minute', { ascending: true, nullsFirst: false }),
+          supabase
+            .from('match_availability')
+            .select('match_id, player_id, status, profiles(full_name, nickname)')
+            .in('match_id', matchIds),
+        ])
+
+        for (const g of goalsRes.data || []) {
+          if (!goalsMap[g.match_id]) goalsMap[g.match_id] = []
+          goalsMap[g.match_id].push(g)
+        }
+
+        for (const a of availRes.data || []) {
+          if (!availabilityMap[a.match_id]) availabilityMap[a.match_id] = { players: [] }
+          availabilityMap[a.match_id].players.push({ player_id: a.player_id, status: a.status, profiles: a.profiles })
+        }
       }
-      setAvailabilityMap(avMap)
-    }
 
-    setLoading(false)
-  }
+      return {
+        league: leagueData,
+        leagueTeams: teamsRes.data || [],
+        matches: matchesRes.data || [],
+        ownMatchMap: lmMap,
+        goalsMap,
+        teamMembers: membersRes.data || [],
+        logoMap: lMap,
+        availabilityMap,
+      }
+    },
+    enabled: !!activeTeam?.id,
+  })
+
+  const league = data?.league || null
+  const leagueTeams = data?.leagueTeams || []
+  const matches = data?.matches || []
+  const ownMatchMap = data?.ownMatchMap || {}
+  const goalsMap = data?.goalsMap || {}
+  const teamMembers = data?.teamMembers || []
+  const logoMap = data?.logoMap || {}
+  const availabilityMap = data?.availabilityMap || {}
 
   const today = new Date().toISOString().split('T')[0]
 

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Calendar, CheckCircle, XCircle, HelpCircle, Users, ChevronDown, ChevronUp } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
@@ -11,91 +12,118 @@ import { formatGatheringDisplay } from '../lib/gathering'
 export default function Dashboard() {
   const { user, profile } = useAuthStore()
   const { activeTeam, teamSettings } = useTeamStore()
-  const [nextMatch, setNextMatch] = useState(null)
-  const [myAvailability, setMyAvailability] = useState(null)
-  const [availabilityCount, setAvailabilityCount] = useState({ available: 0, total: 0 })
-  const [teamAvailability, setTeamAvailability] = useState([])  // [{ player_id, full_name, status }]
-  const [totalMembers, setTotalMembers] = useState(0)
+  const queryClient = useQueryClient()
   const [showTeam, setShowTeam] = useState(false)
-  const [latestAnnouncement, setLatestAnnouncement] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [myAvailability, setMyAvailability] = useState(null)
+  const [availabilityInitialized, setAvailabilityInitialized] = useState(false)
 
-  useEffect(() => {
-    if (!activeTeam?.id || !user?.id) return
-    loadDashboard()
-  }, [activeTeam?.id, user?.id])
+  // Query 1: next match + latest announcement
+  const { data: phase1, isLoading: loadingPhase1 } = useQuery({
+    queryKey: ['nextMatch', activeTeam?.id],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0]
+      const [matchRes, announcementRes] = await Promise.all([
+        supabase.from('matches')
+          .select('*')
+          .eq('team_id', activeTeam.id)
+          .eq('status', 'upcoming')
+          .gte('match_date', today)
+          .order('match_date', { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+        supabase.from('announcements')
+          .select('*, profiles(full_name)')
+          .eq('team_id', activeTeam.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      ])
+      return { match: matchRes.data || null, announcement: announcementRes.data || null }
+    },
+    enabled: !!activeTeam?.id && !!user?.id,
+  })
 
-  async function loadDashboard() {
-    setLoading(true)
-    const today = new Date().toISOString().split('T')[0]
+  const nextMatch = phase1?.match || null
+  const latestAnnouncement = phase1?.announcement || null
 
-    const [matchRes, announcementRes] = await Promise.all([
-      supabase.from('matches')
-        .select('*')
-        .eq('team_id', activeTeam.id)
-        .eq('status', 'upcoming')
-        .gte('match_date', today)
-        .order('match_date', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-      supabase.from('announcements')
-        .select('*, profiles(full_name)')
-        .eq('team_id', activeTeam.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-    ])
-
-    const match = matchRes.data
-    setNextMatch(match)
-    setLatestAnnouncement(announcementRes.data)
-
-    if (match) {
+  // Query 2: availability for the next match
+  const { data: availData } = useQuery({
+    queryKey: ['matchAvailability', nextMatch?.id, user?.id],
+    queryFn: async () => {
       const [myAvRes, allAvRes, membersRes] = await Promise.all([
         supabase.from('match_availability')
           .select('status')
-          .eq('match_id', match.id)
+          .eq('match_id', nextMatch.id)
           .eq('player_id', user.id)
           .maybeSingle(),
         supabase.from('match_availability')
           .select('player_id, status, profiles(full_name)')
-          .eq('match_id', match.id),
+          .eq('match_id', nextMatch.id),
         supabase.from('team_memberships')
           .select('player_id, profiles(full_name, nickname)')
           .eq('team_id', activeTeam.id)
           .eq('active', true),
       ])
-      setMyAvailability(myAvRes.data?.status || null)
       const allAv = allAvRes.data || []
       const available = allAv.filter(a => a.status === 'available').length
-      setAvailabilityCount({ available, total: allAv.length })
-
       const members = membersRes.data || []
-      setTotalMembers(members.length)
       const avMap = {}
       for (const a of allAv) avMap[a.player_id] = { status: a.status, name: a.profiles?.full_name }
-      setTeamAvailability(members.map(m => ({
+      const teamAvailability = members.map(m => ({
         player_id: m.player_id,
         full_name: m.profiles?.nickname || m.profiles?.full_name?.split(' ')[0] || '?',
         status: avMap[m.player_id]?.status || null,
-      })))
+      }))
+      return {
+        myAvailability: myAvRes.data?.status || null,
+        availabilityCount: { available, total: allAv.length },
+        teamAvailability,
+        totalMembers: members.length,
+      }
+    },
+    enabled: !!nextMatch?.id && !!user?.id,
+  })
+
+  // Sync server myAvailability to local state once on first load
+  useEffect(() => {
+    if (availData && !availabilityInitialized) {
+      setMyAvailability(availData.myAvailability)
+      setAvailabilityInitialized(true)
     }
-    setLoading(false)
-  }
+  }, [availData, availabilityInitialized])
 
-  async function setAvailability(status) {
+  // After invalidation, re-sync
+  useEffect(() => {
+    if (availData) {
+      setMyAvailability(availData.myAvailability)
+    }
+  }, [availData?.myAvailability])
+
+  const availabilityCount = availData?.availabilityCount || { available: 0, total: 0 }
+  const teamAvailability = availData?.teamAvailability || []
+  const totalMembers = availData?.totalMembers || 0
+
+  // Mutation: set availability
+  const availMutation = useMutation({
+    mutationFn: (status) =>
+      supabase.from('match_availability').upsert({
+        match_id: nextMatch.id,
+        player_id: user.id,
+        status,
+        responded_at: new Date().toISOString()
+      }, { onConflict: 'match_id,player_id' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['matchAvailability', nextMatch?.id, user?.id] })
+    },
+  })
+
+  async function handleSetAvailability(status) {
     if (!nextMatch || !user) return
-    await supabase.from('match_availability').upsert({
-      match_id: nextMatch.id,
-      player_id: user.id,
-      status,
-      responded_at: new Date().toISOString()
-    }, { onConflict: 'match_id,player_id' })
-    setMyAvailability(status)
-    loadDashboard()
+    setMyAvailability(status) // optimistic
+    await availMutation.mutateAsync(status)
   }
 
-  if (loading) {
+  if (loadingPhase1) {
     return <PageLoader />
   }
 
@@ -149,7 +177,7 @@ export default function Dashboard() {
               ].map(({ status, icon: Icon, label, color }) => (
                 <button
                   key={status}
-                  onClick={() => setAvailability(status)}
+                  onClick={() => handleSetAvailability(status)}
                   className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-xs transition-all ${
                     myAvailability === status
                       ? color + ' ring-2 ring-offset-1 ring-offset-transparent'

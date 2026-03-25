@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Trophy } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import PageLoader from '../components/ui/PageLoader'
@@ -7,12 +7,10 @@ import useTeamStore from '../stores/useTeamStore'
 
 export default function Standings() {
   const { activeTeam } = useTeamStore()
-  const [standings, setStandings] = useState([])
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!activeTeam?.id) return
-    async function load() {
+  const { data: standings = [], isLoading } = useQuery({
+    queryKey: ['standings', activeTeam?.id],
+    queryFn: async () => {
       // First get the league for this team
       const { data: league } = await supabase
         .from('leagues')
@@ -20,10 +18,7 @@ export default function Standings() {
         .eq('team_id', activeTeam.id)
         .maybeSingle()
 
-      if (!league?.id) {
-        setLoading(false)
-        return
-      }
+      if (!league?.id) return []
 
       const { data } = await supabase
         .from('v_league_standings')
@@ -31,17 +26,16 @@ export default function Standings() {
         .eq('league_id', league.id)
         .order('points', { ascending: false })
 
-      setStandings(data || [])
-      setLoading(false)
-    }
-    load()
-  }, [activeTeam?.id])
+      return data || []
+    },
+    enabled: !!activeTeam?.id,
+  })
 
   return (
     <div className="p-4 space-y-4">
       <h1 className="text-2xl font-bold pt-2">Competitiestand</h1>
 
-      {loading ? (
+      {isLoading ? (
         <PageLoader />
       ) : standings.length === 0 ? (
         <EmptyState icon={Trophy}>Nog geen standen beschikbaar</EmptyState>

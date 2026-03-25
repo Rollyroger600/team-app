@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Users, UserPlus, Mail, ChevronDown, ChevronUp, Check } from 'lucide-react'
+import { ArrowLeft, Users, UserPlus, Mail } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
@@ -13,28 +14,24 @@ const ROLES = [
 
 export default function AdminPlayers() {
   const { activeTeam } = useTeamStore()
-  const [players, setPlayers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showInvite, setShowInvite] = useState(false)
   const [form, setForm] = useState({ email: '', full_name: '', jersey_number: '', role: 'player' })
   const [inviting, setInviting] = useState(false)
   const [inviteResult, setInviteResult] = useState(null) // { ok, message }
 
-  useEffect(() => {
-    if (!activeTeam?.id) return
-    loadPlayers()
-  }, [activeTeam?.id])
-
-  async function loadPlayers() {
-    setLoading(true)
-    const { data } = await supabase
-      .from('team_memberships')
-      .select('*, profiles(id, full_name, nickname, email, jersey_number, position)')
-      .eq('team_id', activeTeam.id)
-      .order('created_at', { ascending: true })
-    setPlayers(data || [])
-    setLoading(false)
-  }
+  const { data: players = [], isLoading } = useQuery({
+    queryKey: ['adminPlayers', activeTeam?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('team_memberships')
+        .select('*, profiles(id, full_name, nickname, email, jersey_number, position)')
+        .eq('team_id', activeTeam.id)
+        .order('created_at', { ascending: true })
+      return data || []
+    },
+    enabled: !!activeTeam?.id,
+  })
 
   async function handleInvite(e) {
     e.preventDefault()
@@ -61,7 +58,7 @@ export default function AdminPlayers() {
     setInviteResult({ ok: true, message: `Uitnodiging verstuurd naar ${form.email}.` })
     setForm({ email: '', full_name: '', jersey_number: '', role: 'player' })
     setInviting(false)
-    loadPlayers()
+    queryClient.invalidateQueries({ queryKey: ['adminPlayers', activeTeam?.id] })
   }
 
   const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none focus:border-amber-400'
@@ -141,7 +138,7 @@ export default function AdminPlayers() {
       )}
 
       {/* Player list */}
-      {loading ? (
+      {isLoading ? (
         <PageLoader />
       ) : players.length === 0 ? (
         <EmptyState icon={Users}>Nog geen spelers toegevoegd</EmptyState>

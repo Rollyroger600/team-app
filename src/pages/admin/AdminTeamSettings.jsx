@@ -1,33 +1,63 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Save } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 
 export default function AdminTeamSettings() {
   const { activeTeam, refreshTeam } = useTeamStore()
+  const queryClient = useQueryClient()
   const [form, setForm] = useState({
     name: '',
     gathering_lead_time: 30,
     travel_buffer_minutes: 10,
     match_squad_size: 16,
   })
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
+  const { isLoading } = useQuery({
+    queryKey: ['adminTeamSettings', activeTeam?.id],
+    queryFn: async () => {
+      // Settings are sourced from the activeTeam store object — no extra fetch needed
+      return activeTeam
+    },
+    enabled: !!activeTeam?.id,
+  })
+
+  // Sync form when activeTeam changes (initial load or store update)
   useEffect(() => {
-    if (!activeTeam?.id) return
-    setForm({
-      name: activeTeam.name || '',
-      gathering_lead_time: activeTeam.gathering_lead_time ?? 30,
-      travel_buffer_minutes: activeTeam.travel_buffer_minutes ?? 10,
-      match_squad_size: activeTeam.match_squad_size ?? 16,
-    })
-    setLoading(false)
+    if (activeTeam) {
+      setForm({
+        name: activeTeam.name || '',
+        gathering_lead_time: activeTeam.gathering_lead_time ?? 30,
+        travel_buffer_minutes: activeTeam.travel_buffer_minutes ?? 10,
+        match_squad_size: activeTeam.match_squad_size ?? 16,
+      })
+    }
   }, [activeTeam?.id])
+
+  const saveMutation = useMutation({
+    mutationFn: async (values) => {
+      const { error: updateError } = await supabase
+        .from('teams')
+        .update(values)
+        .eq('id', activeTeam.id)
+      if (updateError) throw updateError
+      await refreshTeam(activeTeam.id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminTeamSettings', activeTeam?.id] })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    },
+    onError: (err) => {
+      setError(err.message)
+    },
+  })
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -36,26 +66,14 @@ export default function AdminTeamSettings() {
     setError('')
     setSaved(false)
 
-    const { error: updateError } = await supabase
-      .from('teams')
-      .update({
-        name: form.name,
-        gathering_lead_time: Number(form.gathering_lead_time),
-        travel_buffer_minutes: Number(form.travel_buffer_minutes),
-        match_squad_size: Number(form.match_squad_size),
-      })
-      .eq('id', activeTeam.id)
+    await saveMutation.mutateAsync({
+      name: form.name,
+      gathering_lead_time: Number(form.gathering_lead_time),
+      travel_buffer_minutes: Number(form.travel_buffer_minutes),
+      match_squad_size: Number(form.match_squad_size),
+    })
 
     setSaving(false)
-
-    if (updateError) {
-      setError(updateError.message)
-      return
-    }
-
-    await refreshTeam(activeTeam.id)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
   }
 
   function handleChange(key, value) {
@@ -66,7 +84,7 @@ export default function AdminTeamSettings() {
   const inputStyle = { backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }
   const labelClass = "block text-sm font-medium mb-1.5 text-slate-400"
 
-  if (loading) {
+  if (isLoading) {
     return <PageLoader />
   }
 

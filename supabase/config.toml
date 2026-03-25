@@ -1,0 +1,22 @@
+
+[functions.invite-player]
+enabled = true
+verify_jwt = true
+import_map = "./functions/invite-player/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/invite-player/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/invite-player/*.html" ]
+
+[functions.dev-switch-user]
+enabled = true
+verify_jwt = true
+import_map = "./functions/dev-switch-user/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/dev-switch-user/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/dev-switch-user/*.html" ]

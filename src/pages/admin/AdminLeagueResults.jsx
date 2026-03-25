@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Trophy, Check, ChevronDown, ChevronUp } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 
@@ -145,18 +147,11 @@ function MatchdayGroup({ matchday, matches, teamNames, ownTeamId, onSave }) {
 export default function AdminLeagueResults() {
   const { activeTeam } = useTeamStore()
   const teamId = activeTeam?.id
+  const queryClient = useQueryClient()
 
-  const [league, setLeague] = useState(null)
-  const [matches, setMatches] = useState([])
-  const [teamNames, setTeamNames] = useState({})
-  const [ownTeamId, setOwnTeamId] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!teamId) return
-    async function load() {
-      setLoading(true)
-
+  const { data, isLoading } = useQuery({
+    queryKey: ['adminLeagueResults', teamId],
+    queryFn: async () => {
       const { data: lg } = await supabase
         .from('leagues')
         .select('*')
@@ -165,8 +160,7 @@ export default function AdminLeagueResults() {
         .limit(1)
         .maybeSingle()
 
-      if (!lg) { setLoading(false); return }
-      setLeague(lg)
+      if (!lg) return { league: null, matches: [], teamNames: {}, ownTeamId: null }
 
       const [{ data: lt }, { data: lm }] = await Promise.all([
         supabase.from('league_teams').select('id, team_name, is_own_team').eq('league_id', lg.id),
@@ -179,19 +173,34 @@ export default function AdminLeagueResults() {
         names[t.id] = t.team_name
         if (t.is_own_team) own = t.id
       }
-      setTeamNames(names)
-      setOwnTeamId(own)
-      setMatches(lm || [])
-      setLoading(false)
-    }
-    load()
-  }, [teamId])
+
+      return {
+        league: lg,
+        matches: lm || [],
+        teamNames: names,
+        ownTeamId: own,
+      }
+    },
+    enabled: !!teamId,
+  })
+
+  const league = data?.league || null
+  const matches = data?.matches || []
+  const teamNames = data?.teamNames || {}
+  const ownTeamId = data?.ownTeamId || null
 
   const handleSave = useCallback((id, scoreHome, scoreAway) => {
-    setMatches((prev) =>
-      prev.map((m) => m.id === id ? { ...m, score_home: scoreHome, score_away: scoreAway, status: 'completed' } : m)
-    )
-  }, [])
+    // Optimistically update the cached matches list
+    queryClient.setQueryData(['adminLeagueResults', teamId], (old) => {
+      if (!old) return old
+      return {
+        ...old,
+        matches: old.matches.map((m) =>
+          m.id === id ? { ...m, score_home: scoreHome, score_away: scoreAway, status: 'completed' } : m
+        ),
+      }
+    })
+  }, [queryClient, teamId])
 
   // Group by matchday
   const grouped = {}
@@ -202,7 +211,7 @@ export default function AdminLeagueResults() {
   }
   const sortedMatchdays = Object.keys(grouped).map(Number).sort((a, b) => a - b)
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-3 pt-2">
