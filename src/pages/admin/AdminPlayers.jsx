@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Users, UserPlus, Mail, ChevronDown, ChevronUp, Check } from 'lucide-react'
-import { supabase, supabaseAdmin } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 
 const ROLES = [
@@ -36,45 +36,25 @@ export default function AdminPlayers() {
 
   async function handleInvite(e) {
     e.preventDefault()
-    if (!supabaseAdmin) {
-      setInviteResult({ ok: false, message: 'Service role key niet ingesteld (VITE_SUPABASE_SERVICE_ROLE_KEY).' })
-      return
-    }
     setInviting(true)
     setInviteResult(null)
 
-    const appUrl = window.location.origin
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      form.email.trim().toLowerCase(),
-      { redirectTo: `${appUrl}/set-password` }
-    )
+    const { data, error } = await supabase.functions.invoke('invite-player', {
+      body: {
+        email: form.email.trim().toLowerCase(),
+        full_name: form.full_name.trim(),
+        jersey_number: form.jersey_number || null,
+        role: form.role,
+        team_id: activeTeam.id,
+        redirect_url: `${window.location.origin}/set-password`,
+      },
+    })
 
-    if (inviteError) {
-      setInviteResult({ ok: false, message: inviteError.message })
+    if (error || !data?.ok) {
+      setInviteResult({ ok: false, message: data?.error || error?.message || 'Onbekende fout' })
       setInviting(false)
       return
     }
-
-    const userId = inviteData.user?.id
-    if (!userId) {
-      setInviteResult({ ok: false, message: 'Gebruiker aangemaakt maar ID ontbreekt.' })
-      setInviting(false)
-      return
-    }
-
-    // Update profile with name + jersey
-    await supabase.from('profiles').update({
-      full_name: form.full_name.trim(),
-      jersey_number: form.jersey_number ? parseInt(form.jersey_number) : null,
-    }).eq('id', userId)
-
-    // Insert team membership if not exists
-    await supabase.from('team_memberships').upsert({
-      team_id: activeTeam.id,
-      player_id: userId,
-      role: form.role,
-      active: true,
-    }, { onConflict: 'team_id,player_id' })
 
     setInviteResult({ ok: true, message: `Uitnodiging verstuurd naar ${form.email}.` })
     setForm({ email: '', full_name: '', jersey_number: '', role: 'player' })

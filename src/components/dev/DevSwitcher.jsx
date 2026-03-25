@@ -1,7 +1,6 @@
-// DevSwitcher — snel wisselen tussen testprofielen, geen wachtwoord nodig
-// Zichtbaar voor iedereen (pilot fase). Verbergen: zet VITE_DEV_SWITCHER=false
+// DevSwitcher — snel wisselen tussen testprofielen (alleen in lokale dev)
 import { useState } from 'react'
-import { supabase, supabaseAdmin } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import useAuthStore from '../../stores/useAuthStore'
 
 const TEST_PLAYERS = [
@@ -31,7 +30,8 @@ const TEST_PLAYERS = [
 ]
 
 export default function DevSwitcher() {
-  if (import.meta.env.VITE_DEV_SWITCHER === 'false') return null
+  // Only render in local development — never in production builds
+  if (!import.meta.env.DEV) return null
 
   const { user } = useAuthStore()
   const [open, setOpen] = useState(false)
@@ -43,27 +43,18 @@ export default function DevSwitcher() {
     setSwitching(email)
     setError('')
 
-    if (!supabaseAdmin) {
-      setError('Service role key niet ingesteld')
-      setSwitching(null)
-      return
-    }
-
-    // Genereer een magic link token via admin API (geen wachtwoord nodig)
-    const { data, error: genErr } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
+    const { data, error: fnError } = await supabase.functions.invoke('dev-switch-user', {
+      body: { email },
     })
 
-    if (genErr || !data?.properties?.hashed_token) {
-      setError(genErr?.message || 'Kon geen login-token genereren')
+    if (fnError || data?.error) {
+      setError(data?.error || fnError?.message || 'Fout bij wisselen')
       setSwitching(null)
       return
     }
 
-    // Wissel sessie via de token
     const { error: verifyErr } = await supabase.auth.verifyOtp({
-      token_hash: data.properties.hashed_token,
+      token_hash: data.hashed_token,
       type: 'email',
     })
 
@@ -87,12 +78,10 @@ export default function DevSwitcher() {
           <div className="px-3 py-2 border-b text-xs font-bold text-amber-400" style={{ borderColor: '#1e293b' }}>
             Wissel profiel
           </div>
-
           <div className="overflow-y-auto" style={{ maxHeight: 320 }}>
             {TEST_PLAYERS.map((p) => {
               const isActive = p.email === user?.email
               const isSwitching = switching === p.email
-
               return (
                 <button
                   key={p.email}
@@ -107,7 +96,6 @@ export default function DevSwitcher() {
               )
             })}
           </div>
-
           {error && (
             <div className="px-3 py-2 border-t text-xs text-red-400" style={{ borderColor: '#1e293b' }}>
               {error}
@@ -115,16 +103,11 @@ export default function DevSwitcher() {
           )}
         </div>
       )}
-
       <button
         onClick={() => { setOpen(o => !o); setError('') }}
         className="w-10 h-10 rounded-full border text-xs font-bold shadow-lg transition-colors"
-        style={{
-          backgroundColor: open ? '#1e3a5f' : '#0f172a',
-          borderColor: '#f59e0b',
-          color: '#f59e0b',
-        }}
-        title="Wissel profiel"
+        style={{ backgroundColor: open ? '#1e3a5f' : '#0f172a', borderColor: '#f59e0b', color: '#f59e0b' }}
+        title="Wissel profiel (dev only)"
       >
         🛠
       </button>

@@ -16,15 +16,6 @@ function fetchWithTimeout(url, options = {}) {
     .finally(() => clearTimeout(timer))
 }
 
-// Admin client with service role key — only use for admin operations (invite users etc.)
-// Note: for a private team app the service role key in the client is an accepted trade-off.
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-export const supabaseAdmin = supabaseServiceKey
-  ? createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-  : null
-
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-key',
