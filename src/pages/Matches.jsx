@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2, Users, CheckCircle, XCircle, HelpCircle } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
