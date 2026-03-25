@@ -108,7 +108,7 @@ export default function Dashboard() {
 
   // Query: next umpire duty group
   const { data: nextDutyGroup } = useQuery({
-    queryKey: ['umpire', activeTeam?.id],
+    queryKey: ['umpireNext', activeTeam?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from('umpire_duties')

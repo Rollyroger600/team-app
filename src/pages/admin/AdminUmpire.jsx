@@ -58,6 +58,7 @@ export default function AdminUmpire() {
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: ['adminUmpire', activeTeam?.id] })
     queryClient.invalidateQueries({ queryKey: ['umpire', activeTeam?.id] })
+    queryClient.invalidateQueries({ queryKey: ['umpireNext', activeTeam?.id] })
   }
 
   const assignMutation = useMutation({
