@@ -8,7 +8,8 @@ import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDate, formatTime } from '../lib/utils'
 import { formatGatheringDisplay } from '../lib/gathering'
-import { parseISO, subDays, isPast, format } from 'date-fns'
+import { groupDuties } from '../components/ui/UmpireCard'
+import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 
 export default function Dashboard() {
@@ -105,8 +106,8 @@ export default function Dashboard() {
   const teamAvailability = availData?.teamAvailability || []
   const totalMembers = availData?.totalMembers || 0
 
-  // Query: next umpire duty
-  const { data: nextDuty } = useQuery({
+  // Query: next umpire duty group
+  const { data: nextDutyGroup } = useQuery({
     queryKey: ['umpire', activeTeam?.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -116,11 +117,7 @@ export default function Dashboard() {
         .order('created_at', { ascending: true })
 
       const today = new Date().toISOString().split('T')[0]
-      const upcoming = (data || []).filter(d => {
-        if (!d.matches?.match_date) return true
-        const umpireDate = subDays(parseISO(d.matches.match_date), 1)
-        return !isPast(umpireDate) || umpireDate.toISOString().split('T')[0] >= today
-      })
+      const { upcoming } = groupDuties(data || [], today)
       return upcoming[0] || null
     },
     enabled: !!activeTeam?.id,
@@ -256,12 +253,15 @@ export default function Dashboard() {
       )}
 
       {/* Next umpire duty */}
-      {nextDuty && (() => {
-        const sat = nextDuty.matches?.match_date
-          ? format(subDays(parseISO(nextDuty.matches.match_date), 1), 'EEEE d MMM', { locale: nl })
-          : nextDuty.umpire_match_desc
-        const assignedName = nextDuty.profiles?.nickname || nextDuty.profiles?.full_name?.split(' ')[0]
-        const isOwn = nextDuty.player_id === user?.id
+      {nextDutyGroup && (() => {
+        const { match, duties, umpireDate } = nextDutyGroup
+        const satLabel = umpireDate
+          ? format(umpireDate, 'EEEE d MMM', { locale: nl })
+          : duties[0]?.umpire_match_desc || '?'
+        const isOwn = duties.some(d => d.player_id === user?.id)
+        const names = duties.map(d =>
+          d.profiles?.nickname || d.profiles?.full_name?.split(' ')[0] || 'open'
+        ).join(' & ')
         return (
           <div className="rounded-xl p-4 border bg-surface border-border"
                style={isOwn ? { borderColor: 'rgba(245,158,11,0.4)', backgroundColor: 'rgba(245,158,11,0.06)' } : {}}>
@@ -270,15 +270,15 @@ export default function Dashboard() {
             </p>
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="font-semibold text-sm">{sat}</p>
-                {nextDuty.matches && (
+                <p className="font-semibold text-sm">{satLabel}</p>
+                {match && (
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Bij thuiswedstrijd vs {nextDuty.matches.opponent} ({formatDate(nextDuty.matches.match_date)})
+                    Bij thuiswedstrijd vs {match.opponent} ({formatDate(match.match_date)})
                   </p>
                 )}
               </div>
               <span className={`text-sm font-medium flex-shrink-0 ${isOwn ? 'text-amber-400' : 'text-slate-300'}`}>
-                {isOwn ? 'Jij' : (assignedName || 'Niet toegewezen')}
+                {names}
               </span>
             </div>
           </div>

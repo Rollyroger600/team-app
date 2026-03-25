@@ -3,10 +3,9 @@ import { Flag } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import PageLoader from '../components/ui/PageLoader'
 import EmptyState from '../components/ui/EmptyState'
-import { UmpireCard } from '../components/ui/UmpireCard'
+import { UmpireCard, groupDuties } from '../components/ui/UmpireCard'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
-import { parseISO, subDays, isPast } from 'date-fns'
 
 export default function Umpire() {
   const { user } = useAuthStore()
@@ -21,20 +20,8 @@ export default function Umpire() {
         .eq('team_id', activeTeam.id)
         .order('created_at', { ascending: true })
 
-      const all = data || []
       const today = new Date().toISOString().split('T')[0]
-
-      const withDate = all.map(d => ({
-        ...d,
-        umpire_date: d.matches?.match_date
-          ? subDays(parseISO(d.matches.match_date), 1)
-          : null,
-      }))
-
-      return {
-        upcoming: withDate.filter(d => !d.umpire_date || !isPast(d.umpire_date) || d.umpire_date.toISOString().split('T')[0] >= today),
-        past: withDate.filter(d => d.umpire_date && isPast(d.umpire_date) && d.umpire_date.toISOString().split('T')[0] < today).reverse(),
-      }
+      return groupDuties(data || [], today)
     },
     enabled: !!activeTeam?.id && !!user?.id,
   })
@@ -56,13 +43,8 @@ export default function Umpire() {
         <>
           {upcoming.length > 0 && (
             <div className="space-y-2">
-              {upcoming.map(duty => (
-                <UmpireCard
-                  key={duty.id}
-                  duty={duty}
-                  isOwn={duty.player_id === user.id}
-                  past={false}
-                />
+              {upcoming.map((group, i) => (
+                <UmpireCard key={group.match?.id || i} group={group} userId={user.id} past={false} />
               ))}
             </div>
           )}
@@ -72,13 +54,8 @@ export default function Umpire() {
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-1 pt-2">
                 Gefloten
               </p>
-              {past.map(duty => (
-                <UmpireCard
-                  key={duty.id}
-                  duty={duty}
-                  isOwn={duty.player_id === user.id}
-                  past={true}
-                />
+              {past.map((group, i) => (
+                <UmpireCard key={group.match?.id || i} group={group} userId={user.id} past={true} />
               ))}
             </div>
           )}

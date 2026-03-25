@@ -4,12 +4,12 @@ import { CheckCircle, XCircle, HelpCircle, Settings, ChevronDown, ChevronUp, Shi
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import EmptyState from '../components/ui/EmptyState'
-import { UmpireCard } from '../components/ui/UmpireCard'
+import { UmpireCard, groupDuties } from '../components/ui/UmpireCard'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDate, formatTime } from '../lib/utils'
-import { parseISO, subDays, isPast } from 'date-fns'
+import { parseISO, subDays } from 'date-fns'
 
 const STATUS_OPTIONS = [
   { status: 'available',   icon: CheckCircle, label: 'Ja',        active: 'bg-green-500/25 border-green-500/60 text-green-400' },
@@ -115,15 +115,7 @@ export default function More() {
         .order('created_at', { ascending: true })
 
       const today = new Date().toISOString().split('T')[0]
-      const all = (duties || []).map(d => ({
-        ...d,
-        umpire_date: d.matches?.match_date ? subDays(parseISO(d.matches.match_date), 1) : null,
-      }))
-
-      return {
-        upcoming: all.filter(d => !d.umpire_date || !isPast(d.umpire_date) || d.umpire_date.toISOString().split('T')[0] >= today),
-        past: all.filter(d => d.umpire_date && isPast(d.umpire_date) && d.umpire_date.toISOString().split('T')[0] < today).reverse(),
-      }
+      return groupDuties(duties || [], today)
     },
     enabled: !!activeTeam?.id && !!user?.id,
   })
@@ -313,14 +305,14 @@ export default function More() {
         <EmptyState icon={Flag}>Geen fluitbeurten gepland</EmptyState>
       ) : (
         <div className="space-y-2">
-          {umpireUpcoming.map(duty => (
-            <UmpireCard key={duty.id} duty={duty} isOwn={duty.player_id === user.id} past={false} />
+          {umpireUpcoming.map((group, i) => (
+            <UmpireCard key={group.match?.id || i} group={group} userId={user.id} past={false} />
           ))}
           {umpirePast.length > 0 && (
             <>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-1 pt-2">Gefloten</p>
-              {umpirePast.map(duty => (
-                <UmpireCard key={duty.id} duty={duty} isOwn={duty.player_id === user.id} past={true} />
+              {umpirePast.map((group, i) => (
+                <UmpireCard key={group.match?.id || i} group={group} userId={user.id} past={true} />
               ))}
             </>
           )}

@@ -55,22 +55,23 @@ export default function AdminUmpire() {
   const matches = data?.matches || []
   const players = data?.players || []
 
+  function invalidateAll() {
+    queryClient.invalidateQueries({ queryKey: ['adminUmpire', activeTeam?.id] })
+    queryClient.invalidateQueries({ queryKey: ['umpire', activeTeam?.id] })
+  }
+
   const assignMutation = useMutation({
     mutationFn: ({ dutyId, playerId }) =>
       supabase.from('umpire_duties')
         .update({ player_id: playerId || null })
         .eq('id', dutyId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminUmpire', activeTeam?.id] })
-    },
+    onSuccess: invalidateAll,
   })
 
   const deleteMutation = useMutation({
     mutationFn: (dutyId) =>
       supabase.from('umpire_duties').delete().eq('id', dutyId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminUmpire', activeTeam?.id] })
-    },
+    onSuccess: invalidateAll,
   })
 
   async function generateDuties() {
@@ -107,7 +108,7 @@ export default function AdminUmpire() {
 
     setGenResult(created > 0 ? `${created} fluitbeurt${created > 1 ? 'en' : ''} aangemaakt.` : 'Alle thuiswedstrijden hebben al 2 fluitbeurten.')
     setGenerating(false)
-    queryClient.invalidateQueries({ queryKey: ['adminUmpire', activeTeam?.id] })
+    invalidateAll()
   }
 
   async function assignPlayer(dutyId, playerId) {

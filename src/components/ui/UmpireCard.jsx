@@ -2,12 +2,31 @@ import { formatDate } from '../../lib/utils'
 import { subDays, parseISO, format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 
-export function UmpireCard({ duty, isOwn, past }) {
-  const sat = duty.matches?.match_date
-    ? format(subDays(parseISO(duty.matches.match_date), 1), 'EEEE d MMM', { locale: nl })
-    : null
+function dutyName(duty) {
+  return duty.profiles?.nickname || duty.profiles?.full_name?.split(' ')[0] || null
+}
 
-  const assignedName = duty.profiles?.nickname || duty.profiles?.full_name?.split(' ')[0]
+// Accepts a group: { match, duties: [duty1, duty2], umpireDate }
+// match may be null for orphan duties (no match_id)
+export function UmpireCard({ group, userId, past }) {
+  const { match, duties, umpireDate } = group
+
+  const satLabel = umpireDate
+    ? format(umpireDate, 'EEEE d MMM', { locale: nl })
+    : duties[0]?.umpire_match_desc || '?'
+
+  const names = duties.map(d => {
+    const n = dutyName(d)
+    return n || <span className="italic text-slate-600">open</span>
+  })
+
+  const isOwn = duties.some(d => d.player_id === userId)
+
+  // Build display: "Kevin & Wouter" or "Kevin & open"
+  const nameDisplay = names.reduce((acc, n, i) => {
+    if (i === 0) return [n]
+    return [...acc, <span key={`sep-${i}`} className="text-slate-500"> & </span>, n]
+  }, [])
 
   return (
     <div
@@ -28,28 +47,49 @@ export function UmpireCard({ duty, isOwn, past }) {
               </span>
             )}
             <p className={`font-semibold text-sm ${past ? 'text-slate-500' : ''}`}>
-              {sat || duty.umpire_match_desc}
+              {satLabel}
             </p>
           </div>
-          {duty.matches && (
+          {match && (
             <p className="text-xs text-slate-400">
-              Bij thuiswedstrijd vs {duty.matches.opponent} ({formatDate(duty.matches.match_date)})
+              Bij thuiswedstrijd vs {match.opponent} ({formatDate(match.match_date)})
             </p>
           )}
         </div>
         <div className="flex-shrink-0 text-right">
-          {assignedName ? (
-            <span className={`text-sm font-medium ${past ? 'text-slate-500' : isOwn ? 'text-amber-400' : 'text-slate-300'}`}>
-              {assignedName}
-            </span>
-          ) : (
-            <span className="text-xs text-slate-600 italic">Niet toegewezen</span>
-          )}
+          <span className={`text-sm font-medium ${past ? 'text-slate-500' : isOwn ? 'text-amber-400' : 'text-slate-300'}`}>
+            {nameDisplay}
+          </span>
         </div>
       </div>
-      {duty.notes && (
-        <p className="text-xs text-slate-400 mt-1.5">{duty.notes}</p>
-      )}
     </div>
   )
+}
+
+// Helper: convert flat duties array → grouped by match_id, sorted by umpire date
+export function groupDuties(duties, today) {
+  const groups = {}
+
+  for (const d of duties) {
+    const key = d.match_id || `orphan-${d.id}`
+    if (!groups[key]) {
+      const umpireDate = d.matches?.match_date
+        ? subDays(parseISO(d.matches.match_date), 1)
+        : null
+      groups[key] = { match: d.matches || null, duties: [], umpireDate }
+    }
+    groups[key].duties.push(d)
+  }
+
+  const all = Object.values(groups)
+  const isPastGroup = (g) => g.umpireDate && g.umpireDate.toISOString().split('T')[0] < today
+
+  return {
+    upcoming: all.filter(g => !isPastGroup(g)).sort((a, b) => {
+      if (!a.umpireDate) return 1
+      if (!b.umpireDate) return -1
+      return a.umpireDate - b.umpireDate
+    }),
+    past: all.filter(g => isPastGroup(g)).sort((a, b) => b.umpireDate - a.umpireDate),
+  }
 }
