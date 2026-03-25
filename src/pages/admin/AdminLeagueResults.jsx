@@ -62,8 +62,7 @@ function ScoreRow({ match, teamNames, ownTeamId, onSave }) {
         max="99"
         value={home}
         onChange={(e) => { setHome(e.target.value); setSaved(false) }}
-        className="w-10 text-center rounded-lg border py-1.5 text-sm font-bold outline-none focus:border-amber-400"
-        style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+        className="w-10 text-center rounded-lg border py-1.5 text-sm font-bold outline-none focus:border-amber-400 bg-surface-2 border-border text-text"
       />
 
       <span className="text-slate-500 text-sm font-bold">–</span>
@@ -75,8 +74,7 @@ function ScoreRow({ match, teamNames, ownTeamId, onSave }) {
         max="99"
         value={away}
         onChange={(e) => { setAway(e.target.value); setSaved(false) }}
-        className="w-10 text-center rounded-lg border py-1.5 text-sm font-bold outline-none focus:border-amber-400"
-        style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+        className="w-10 text-center rounded-lg border py-1.5 text-sm font-bold outline-none focus:border-amber-400 bg-surface-2 border-border text-text"
       />
 
       {/* Uit */}
@@ -109,8 +107,7 @@ function MatchdayGroup({ matchday, matches, teamNames, ownTeamId, onSave }) {
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
-      style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      className="rounded-xl border overflow-hidden bg-surface border-border"
     >
       <button
         onClick={() => setOpen((o) => !o)}
@@ -128,7 +125,7 @@ function MatchdayGroup({ matchday, matches, teamNames, ownTeamId, onSave }) {
       </button>
 
       {open && (
-        <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="divide-y divide-border">
           {matches.map((m) => (
             <ScoreRow
               key={m.id}
@@ -224,7 +221,7 @@ export default function AdminLeagueResults() {
           <Link to="/admin/league" className="text-slate-400 hover:text-slate-200"><ArrowLeft size={20} /></Link>
           <h1 className="text-2xl font-bold">Uitslagen invoeren</h1>
         </div>
-        <div className="rounded-xl p-8 border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-8 border text-center bg-surface border-border">
           <p className="text-slate-400">Geen competitie gevonden. Maak eerst een competitie aan.</p>
           <Link to="/admin/league" className="mt-3 inline-block text-sm text-amber-400 underline">Naar competitie</Link>
         </div>
@@ -239,11 +236,11 @@ export default function AdminLeagueResults() {
           <Link to="/admin/league" className="text-slate-400 hover:text-slate-200"><ArrowLeft size={20} /></Link>
           <h1 className="text-2xl font-bold">Uitslagen invoeren</h1>
         </div>
-        <div className="rounded-xl p-8 border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-8 border text-center bg-surface border-border">
           <Trophy size={40} className="mx-auto mb-3 text-slate-600" />
           <p className="font-medium mb-1">Nog geen wedstrijden</p>
           <p className="text-sm text-slate-400 mb-4">Voer eerst het wedstrijdprogramma in.</p>
-          <Link to="/admin/league/matches" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}>
+          <Link to="/admin/league/matches" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-secondary text-secondary-text">
             Wedstrijden invoeren
           </Link>
         </div>
@@ -265,9 +262,9 @@ export default function AdminLeagueResults() {
       </div>
 
       {/* Progress */}
-      <div className="rounded-xl border p-4" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+      <div className="rounded-xl border p-4 bg-surface border-border">
         <div className="flex justify-between text-sm mb-2">
-          <span style={{ color: 'var(--color-text-muted)' }}>Ingevoerd</span>
+          <span className="text-text-muted">Ingevoerd</span>
           <span className="font-medium">{totalCompleted} / {matches.length}</span>
         </div>
         <div className="h-1.5 rounded-full bg-slate-700">

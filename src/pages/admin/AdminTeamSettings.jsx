@@ -80,7 +80,7 @@ export default function AdminTeamSettings() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="rounded-xl p-4 border space-y-4" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-4 border space-y-4 bg-surface border-border">
           <h2 className="font-semibold text-sm text-slate-300 uppercase tracking-wide">Algemeen</h2>
 
           <div>
@@ -92,7 +92,7 @@ export default function AdminTeamSettings() {
 
         </div>
 
-        <div className="rounded-xl p-4 border space-y-4" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-4 border space-y-4 bg-surface border-border">
           <h2 className="font-semibold text-sm text-slate-300 uppercase tracking-wide">Verzameltijden</h2>
 
           <div>
@@ -126,8 +126,7 @@ export default function AdminTeamSettings() {
         <button
           type="submit"
           disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50 bg-secondary text-secondary-text"
         >
           <Save size={16} />
           {saving ? 'Opslaan...' : 'Instellingen opslaan'}

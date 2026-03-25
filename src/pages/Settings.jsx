@@ -53,10 +53,9 @@ export default function Settings() {
       <h1 className="text-2xl font-bold pt-2">Instellingen</h1>
 
       {/* Profile card */}
-      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+      <div className="rounded-xl p-4 border bg-surface border-border">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0"
-               style={{ backgroundColor: 'var(--color-primary)' }}>
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0 bg-primary">
             {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
           </div>
           <div>
@@ -107,8 +106,7 @@ export default function Settings() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50"
-            style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50 bg-secondary text-secondary-text"
           >
             <Save size={15} />
             {saving ? 'Opslaan...' : 'Opslaan'}
@@ -117,8 +115,8 @@ export default function Settings() {
       </div>
 
       {/* Team info */}
-      <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-        <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="rounded-xl border overflow-hidden bg-surface border-border">
+        <div className="px-4 py-3 border-b border-border">
           <p className="text-xs text-slate-400 uppercase tracking-wide">Team</p>
         </div>
         <div className="px-4 py-3">
@@ -128,7 +126,7 @@ export default function Settings() {
       </div>
 
       {/* Sign out */}
-      <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+      <div className="rounded-xl border overflow-hidden bg-surface border-border">
         <button
           onClick={handleSignOut}
           disabled={signingOut}

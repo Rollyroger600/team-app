@@ -82,8 +82,7 @@ export default function AdminRoster() {
         <button
           onClick={saveRoster}
           disabled={saving}
-          className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+          className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 bg-secondary text-secondary-text"
         >
           {saving ? 'Opslaan...' : 'Opstelling opslaan'}
         </button>

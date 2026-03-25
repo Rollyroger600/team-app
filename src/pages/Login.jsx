@@ -64,32 +64,29 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4"
-         style={{ backgroundColor: 'var(--color-bg)' }}>
+    <div className="min-h-screen flex items-center justify-center px-4 bg-bg">
       <div className="w-full max-w-sm">
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl"
-               style={{ backgroundColor: 'var(--color-primary)' }}>
+          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl bg-primary">
             🏑
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
+          <h1 className="text-2xl font-bold text-text">
             Hockey Team App
           </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
+          <p className="text-sm mt-1 text-text-muted">
             Inloggen bij je team
           </p>
         </div>
 
-        <div className="rounded-2xl p-6 border"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-2xl p-6 border bg-surface border-border">
 
           {/* Stap 1: E-mail */}
           {step === STEP_EMAIL && (
             <form onSubmit={handleEmailSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                <label className="block text-sm font-medium mb-1.5 text-text-muted">
                   E-mailadres
                 </label>
                 <div className="relative">
@@ -101,8 +98,7 @@ export default function Login() {
                     placeholder="jouw@email.nl"
                     autoFocus
                     autoComplete="email"
-                    className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400"
-                    style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                    className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400 bg-surface-2 border-border text-text"
                     required
                   />
                 </div>
@@ -113,8 +109,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading || !email.trim()}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50 bg-secondary text-secondary-text"
               >
                 {loading ? 'Bezig...' : 'Doorgaan'}
               </button>
@@ -124,12 +119,12 @@ export default function Login() {
           {/* Stap 2: Wachtwoord */}
           {step === STEP_PASSWORD && (
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                Inloggen als <span className="font-medium" style={{ color: 'var(--color-text)' }}>{email}</span>
+              <p className="text-sm text-text-muted">
+                Inloggen als <span className="font-medium text-text">{email}</span>
               </p>
 
               <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                <label className="block text-sm font-medium mb-1.5 text-text-muted">
                   Wachtwoord
                 </label>
                 <div className="relative">
@@ -141,8 +136,7 @@ export default function Login() {
                     placeholder="Jouw wachtwoord"
                     autoFocus
                     autoComplete="current-password"
-                    className="w-full pl-9 pr-10 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400"
-                    style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                    className="w-full pl-9 pr-10 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400 bg-surface-2 border-border text-text"
                     required
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -157,16 +151,15 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading || !password}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50 bg-secondary text-secondary-text"
               >
                 {loading ? 'Bezig...' : 'Inloggen'}
               </button>
 
               {/* Nog geen wachtwoord / vergeten */}
               {!resetSent ? (
-                <div className="text-center pt-1 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                  <p className="text-xs mb-2" style={{ color: 'var(--color-text-muted)' }}>
+                <div className="text-center pt-1 border-t border-border">
+                  <p className="text-xs mb-2 text-text-muted">
                     Eerste keer inloggen of wachtwoord vergeten?
                   </p>
                   <button
@@ -187,8 +180,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => { setStep(STEP_EMAIL); setError(''); setPassword(''); setResetSent(false) }}
-                className="w-full text-xs opacity-50 hover:opacity-80"
-                style={{ color: 'var(--color-text-muted)' }}
+                className="w-full text-xs opacity-50 hover:opacity-80 text-text-muted"
               >
                 ← Ander e-mailadres
               </button>
@@ -202,16 +194,15 @@ export default function Login() {
                 <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="font-medium text-red-400 mb-1">E-mail niet gevonden</p>
-                  <p style={{ color: 'var(--color-text-muted)' }}>
-                    <span className="font-medium" style={{ color: 'var(--color-text)' }}>{email}</span> is niet bekend.
+                  <p className="text-text-muted">
+                    <span className="font-medium text-text">{email}</span> is niet bekend.
                     Neem contact op met je aanvoerder om toegang te krijgen.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => { setStep(STEP_EMAIL); setEmail('') }}
-                className="w-full py-3 rounded-xl font-semibold text-sm"
-                style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+                className="w-full py-3 rounded-xl font-semibold text-sm bg-surface-2 text-text"
               >
                 ← Ander e-mailadres proberen
               </button>

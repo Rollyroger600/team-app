@@ -138,16 +138,14 @@ export default function More() {
         <div className="flex items-center gap-2">
           {isAdmin && (
             <Link to="/admin"
-              className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-amber-500/40 hover:text-amber-400"
-              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+              className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-amber-500/40 hover:text-amber-400 border-border text-text-muted"
               title="Admin"
             >
               <ShieldCheck size={16} />
             </Link>
           )}
           <Link to="/settings"
-            className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-slate-500"
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+            className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-slate-500 border-border text-text-muted"
             title="Instellingen"
           >
             <Settings size={16} />
@@ -158,13 +156,11 @@ export default function More() {
       {loading ? (
         <PageLoader />
       ) : matches.length === 0 ? (
-        <div className="rounded-xl p-8 border text-center"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-8 border text-center bg-surface border-border">
           <p className="text-slate-400">Geen aankomende wedstrijden</p>
         </div>
       ) : (
-        <div className="rounded-xl border overflow-hidden"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl border overflow-hidden bg-surface border-border">
           {matches.map((match, i) => {
             const myStatus = myAvail[match.id] || null
             const isSaving = saving?.startsWith(match.id)
@@ -179,8 +175,7 @@ export default function More() {
 
             return (
               <div key={match.id}
-                   className={`${i < matches.length - 1 ? 'border-b' : ''}`}
-                   style={{ borderColor: 'var(--color-border)' }}>
+                   className={`${i < matches.length - 1 ? 'border-b' : ''} border-border`}>
                 {/* Hoofdrij */}
                 <div className="flex items-center gap-3 px-4 py-3">
                   <div className="flex-1 min-w-0">
@@ -214,8 +209,7 @@ export default function More() {
                 {/* Uitklap-balk */}
                 <button
                   onClick={() => toggleExpand(match.id)}
-                  className="w-full flex items-center justify-between px-4 pb-2.5 text-xs transition-colors hover:text-slate-300"
-                  style={{ color: 'var(--color-text-muted)' }}
+                  className="w-full flex items-center justify-between px-4 pb-2.5 text-xs transition-colors hover:text-slate-300 text-text-muted"
                 >
                   <span>
                     <span className={availCount >= 11 ? 'text-green-400 font-semibold' : availCount >= 8 ? 'text-amber-400 font-semibold' : 'text-red-400 font-semibold'}>
@@ -228,8 +222,7 @@ export default function More() {
 
                 {/* Uitgeklaptelijst */}
                 {isExpanded && (
-                  <div className="border-t mx-4 mb-3 pt-2 grid grid-cols-2 gap-x-4 gap-y-1"
-                       style={{ borderColor: 'var(--color-border)' }}>
+                  <div className="border-t mx-4 mb-3 pt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-border">
                     {members.map(member => {
                       const status = memberAvailMap[member.id]
                       return (

@@ -38,23 +38,21 @@ export default function SetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4"
-         style={{ backgroundColor: 'var(--color-bg)' }}>
+    <div className="min-h-screen flex items-center justify-center px-4 bg-bg">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
+          <h1 className="text-2xl font-bold text-text">
             Nieuw wachtwoord
           </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
+          <p className="text-sm mt-1 text-text-muted">
             Stel je nieuwe wachtwoord in
           </p>
         </div>
 
-        <div className="rounded-2xl p-6 border"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-2xl p-6 border bg-surface border-border">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+              <label className="block text-sm font-medium mb-1.5 text-text-muted">
                 Nieuw wachtwoord
               </label>
               <div className="relative">
@@ -66,12 +64,7 @@ export default function SetPassword() {
                   placeholder="Minimaal 8 tekens"
                   autoFocus
                   autoComplete="new-password"
-                  className="w-full pl-9 pr-10 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400"
-                  style={{
-                    backgroundColor: 'var(--color-surface-2)',
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text)'
-                  }}
+                  className="w-full pl-9 pr-10 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400 bg-surface-2 border-border text-text"
                   required
                 />
                 <button
@@ -85,7 +78,7 @@ export default function SetPassword() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+              <label className="block text-sm font-medium mb-1.5 text-text-muted">
                 Bevestig wachtwoord
               </label>
               <div className="relative">
@@ -96,12 +89,7 @@ export default function SetPassword() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Herhaal wachtwoord"
                   autoComplete="new-password"
-                  className="w-full pl-9 pr-10 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400"
-                  style={{
-                    backgroundColor: 'var(--color-surface-2)',
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text)'
-                  }}
+                  className="w-full pl-9 pr-10 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400 bg-surface-2 border-border text-text"
                   required
                 />
                 <button
@@ -124,8 +112,7 @@ export default function SetPassword() {
             <button
               type="submit"
               disabled={loading || !password || !confirmPassword}
-              className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50 bg-secondary text-secondary-text"
             >
               {loading ? 'Bezig...' : 'Wachtwoord instellen'}
             </button>

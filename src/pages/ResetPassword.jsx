@@ -27,20 +27,18 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4"
-         style={{ backgroundColor: 'var(--color-bg)' }}>
+    <div className="min-h-screen flex items-center justify-center px-4 bg-bg">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
+          <h1 className="text-2xl font-bold text-text">
             Wachtwoord vergeten
           </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
+          <p className="text-sm mt-1 text-text-muted">
             Vul je e-mailadres in om een reset-link te ontvangen
           </p>
         </div>
 
-        <div className="rounded-2xl p-6 border"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-2xl p-6 border bg-surface border-border">
 
           {sent ? (
             <div className="space-y-4 text-center">
@@ -49,15 +47,14 @@ export default function ResetPassword() {
               </div>
               <div>
                 <p className="font-semibold mb-1">E-mail verstuurd!</p>
-                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  We hebben een reset-link gestuurd naar <span className="font-medium" style={{ color: 'var(--color-text)' }}>{email}</span>.
+                <p className="text-sm text-text-muted">
+                  We hebben een reset-link gestuurd naar <span className="font-medium text-text">{email}</span>.
                   Controleer ook je spam-map.
                 </p>
               </div>
               <Link
                 to="/login"
-                className="block w-full py-3 rounded-xl font-semibold text-sm text-center transition-opacity"
-                style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+                className="block w-full py-3 rounded-xl font-semibold text-sm text-center transition-opacity bg-surface-2 text-text"
               >
                 Terug naar inloggen
               </Link>
@@ -65,7 +62,7 @@ export default function ResetPassword() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                <label className="block text-sm font-medium mb-1.5 text-text-muted">
                   E-mailadres
                 </label>
                 <div className="relative">
@@ -77,12 +74,7 @@ export default function ResetPassword() {
                     placeholder="jouw@email.nl"
                     autoFocus
                     autoComplete="email"
-                    className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400"
-                    style={{
-                      backgroundColor: 'var(--color-surface-2)',
-                      borderColor: 'var(--color-border)',
-                      color: 'var(--color-text)'
-                    }}
+                    className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400 bg-surface-2 border-border text-text"
                     required
                   />
                 </div>
@@ -98,16 +90,14 @@ export default function ResetPassword() {
               <button
                 type="submit"
                 disabled={loading || !email.trim()}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50 bg-secondary text-secondary-text"
               >
                 {loading ? 'Bezig...' : 'Reset-link versturen'}
               </button>
 
               <Link
                 to="/login"
-                className="block text-center text-xs opacity-60 hover:opacity-100 transition-opacity"
-                style={{ color: 'var(--color-text-muted)' }}
+                className="block text-center text-xs opacity-60 hover:opacity-100 transition-opacity text-text-muted"
               >
                 ← Terug naar inloggen
               </Link>

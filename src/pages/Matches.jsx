@@ -37,7 +37,7 @@ function displayName(profile) {
 }
 
 function TeamName({ team }) {
-  if (!team) return <span style={{ color: 'var(--color-text-muted)' }}>?</span>
+  if (!team) return <span className="text-text-muted">?</span>
   if (team.is_own_team) {
     return <span className="text-amber-400 font-semibold">{team.team_name}</span>
   }
@@ -50,8 +50,8 @@ function TeamLogo({ url, name }) {
     <img
       src={url}
       alt={name || ''}
-      className="rounded-full object-contain flex-shrink-0"
-      style={{ width: 22, height: 22, backgroundColor: 'var(--color-surface)' }}
+      className="rounded-full object-contain flex-shrink-0 bg-surface"
+      style={{ width: 22, height: 22 }}
       onError={e => { e.target.style.display = 'none' }}
     />
   )
@@ -99,11 +99,10 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
   const inputStyle = { backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
 
   return (
-    <div className="border-t" style={{ borderColor: 'var(--color-border)' }}>
+    <div className="border-t border-border">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors"
-        style={{ color: 'var(--color-text-muted)' }}
+        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors text-text-muted"
       >
         <span className="flex items-center gap-1.5">
           <Target size={12} />
@@ -125,13 +124,13 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
             <div className="space-y-1">
               {goals.map(g => (
                 <div key={g.id} className="flex items-center gap-2 text-xs">
-                  <span className="w-7 text-right flex-shrink-0" style={{ color: 'var(--color-text-muted)' }}>
+                  <span className="w-7 text-right flex-shrink-0 text-text-muted">
                     {g.minute ? `${g.minute}'` : '–'}
                   </span>
                   <span className="flex-1">
                     {g.is_own_goal ? `${displayName(g.scorer)} (eigen doel)` : displayName(g.scorer)}
                     {g.assist?.full_name && (
-                      <span className="ml-1.5" style={{ color: 'var(--color-text-muted)' }}>assist: {displayName(g.assist)}</span>
+                      <span className="ml-1.5 text-text-muted">assist: {displayName(g.assist)}</span>
                     )}
                     {g.is_penalty && <span className="text-amber-400 ml-1.5">strafbal</span>}
                     {g.is_penalty_corner && <span className="text-blue-400 ml-1.5">strafcorner</span>}
@@ -147,7 +146,7 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
           )}
 
           {isAdmin && (
-            <form onSubmit={addGoal} className="space-y-1.5 pt-1 border-t" style={{ borderColor: 'var(--color-border)' }}>
+            <form onSubmit={addGoal} className="space-y-1.5 pt-1 border-t border-border">
               <div className="flex gap-1.5 pt-1.5">
                 <select
                   value={form.scorer_id}
@@ -201,15 +200,14 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
                 </label>
               </div>
               {atMax ? (
-                <p className="text-xs text-center py-1" style={{ color: 'var(--color-available)' }}>
+                <p className="text-xs text-center py-1 text-available">
                   Alle {maxGoals} doelpunten ingevoerd ✓
                 </p>
               ) : (
                 <button
                   type="submit"
                   disabled={saving || (!form.scorer_id && !form.is_own_goal)}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
-                  style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 bg-secondary text-secondary-text"
                 >
                   <Plus size={12} />
                   {saving ? 'Opslaan...' : maxGoals != null ? `Doelpunt toevoegen (${goals.length}/${maxGoals})` : 'Doelpunt toevoegen'}
@@ -263,10 +261,9 @@ function AvailabilitySection({ matchId, initialPlayers, userId, isUpcoming }) {
     // Past match: show who was there, collapsible
     if (available.length === 0) return null
     return (
-      <div className="border-t" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="border-t border-border">
         <button onClick={() => setOpen(o => !o)}
-          className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors"
-          style={{ color: 'var(--color-text-muted)' }}>
+          className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors text-text-muted">
           <span className="flex items-center gap-1.5">
             <Users size={12} />
             {available.length} aanwezig
@@ -292,10 +289,9 @@ function AvailabilitySection({ matchId, initialPlayers, userId, isUpcoming }) {
   const myLabel  = myStatus === 'available' ? 'Beschikbaar' : myStatus === 'unavailable' ? 'Niet beschikbaar' : myStatus === 'maybe' ? 'Misschien' : 'Jouw opgave'
 
   return (
-    <div className="border-t" style={{ borderColor: 'var(--color-border)' }}>
+    <div className="border-t border-border">
       <button onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors"
-        style={{ color: 'var(--color-text-muted)' }}>
+        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors text-text-muted">
         <span className="flex items-center gap-2">
           <Users size={12} />
           <span style={{ color: myColors?.text || 'var(--color-text-muted)' }}>{myLabel}</span>
@@ -354,8 +350,7 @@ function MatchCard({ match, logoMap = {}, matchId, availability, userId }) {
 
   return (
     <div
-      className="rounded-xl px-3 py-3 border"
-      style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}
+      className="rounded-xl px-3 py-3 border bg-surface-2 border-border"
     >
       <div className="flex items-center gap-2">
         <div className="flex-1 flex items-center justify-end gap-1.5 text-sm" style={homeIsOwn ? {} : homeStyle}>
@@ -364,11 +359,11 @@ function MatchCard({ match, logoMap = {}, matchId, availability, userId }) {
         </div>
         <div className="flex-shrink-0 w-16 text-center">
           {isPlayed ? (
-            <span className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
+            <span className="font-bold text-base text-text">
               {match.score_home}–{match.score_away}
             </span>
           ) : (
-            <span className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
+            <span className="text-sm font-medium text-text-muted">
               {formatTime(match.match_time)}
             </span>
           )}
@@ -379,7 +374,7 @@ function MatchCard({ match, logoMap = {}, matchId, availability, userId }) {
         </div>
       </div>
       {match.matchday && (
-        <p className="text-center text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+        <p className="text-center text-xs mt-1 text-text-muted">
           Speelronde {match.matchday}
         </p>
       )}
@@ -410,9 +405,8 @@ function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {}, ava
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
+      className="rounded-xl border overflow-hidden bg-surface-2"
       style={{
-        backgroundColor: 'var(--color-surface-2)',
         borderColor: incomplete ? 'var(--color-unavailable)' : 'var(--color-border)',
       }}
     >
@@ -422,7 +416,7 @@ function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {}, ava
           <TeamLogo url={logoMap[match.home_team?.id]} name={match.home_team?.team_name} />
         </div>
         <div className="flex-shrink-0 w-16 text-center">
-          <span className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
+          <span className="font-bold text-base text-text">
             {match.score_home}–{match.score_away}
           </span>
         </div>
@@ -432,7 +426,7 @@ function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {}, ava
         </div>
       </div>
       {match.matchday && (
-        <p className="text-center text-xs pb-2" style={{ color: 'var(--color-text-muted)' }}>
+        <p className="text-center text-xs pb-2 text-text-muted">
           Speelronde {match.matchday}
         </p>
       )}
@@ -461,8 +455,7 @@ function MatchGroup({ dateStr, matches, resultMode, ownMatchMap, goalsMap, teamM
   return (
     <div>
       <p
-        className="text-xs font-bold uppercase tracking-wide mb-2 mt-5 first:mt-0"
-        style={{ color: 'var(--color-text-muted)' }}
+        className="text-xs font-bold uppercase tracking-wide mb-2 mt-5 first:mt-0 text-text-muted"
       >
         {capitalize(formatMatchDate(dateStr))}
       </p>
@@ -498,7 +491,7 @@ function MatchGroup({ dateStr, matches, resultMode, ownMatchMap, goalsMap, teamM
 
 function FilterToggle({ ownOnly, onChange }) {
   return (
-    <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: 'var(--color-border)' }}>
+    <div className="flex rounded-xl overflow-hidden border border-border">
       <button
         onClick={() => onChange(true)}
         className="flex-1 py-2 text-sm font-medium transition-colors"
@@ -523,8 +516,7 @@ function LoadingSkeleton() {
       {[1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
-          className="rounded-xl border h-14 animate-pulse"
-          style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+          className="rounded-xl border h-14 animate-pulse bg-surface border-border"
         />
       ))}
     </div>
@@ -534,19 +526,17 @@ function LoadingSkeleton() {
 function EmptyNoLeague({ isAdmin }) {
   return (
     <div
-      className="rounded-xl p-8 border text-center mt-4"
-      style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      className="rounded-xl p-8 border text-center mt-4 bg-surface border-border"
     >
       <Trophy size={40} className="mx-auto mb-3 text-slate-600" />
       <p className="font-medium mb-1">Geen competitie ingesteld</p>
-      <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
+      <p className="text-sm mb-4 text-text-muted">
         Er is nog geen poule aangemaakt voor dit team.
       </p>
       {isAdmin && (
         <Link
           to="/admin/league"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-text"
         >
           <PlusCircle size={16} />
           Poule aanmaken
@@ -613,10 +603,9 @@ function MiniStandings({ matches, teams }) {
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
-      style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      className="rounded-xl border overflow-hidden bg-surface border-border"
     >
-      <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <h3 className="font-semibold text-sm">Stand</h3>
         <Link to="/standings" className="text-xs text-amber-400 flex items-center gap-0.5">
           Volledig <ChevronRight size={12} />
@@ -624,7 +613,7 @@ function MiniStandings({ matches, teams }) {
       </div>
       <table className="w-full text-xs">
         <thead>
-          <tr style={{ color: 'var(--color-text-muted)', backgroundColor: 'var(--color-surface-2)' }}>
+          <tr className="text-text-muted bg-surface-2">
             <th className="text-left px-3 py-2 font-medium w-6">#</th>
             <th className="text-left px-3 py-2 font-medium">Team</th>
             <th className="text-center px-2 py-2 font-medium">G</th>
@@ -638,22 +627,21 @@ function MiniStandings({ matches, teams }) {
           {standings.map((row, i) => (
             <tr
               key={row.id}
-              className="border-t"
+              className="border-t border-border"
               style={{
-                borderColor: 'var(--color-border)',
                 backgroundColor: row.is_own_team ? 'rgba(245,158,11,0.08)' : 'transparent',
               }}
             >
-              <td className="px-3 py-2.5" style={{ color: 'var(--color-text-muted)' }}>
+              <td className="px-3 py-2.5 text-text-muted">
                 {i + 1}
               </td>
               <td className={`px-3 py-2.5 font-medium ${row.is_own_team ? 'text-amber-400' : ''}`}>
                 {row.name}
               </td>
-              <td className="text-center px-2 py-2.5" style={{ color: 'var(--color-text-muted)' }}>{row.played}</td>
-              <td className="text-center px-2 py-2.5" style={{ color: 'var(--color-text-muted)' }}>{row.won}</td>
-              <td className="text-center px-2 py-2.5" style={{ color: 'var(--color-text-muted)' }}>{row.drawn}</td>
-              <td className="text-center px-2 py-2.5" style={{ color: 'var(--color-text-muted)' }}>{row.lost}</td>
+              <td className="text-center px-2 py-2.5 text-text-muted">{row.played}</td>
+              <td className="text-center px-2 py-2.5 text-text-muted">{row.won}</td>
+              <td className="text-center px-2 py-2.5 text-text-muted">{row.drawn}</td>
+              <td className="text-center px-2 py-2.5 text-text-muted">{row.lost}</td>
               <td className="text-center px-2 py-2.5 font-bold">{row.points}</td>
             </tr>
           ))}
@@ -829,13 +817,13 @@ export default function Matches() {
       <div className="pt-2 flex items-start justify-between">
         <div>
           {league && (
-            <p className="text-xs uppercase tracking-wide mb-0.5" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-xs uppercase tracking-wide mb-0.5 text-text-muted">
               {league.name}
             </p>
           )}
           <h1 className="text-2xl font-bold">Wedstrijden</h1>
           {league?.season && (
-            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-sm text-text-muted">
               {league.season}
             </p>
           )}
@@ -843,7 +831,7 @@ export default function Matches() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-b" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="flex border-b border-border">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -856,8 +844,7 @@ export default function Matches() {
             {tab.label}
             {activeTab === tab.key && (
               <span
-                className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                style={{ backgroundColor: 'var(--color-secondary)' }}
+                className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-secondary"
               />
             )}
           </button>
@@ -888,11 +875,10 @@ export default function Matches() {
                     ))
                 ) : (
                   <div
-                    className="rounded-xl p-5 border text-center"
-                    style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                    className="rounded-xl p-5 border text-center bg-surface border-border"
                   >
                     <Calendar size={28} className="mx-auto mb-2 text-slate-600" />
-                    <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    <p className="text-sm text-text-muted">
                       {ownOnly ? 'Geen aankomende wedstrijden' : 'Geen wedstrijden de komende twee weken'}
                     </p>
                   </div>
@@ -910,11 +896,10 @@ export default function Matches() {
 
               {programmaMatchesFiltered.length === 0 ? (
                 <div
-                  className="rounded-xl p-6 border text-center"
-                  style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                  className="rounded-xl p-6 border text-center bg-surface border-border"
                 >
                   <Calendar size={32} className="mx-auto mb-2 text-slate-600" />
-                  <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  <p className="text-sm text-text-muted">
                     Geen aankomende wedstrijden
                   </p>
                   {isAdmin && (
@@ -944,11 +929,10 @@ export default function Matches() {
 
               {resultsMatches.length === 0 ? (
                 <div
-                  className="rounded-xl p-6 border text-center mt-2"
-                  style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                  className="rounded-xl p-6 border text-center mt-2 bg-surface border-border"
                 >
                   <Trophy size={32} className="mx-auto mb-2 text-slate-600" />
-                  <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  <p className="text-sm text-text-muted">
                     {ownOnly ? 'Geen eigen uitslagen beschikbaar' : 'Nog geen uitslagen beschikbaar'}
                   </p>
                 </div>
@@ -980,8 +964,7 @@ export default function Matches() {
       {isAdmin && league && (
         <Link
           to="/admin/league/matches"
-          className="fixed bottom-20 right-4 flex items-center gap-2 px-4 py-3 rounded-full shadow-lg text-sm font-semibold z-10"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+          className="fixed bottom-20 right-4 flex items-center gap-2 px-4 py-3 rounded-full shadow-lg text-sm font-semibold z-10 bg-secondary text-secondary-text"
         >
           <PlusCircle size={18} />
           Wedstrijd

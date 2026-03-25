@@ -136,8 +136,7 @@ export default function AdminMatchGoals() {
 
       {/* Scorebord samenvatting */}
       {match && (
-        <div className="rounded-xl p-3 border text-center"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-3 border text-center bg-surface border-border">
           <p className="text-3xl font-bold">
             {match.score_home ?? '–'} <span className="text-slate-500 text-xl">–</span> {match.score_away ?? '–'}
           </p>
@@ -166,12 +165,10 @@ export default function AdminMatchGoals() {
         </h2>
 
         {goals.length > 0 && (
-          <div className="rounded-xl border overflow-hidden"
-               style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+          <div className="rounded-xl border overflow-hidden bg-surface border-border">
             {goals.map((g, i) => (
               <div key={g.id}
-                   className={`flex items-center gap-3 px-4 py-2.5 ${i < goals.length - 1 ? 'border-b' : ''}`}
-                   style={{ borderColor: 'var(--color-border)' }}>
+                   className={`flex items-center gap-3 px-4 py-2.5 border-border ${i < goals.length - 1 ? 'border-b' : ''}`}>
                 <span className="w-8 text-xs text-slate-500 text-center flex-shrink-0">
                   {g.minute ? `${g.minute}'` : '–'}
                 </span>
@@ -196,8 +193,7 @@ export default function AdminMatchGoals() {
 
         {/* Doelpunt toevoegen */}
         <form onSubmit={addGoal}
-              className="rounded-xl border p-3 space-y-2"
-              style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+              className="rounded-xl border p-3 space-y-2 bg-surface border-border">
           <div className="flex gap-2">
             <select value={gForm.scorer_id}
                     onChange={e => setGForm(p => ({ ...p, scorer_id: e.target.value }))}
@@ -259,8 +255,7 @@ export default function AdminMatchGoals() {
             )
             return (
               <button type="submit" disabled={gSaving || (!gForm.scorer_id && !gForm.is_own_goal)}
-                      className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
-                      style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}>
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 bg-secondary text-secondary-text">
                 <Plus size={14} />
                 {gSaving ? 'Opslaan...' : ourScore != null ? `Doelpunt toevoegen (${goals.length}/${ourScore})` : 'Doelpunt toevoegen'}
               </button>
@@ -276,12 +271,10 @@ export default function AdminMatchGoals() {
         </h2>
 
         {cards.length > 0 && (
-          <div className="rounded-xl border overflow-hidden"
-               style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+          <div className="rounded-xl border overflow-hidden bg-surface border-border">
             {cards.map((c, i) => (
               <div key={c.id}
-                   className={`flex items-center gap-3 px-4 py-2.5 ${i < cards.length - 1 ? 'border-b' : ''}`}
-                   style={{ borderColor: 'var(--color-border)' }}>
+                   className={`flex items-center gap-3 px-4 py-2.5 border-border ${i < cards.length - 1 ? 'border-b' : ''}`}>
                 <span className="w-8 text-xs text-slate-500 text-center flex-shrink-0">
                   {c.minute ? `${c.minute}'` : '–'}
                 </span>
@@ -300,8 +293,7 @@ export default function AdminMatchGoals() {
 
         {/* Kaart toevoegen */}
         <form onSubmit={addCard}
-              className="rounded-xl border p-3 space-y-2"
-              style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+              className="rounded-xl border p-3 space-y-2 bg-surface border-border">
           <div className="flex gap-2">
             <select value={cForm.player_id}
                     onChange={e => setCForm(p => ({ ...p, player_id: e.target.value }))}

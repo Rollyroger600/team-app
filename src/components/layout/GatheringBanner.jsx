@@ -33,8 +33,7 @@ export default function GatheringBanner() {
   const timeStr = formatTime(nextMatch.match_time)
 
   return (
-    <div className="px-4 py-2.5 border-b text-sm"
-         style={{ backgroundColor: 'var(--color-primary)', borderColor: 'rgba(255,255,255,0.1)' }}>
+    <div className="px-4 py-2.5 border-b text-sm bg-primary" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
       <div className="max-w-lg mx-auto flex items-center gap-2 flex-wrap">
         <Clock size={14} className="flex-shrink-0 opacity-80" />
         <span className="font-semibold">{dateStr}</span>

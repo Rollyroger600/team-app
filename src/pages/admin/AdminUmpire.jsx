@@ -126,16 +126,14 @@ export default function AdminUmpire() {
       </div>
 
       {/* Genereer knop */}
-      <div className="rounded-xl p-4 border space-y-2"
-           style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+      <div className="rounded-xl p-4 border space-y-2 bg-surface border-border">
         <p className="text-sm text-slate-400">
           Genereert 2 open slots voor elke aankomende thuiswedstrijd (zaterdag ervoor).
         </p>
         <button
           onClick={generateDuties}
           disabled={generating}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors bg-secondary text-secondary-text"
         >
           <Wand2 size={16} />
           {generating ? 'Genereren...' : 'Genereer fluitbeurten'}
@@ -156,11 +154,9 @@ export default function AdminUmpire() {
           {grouped.map(({ match, duties: matchDuties }) => {
             const sat = saturdayBefore(match.match_date)
             return (
-              <div key={match.id} className="rounded-xl border overflow-hidden"
-                   style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+              <div key={match.id} className="rounded-xl border overflow-hidden bg-surface border-border">
                 {/* Match header */}
-                <div className="px-4 py-3 border-b flex items-center justify-between"
-                     style={{ borderColor: 'var(--color-border)' }}>
+                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-sm">Thuis vs {match.opponent}</p>
                     <p className="text-xs text-slate-400">
@@ -179,17 +175,15 @@ export default function AdminUmpire() {
                 {/* Duty slots */}
                 {matchDuties.map((duty, i) => (
                   <div key={duty.id}
-                       className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
-                       style={{ borderColor: 'var(--color-border)' }}>
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                         style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}>
+                       className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 bg-surface-2 text-text-muted">
                       {i + 1}
                     </div>
                     <select
                       value={duty.player_id || ''}
                       onChange={e => assignPlayer(duty.id, e.target.value)}
-                      className="flex-1 px-2 py-1.5 rounded-lg text-sm outline-none"
-                      style={{ backgroundColor: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                      className="flex-1 px-2 py-1.5 rounded-lg text-sm outline-none bg-surface-2 text-text"
+                      style={{ border: '1px solid var(--color-border)' }}
                     >
                       <option value="">— open slot —</option>
                       {players.map(p => (

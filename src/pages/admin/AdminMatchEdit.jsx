@@ -90,7 +90,7 @@ export default function AdminMatchEdit() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="rounded-xl p-4 border space-y-4" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-4 border space-y-4 bg-surface border-border">
           <div>
             <label className={labelClass}>Tegenstander *</label>
             <input
@@ -187,8 +187,7 @@ export default function AdminMatchEdit() {
         <button
           type="submit"
           disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50 bg-secondary text-secondary-text"
         >
           <Save size={16} />
           {saving ? 'Opslaan...' : isNew ? 'Wedstrijd aanmaken' : 'Wijzigingen opslaan'}

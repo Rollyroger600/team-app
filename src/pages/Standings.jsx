@@ -46,10 +46,10 @@ export default function Standings() {
       ) : standings.length === 0 ? (
         <EmptyState icon={Trophy}>Nog geen standen beschikbaar</EmptyState>
       ) : (
-        <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl border overflow-hidden bg-surface border-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
+              <tr className="border-b border-border">
                 <th className="text-left px-4 py-3 text-slate-400 font-medium w-8">#</th>
                 <th className="text-left px-4 py-3 text-slate-400 font-medium">Team</th>
                 <th className="text-center px-2 py-3 text-slate-400 font-medium">W</th>
@@ -61,9 +61,8 @@ export default function Standings() {
             <tbody>
               {standings.map((row, index) => (
                 <tr key={row.team_id}
-                    className="border-b last:border-0"
+                    className="border-b last:border-0 border-border"
                     style={{
-                      borderColor: 'var(--color-border)',
                       backgroundColor: row.is_own_team ? 'rgba(245,158,11,0.08)' : 'transparent'
                     }}>
                   <td className="px-4 py-3 text-slate-400">{index + 1}</td>

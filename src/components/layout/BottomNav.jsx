@@ -14,8 +14,7 @@ export default function BottomNav() {
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t"
-         style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t bg-surface border-border">
       <div className="flex items-stretch h-16 max-w-lg mx-auto">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink

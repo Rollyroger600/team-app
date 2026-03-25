@@ -78,8 +78,7 @@ export default function AdminPlayers() {
         </div>
         <button
           onClick={() => { setShowInvite(v => !v); setInviteResult(null) }}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-secondary text-secondary-text"
         >
           <UserPlus size={16} />
           Uitnodigen
@@ -88,8 +87,7 @@ export default function AdminPlayers() {
 
       {/* Invite form */}
       {showInvite && (
-        <div className="rounded-xl border p-4 space-y-3"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl border p-4 space-y-3 bg-surface border-border">
           <h2 className="font-semibold text-sm flex items-center gap-2">
             <Mail size={16} className="text-amber-400" /> Speler uitnodigen via e-mail
           </h2>
@@ -134,8 +132,7 @@ export default function AdminPlayers() {
             <button
               type="submit"
               disabled={inviting}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
-              style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 bg-secondary text-secondary-text"
             >
               {inviting ? 'Versturen...' : 'Uitnodiging versturen'}
             </button>
@@ -154,10 +151,8 @@ export default function AdminPlayers() {
             const p = membership.profiles
             return (
               <div key={membership.id}
-                   className="flex items-center gap-3 p-4 rounded-xl border"
-                   style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
-                     style={{ backgroundColor: 'var(--color-primary)' }}>
+                   className="flex items-center gap-3 p-4 rounded-xl border bg-surface border-border">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-primary">
                   {p?.jersey_number || p?.full_name?.[0]?.toUpperCase() || '?'}
                 </div>
                 <div className="flex-1 min-w-0">

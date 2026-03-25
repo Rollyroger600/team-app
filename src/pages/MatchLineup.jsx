@@ -170,8 +170,7 @@ export default function MatchLineup() {
       </div>
 
       {!hasRoster ? (
-        <div className="rounded-xl p-8 border text-center"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-8 border text-center bg-surface border-border">
           <p className="text-slate-400 text-sm">
             {isAdmin
               ? 'Stel eerst de selectie in via Admin → Wedstrijd → Selectie.'
@@ -180,8 +179,7 @@ export default function MatchLineup() {
           {isAdmin && (
             <Link
               to={`/admin/matches/${id}/roster`}
-              className="inline-block mt-3 px-4 py-2 rounded-xl text-sm font-semibold"
-              style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+              className="inline-block mt-3 px-4 py-2 rounded-xl text-sm font-semibold bg-secondary text-secondary-text"
             >
               Selectie instellen
             </Link>
@@ -235,17 +233,14 @@ export default function MatchLineup() {
 
           {/* Bank / beschikbaar maar niet in selectie */}
           {available.length > 0 && (
-            <div className="rounded-xl border overflow-hidden"
-                 style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-              <div className="px-4 py-2.5 border-b text-xs font-semibold text-slate-400 uppercase tracking-wide"
-                   style={{ borderColor: 'var(--color-border)' }}>
+            <div className="rounded-xl border overflow-hidden bg-surface border-border">
+              <div className="px-4 py-2.5 border-b text-xs font-semibold text-slate-400 uppercase tracking-wide border-border">
                 Beschikbaar, niet in selectie
               </div>
               <div className="px-4 py-3 flex flex-wrap gap-3">
                 {available.map(a => (
                   <div key={a.player_id} className="flex flex-col items-center gap-0.5">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border"
-                         style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border bg-surface-2 border-border text-text-muted">
                       {a.profiles?.jersey_number || displayName(a)[0]?.toUpperCase()}
                     </div>
                     <span className="text-xs text-slate-400 truncate" style={{ maxWidth: 44 }}>
@@ -259,17 +254,14 @@ export default function MatchLineup() {
 
           {/* Afwezig */}
           {absent.length > 0 && (
-            <div className="rounded-xl border overflow-hidden"
-                 style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-              <div className="px-4 py-2.5 border-b text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                   style={{ borderColor: 'var(--color-border)' }}>
+            <div className="rounded-xl border overflow-hidden bg-surface border-border">
+              <div className="px-4 py-2.5 border-b text-xs font-semibold text-slate-500 uppercase tracking-wide border-border">
                 Afwezig / geen opgave
               </div>
               <div className="px-4 py-3 flex flex-wrap gap-2">
                 {absent.map(a => (
                   <span key={a.player_id}
-                        className="px-2.5 py-1 rounded-full text-xs"
-                        style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}>
+                        className="px-2.5 py-1 rounded-full text-xs bg-surface-2 text-text-muted">
                     {displayName(a)}
                   </span>
                 ))}

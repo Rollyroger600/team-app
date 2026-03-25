@@ -49,7 +49,7 @@ export default function AdminAnnouncements() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="rounded-xl p-4 border space-y-4" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-4 border space-y-4 bg-surface border-border">
           <div>
             <label className="block text-sm font-medium mb-1.5 text-slate-400">Titel (optioneel)</label>
             <input
@@ -81,8 +81,7 @@ export default function AdminAnnouncements() {
         <button
           type="submit"
           disabled={saving || !form.body.trim()}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50 bg-secondary text-secondary-text"
         >
           <Send size={16} />
           {saving ? 'Versturen...' : 'Bericht versturen'}

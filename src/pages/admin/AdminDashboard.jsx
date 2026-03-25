@@ -90,8 +90,7 @@ export default function AdminDashboard() {
           <button
             onClick={signOut}
             title="Uitloggen"
-            className="w-9 h-9 rounded-xl border flex items-center justify-center hover:bg-red-500/10 hover:border-red-500/40 hover:text-red-400 transition-all"
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+            className="w-9 h-9 rounded-xl border flex items-center justify-center hover:bg-red-500/10 hover:border-red-500/40 hover:text-red-400 transition-all border-border text-text-muted"
           >
             <LogOut size={16} />
           </button>
@@ -103,8 +102,7 @@ export default function AdminDashboard() {
           <Link
             key={to}
             to={to}
-            className="rounded-xl p-4 border transition-colors hover:border-slate-500 flex flex-col gap-3"
-            style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+            className="rounded-xl p-4 border transition-colors hover:border-slate-500 flex flex-col gap-3 bg-surface border-border"
           >
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
               <Icon size={20} />

@@ -88,7 +88,7 @@ export default function MatchDetail() {
       </div>
 
       {/* Match header */}
-      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+      <div className="rounded-xl p-4 border bg-surface border-border">
         <span className="text-xs px-2 py-0.5 rounded-full font-medium mb-2 inline-block"
               style={{
                 backgroundColor: match.is_home ? 'rgba(16,185,129,0.2)' : 'rgba(99,102,241,0.2)',
@@ -124,7 +124,7 @@ export default function MatchDetail() {
       </div>
 
       {/* Availability section */}
-      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+      <div className="rounded-xl p-4 border bg-surface border-border">
         <h2 className="font-semibold mb-3">Jouw beschikbaarheid</h2>
         <div className="flex gap-2 mb-4">
           {[
@@ -168,8 +168,7 @@ export default function MatchDetail() {
       {/* Lineup link */}
       <Link
         to={`/matches/${id}/lineup`}
-        className="flex items-center justify-between p-4 rounded-xl border transition-colors hover:border-slate-500"
-        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+        className="flex items-center justify-between p-4 rounded-xl border transition-colors hover:border-slate-500 bg-surface border-border"
       >
         <div className="flex items-center gap-3">
           <Users size={20} className="text-slate-400" />
@@ -184,8 +183,7 @@ export default function MatchDetail() {
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-1">Beheer</p>
           <Link
             to={`/admin/matches/${id}/roster`}
-            className="flex items-center justify-between p-4 rounded-xl border transition-colors hover:border-slate-500"
-            style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+            className="flex items-center justify-between p-4 rounded-xl border transition-colors hover:border-slate-500 bg-surface border-border"
           >
             <div className="flex items-center gap-3">
               <ShieldCheck size={20} className="text-blue-400" />
@@ -195,8 +193,7 @@ export default function MatchDetail() {
           </Link>
           <Link
             to={`/admin/matches/${id}/goals`}
-            className="flex items-center justify-between p-4 rounded-xl border transition-colors hover:border-slate-500"
-            style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+            className="flex items-center justify-between p-4 rounded-xl border transition-colors hover:border-slate-500 bg-surface border-border"
           >
             <div className="flex items-center gap-3">
               <Target size={20} className="text-red-400" />

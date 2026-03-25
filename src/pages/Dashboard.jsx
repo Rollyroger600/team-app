@@ -112,7 +112,7 @@ export default function Dashboard() {
 
       {/* Next match card */}
       {nextMatch ? (
-        <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-4 border bg-surface border-border">
           <div className="flex items-start justify-between mb-3">
             <div>
               <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
@@ -124,8 +124,7 @@ export default function Dashboard() {
               </p>
             </div>
             <Link to={`/matches/${nextMatch.id}`}
-                  className="text-xs px-3 py-1.5 rounded-lg"
-                  style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text)' }}>
+                  className="text-xs px-3 py-1.5 rounded-lg bg-primary text-text">
               Details
             </Link>
           </div>
@@ -167,8 +166,7 @@ export default function Dashboard() {
           {/* Team beschikbaarheid uitklap */}
           <button
             onClick={() => setShowTeam(v => !v)}
-            className="w-full flex items-center justify-between text-xs pt-2 border-t transition-colors hover:text-slate-300"
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+            className="w-full flex items-center justify-between text-xs pt-2 border-t transition-colors hover:text-slate-300 border-border text-text-muted"
           >
             <span className="flex items-center gap-1.5">
               <Users size={13} />
@@ -200,7 +198,7 @@ export default function Dashboard() {
           )}
         </div>
       ) : (
-        <div className="rounded-xl p-6 border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-6 border text-center bg-surface border-border">
           <Calendar size={32} className="mx-auto mb-2 text-slate-600" />
           <p className="text-slate-400">Geen aankomende wedstrijden</p>
         </div>
@@ -208,7 +206,7 @@ export default function Dashboard() {
 
       {/* Latest announcement */}
       {latestAnnouncement && (
-        <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-4 border bg-surface border-border">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-sm">Laatste bericht</h3>
             <Link to="/announcements" className="text-xs text-amber-400">Alle berichten</Link>

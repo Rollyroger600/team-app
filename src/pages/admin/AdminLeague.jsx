@@ -45,8 +45,7 @@ function CreateLeagueForm({ teamId, onCreated }) {
 
   return (
     <div
-      className="rounded-xl border p-6"
-      style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      className="rounded-xl border p-6 bg-surface border-border"
     >
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
@@ -54,7 +53,7 @@ function CreateLeagueForm({ teamId, onCreated }) {
         </div>
         <div>
           <h2 className="font-semibold">Nieuwe poule aanmaken</h2>
-          <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          <p className="text-xs text-text-muted">
             Vul de competitiegegevens in
           </p>
         </div>
@@ -62,7 +61,7 @@ function CreateLeagueForm({ teamId, onCreated }) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+          <label className="block text-xs font-medium mb-1.5 text-text-muted">
             Poulenaam
           </label>
           <input
@@ -70,18 +69,14 @@ function CreateLeagueForm({ teamId, onCreated }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="bijv. Heren 30+ Hoofdklasse"
-            className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-            style={{
-              backgroundColor: 'var(--color-surface-2)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text)',
-            }}
+            className="w-full px-3 py-2.5 rounded-lg text-sm outline-none bg-surface-2 text-text"
+            style={{ border: '1px solid var(--color-border)' }}
             required
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+          <label className="block text-xs font-medium mb-1.5 text-text-muted">
             Seizoen
           </label>
           <input
@@ -89,12 +84,8 @@ function CreateLeagueForm({ teamId, onCreated }) {
             value={season}
             onChange={(e) => setSeason(e.target.value)}
             placeholder="2025-2026"
-            className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-            style={{
-              backgroundColor: 'var(--color-surface-2)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text)',
-            }}
+            className="w-full px-3 py-2.5 rounded-lg text-sm outline-none bg-surface-2 text-text"
+            style={{ border: '1px solid var(--color-border)' }}
           />
         </div>
 
@@ -105,8 +96,7 @@ function CreateLeagueForm({ teamId, onCreated }) {
         <button
           type="submit"
           disabled={saving || !name.trim()}
-          className="w-full py-3 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+          className="w-full py-3 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-50 bg-secondary text-secondary-text"
         >
           {saving ? 'Aanmaken...' : 'Poule aanmaken'}
         </button>
@@ -228,8 +218,7 @@ function AddTeamForm({ leagueId, onAdded }) {
 
   return (
     <div
-      className="rounded-xl border p-4"
-      style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      className="rounded-xl border p-4 bg-surface border-border"
     >
       <h3 className="font-semibold text-sm mb-3">Teams toevoegen</h3>
 
@@ -240,8 +229,7 @@ function AddTeamForm({ leagueId, onAdded }) {
             <div className="relative">
               <Search
                 size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: 'var(--color-text-muted)' }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted"
               />
               <input
                 ref={searchRef}
@@ -250,12 +238,8 @@ function AddTeamForm({ leagueId, onAdded }) {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
                 placeholder="Zoek club (bijv. HC Leiden)"
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm outline-none"
-                style={{
-                  backgroundColor: 'var(--color-surface-2)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text)',
-                }}
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm outline-none bg-surface-2 text-text"
+                style={{ border: '1px solid var(--color-border)' }}
               />
             </div>
 
@@ -263,11 +247,7 @@ function AddTeamForm({ leagueId, onAdded }) {
             {showDropdown && (
               <div
                 ref={dropdownRef}
-                className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-xl z-20 overflow-hidden"
-                style={{
-                  backgroundColor: 'var(--color-surface)',
-                  borderColor: 'var(--color-border)',
-                }}
+                className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-xl z-20 overflow-hidden bg-surface border-border"
               >
                 {searchResults.length > 0 ? (
                   <>
@@ -276,13 +256,12 @@ function AddTeamForm({ leagueId, onAdded }) {
                         key={club.id}
                         type="button"
                         onClick={() => selectClub(club)}
-                        className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b last:border-0 flex items-start gap-2"
-                        style={{ borderColor: 'var(--color-border)' }}
+                        className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b last:border-0 flex items-start gap-2 border-border"
                       >
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{club.name}</p>
                           {club.address && (
-                            <p className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>
+                            <p className="text-xs truncate text-text-muted">
                               {club.address}
                             </p>
                           )}
@@ -292,8 +271,7 @@ function AddTeamForm({ leagueId, onAdded }) {
                     <button
                       type="button"
                       onClick={selectNewClub}
-                      className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors flex items-center gap-2"
-                      style={{ color: 'var(--color-text-muted)' }}
+                      className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors flex items-center gap-2 text-text-muted"
                     >
                       <PlusCircle size={14} />
                       <span className="text-sm">Toevoegen als nieuwe club: "{searchQuery}"</span>
@@ -303,8 +281,7 @@ function AddTeamForm({ leagueId, onAdded }) {
                   <button
                     type="button"
                     onClick={selectNewClub}
-                    className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors flex items-center gap-2"
-                    style={{ color: 'var(--color-text-muted)' }}
+                    className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors flex items-center gap-2 text-text-muted"
                   >
                     <PlusCircle size={14} />
                     <span className="text-sm">Nieuwe club toevoegen: "{searchQuery}"</span>
@@ -316,15 +293,14 @@ function AddTeamForm({ leagueId, onAdded }) {
         ) : (
           // Selected club display
           <div
-            className="flex items-center gap-2 px-3 py-2.5 rounded-lg border"
-            style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg border bg-surface-2 border-border"
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium">
                 {selectedClub ? selectedClub.name : newClubName || searchQuery}
               </p>
               {selectedClub?.address && (
-                <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                <p className="text-xs flex items-center gap-1 mt-0.5 text-text-muted">
                   <MapPin size={10} />
                   {selectedClub.address}
                 </p>
@@ -332,7 +308,7 @@ function AddTeamForm({ leagueId, onAdded }) {
               {isNewClub && <span className="text-xs text-amber-400">Nieuwe club</span>}
             </div>
             <button type="button" onClick={clearSelection}>
-              <X size={16} style={{ color: 'var(--color-text-muted)' }} />
+              <X size={16} className="text-text-muted" />
             </button>
           </div>
         )}
@@ -345,12 +321,8 @@ function AddTeamForm({ leagueId, onAdded }) {
               value={newClubName}
               onChange={(e) => setNewClubName(e.target.value)}
               placeholder="Clubnaam"
-              className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-              style={{
-                backgroundColor: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-text)',
-              }}
+              className="w-full px-3 py-2.5 rounded-lg text-sm outline-none bg-surface-2 text-text"
+              style={{ border: '1px solid var(--color-border)' }}
               required
             />
             <input
@@ -358,12 +330,8 @@ function AddTeamForm({ leagueId, onAdded }) {
               value={newClubAddress}
               onChange={(e) => setNewClubAddress(e.target.value)}
               placeholder="Adres (optioneel)"
-              className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-              style={{
-                backgroundColor: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-text)',
-              }}
+              className="w-full px-3 py-2.5 rounded-lg text-sm outline-none bg-surface-2 text-text"
+              style={{ border: '1px solid var(--color-border)' }}
             />
           </div>
         )}
@@ -372,20 +340,16 @@ function AddTeamForm({ leagueId, onAdded }) {
         {showForm && (
           <>
             <div>
-              <label className="block text-xs mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
-                Team suffix <span style={{ color: 'var(--color-text-muted)' }}>(optioneel, bijv. H30-1)</span>
+              <label className="block text-xs mb-1.5 text-text-muted">
+                Team suffix <span className="text-text-muted">(optioneel, bijv. H30-1)</span>
               </label>
               <input
                 type="text"
                 value={teamSuffix}
                 onChange={(e) => setTeamSuffix(e.target.value)}
                 placeholder="bijv. H30-1"
-                className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-                style={{
-                  backgroundColor: 'var(--color-surface-2)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text)',
-                }}
+                className="w-full px-3 py-2.5 rounded-lg text-sm outline-none bg-surface-2 text-text"
+                style={{ border: '1px solid var(--color-border)' }}
               />
               {teamSuffix && (
                 <p className="text-xs mt-1 text-amber-400">
@@ -398,12 +362,11 @@ function AddTeamForm({ leagueId, onAdded }) {
             <label className="flex items-center gap-3 cursor-pointer select-none">
               <div
                 onClick={() => setIsOwnTeam(!isOwnTeam)}
-                className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors ${
+                className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors border-border ${
                   isOwnTeam ? '' : 'border'
                 }`}
                 style={{
                   backgroundColor: isOwnTeam ? 'var(--color-secondary)' : 'transparent',
-                  borderColor: 'var(--color-border)',
                 }}
               >
                 {isOwnTeam && <Check size={12} color="#0f172a" strokeWidth={3} />}
@@ -416,8 +379,7 @@ function AddTeamForm({ leagueId, onAdded }) {
             <button
               type="submit"
               disabled={saving}
-              className="w-full py-2.5 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+              className="w-full py-2.5 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-50 bg-secondary text-secondary-text"
             >
               {saving ? 'Toevoegen...' : 'Team toevoegen'}
             </button>
@@ -433,10 +395,9 @@ function TeamsList({ teams, totalSlots, onDelete }) {
   if (teams.length === 0) {
     return (
       <div
-        className="rounded-xl border p-6 text-center"
-        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+        className="rounded-xl border p-6 text-center bg-surface border-border"
       >
-        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+        <p className="text-sm text-text-muted">
           Nog geen teams toegevoegd
         </p>
       </div>
@@ -445,17 +406,16 @@ function TeamsList({ teams, totalSlots, onDelete }) {
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
-      style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      className="rounded-xl border overflow-hidden bg-surface border-border"
     >
-      <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="px-4 py-3 border-b flex items-center justify-between border-border">
         <h3 className="font-semibold text-sm">Teams in deze poule</h3>
-        <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-surface-2 text-text-muted">
           {teams.length}{totalSlots ? ` van ${totalSlots}` : ''} teams
         </span>
       </div>
 
-      <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="divide-y divide-border">
         {teams.map((team) => (
           <div
             key={team.id}
@@ -470,7 +430,7 @@ function TeamsList({ teams, totalSlots, onDelete }) {
                 {team.team_name}
               </p>
               {team.is_own_team && (
-                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Eigen team</p>
+                <p className="text-xs text-text-muted">Eigen team</p>
               )}
             </div>
             <button
@@ -607,20 +567,18 @@ function TravelTimeCalc({ teamId }) {
   }
 
   return (
-    <div className="rounded-xl border p-4 space-y-3"
-         style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+    <div className="rounded-xl border p-4 space-y-3 bg-surface border-border">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold">Reistijden berekenen</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+          <p className="text-xs mt-0.5 text-text-muted">
             Berekent en overschrijft reistijden voor alle uitwedstrijden
           </p>
         </div>
         <button
           onClick={calculate}
           disabled={running}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors bg-secondary text-secondary-text"
         >
           <Car size={14} />
           {running ? 'Bezig...' : 'Bereken'}
@@ -629,14 +587,14 @@ function TravelTimeCalc({ teamId }) {
 
       {running && progress.total > 0 && (
         <div className="space-y-1">
-          <div className="flex justify-between text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          <div className="flex justify-between text-xs text-text-muted">
             <span>{progress.current}/{progress.total} berekend</span>
             <span>{Math.round(progress.current / progress.total * 100)}%</span>
           </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-2)' }}>
+          <div className="h-1.5 rounded-full overflow-hidden bg-surface-2">
             <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${progress.current / progress.total * 100}%`, backgroundColor: 'var(--color-secondary)' }}
+              className="h-full rounded-full transition-all duration-300 bg-secondary"
+              style={{ width: `${progress.current / progress.total * 100}%` }}
             />
           </div>
         </div>
@@ -710,7 +668,7 @@ export default function AdminLeague() {
     return (
       <div className="p-4">
         <div className="flex items-center gap-3 pt-2 mb-6">
-          <Link to="/admin" style={{ color: 'var(--color-text-muted)' }}>
+          <Link to="/admin" className="text-text-muted">
             <ArrowLeft size={20} />
           </Link>
           <h1 className="text-2xl font-bold">Competitie</h1>
@@ -724,13 +682,13 @@ export default function AdminLeague() {
     <div className="p-4 pb-8 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin" style={{ color: 'var(--color-text-muted)' }} className="hover:text-slate-200">
+        <Link to="/admin" className="text-text-muted hover:text-slate-200">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold">Competitie</h1>
           {league && (
-            <p className="text-sm truncate" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-sm truncate text-text-muted">
               {league.name} · {league.season}
             </p>
           )}
@@ -738,8 +696,8 @@ export default function AdminLeague() {
         {league && (
           <Link
             to="/admin/league/matches"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
-            style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-text-muted bg-surface"
+            style={{ border: '1px solid var(--color-border)' }}
           >
             Wedstrijden
             <ChevronRight size={14} />
@@ -756,28 +714,26 @@ export default function AdminLeague() {
           <div className="grid grid-cols-2 gap-3">
             <Link
               to="/admin/league/matches"
-              className="flex items-center gap-3 p-3 rounded-xl border transition-colors hover:border-slate-500"
-              style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+              className="flex items-center gap-3 p-3 rounded-xl border transition-colors hover:border-slate-500 bg-surface border-border"
             >
               <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
                 <span className="text-purple-400 text-sm">📅</span>
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold truncate">Wedstrijden invoeren</p>
-                <p className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>Programma</p>
+                <p className="text-xs truncate text-text-muted">Programma</p>
               </div>
             </Link>
             <Link
               to="/admin/league/results"
-              className="flex items-center gap-3 p-3 rounded-xl border transition-colors hover:border-slate-500"
-              style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+              className="flex items-center gap-3 p-3 rounded-xl border transition-colors hover:border-slate-500 bg-surface border-border"
             >
               <div className="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center flex-shrink-0">
                 <span className="text-pink-400 text-sm">🏆</span>
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold truncate">Uitslagen invoeren</p>
-                <p className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>Resultaten</p>
+                <p className="text-xs truncate text-text-muted">Resultaten</p>
               </div>
             </Link>
           </div>

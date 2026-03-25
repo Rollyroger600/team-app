@@ -36,8 +36,7 @@ export default function Announcements() {
         <div className="space-y-3">
           {announcements.map((item) => (
             <div key={item.id}
-                 className="rounded-xl p-4 border"
-                 style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+                 className="rounded-xl p-4 border bg-surface border-border">
               {item.title && (
                 <h2 className="font-semibold mb-1">{item.title}</h2>
               )}

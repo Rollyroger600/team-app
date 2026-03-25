@@ -254,10 +254,10 @@ export default function AdminLeagueMatches() {
           <Link to="/admin/league" className="text-slate-400 hover:text-slate-200"><ArrowLeft size={20} /></Link>
           <h1 className="text-2xl font-bold">Comp. wedstrijden</h1>
         </div>
-        <div className="rounded-xl p-8 border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl p-8 border text-center bg-surface border-border">
           <Calendar size={40} className="mx-auto mb-3 text-slate-600" />
           <p className="font-medium mb-2">Geen competitie aangemaakt</p>
-          <Link to="/admin/league" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium mt-4" style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}>
+          <Link to="/admin/league" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium mt-4 bg-secondary text-secondary-text">
             Naar competitie-instellingen
           </Link>
         </div>
@@ -277,23 +277,23 @@ export default function AdminLeagueMatches() {
       </div>
 
       {/* Speelronde selector + gedeelde datum */}
-      <div className="rounded-xl border p-4 space-y-4" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+      <div className="rounded-xl border p-4 space-y-4 bg-surface border-border">
 
         {/* Ronde nav */}
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>Speelronde</span>
+          <span className="text-sm font-medium text-text-muted">Speelronde</span>
           <div className="flex items-center gap-2">
             <button onClick={() => setMatchday((d) => Math.max(1, d - 1))} disabled={matchday <= 1}
-              className="w-8 h-8 rounded-lg border text-sm font-bold disabled:opacity-30 hover:bg-slate-700 transition-colors" style={{ borderColor: 'var(--color-border)' }}>‹</button>
+              className="w-8 h-8 rounded-lg border text-sm font-bold disabled:opacity-30 hover:bg-slate-700 transition-colors border-border">‹</button>
             <span className="w-8 text-center font-bold text-lg">{matchday}</span>
             <button onClick={() => setMatchday((d) => d + 1)}
-              className="w-8 h-8 rounded-lg border text-sm font-bold hover:bg-slate-700 transition-colors" style={{ borderColor: 'var(--color-border)' }}>›</button>
+              className="w-8 h-8 rounded-lg border text-sm font-bold hover:bg-slate-700 transition-colors border-border">›</button>
           </div>
         </div>
 
         {/* Datum voor hele speelronde */}
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+          <label className="block text-xs font-medium mb-1.5 text-text-muted">
             Datum speelronde {matchday}
             <span className="ml-1 opacity-60">(geldt voor alle wedstrijden, tenzij individueel overschreven)</span>
           </label>
@@ -323,7 +323,7 @@ export default function AdminLeagueMatches() {
       </div>
 
       {/* Column headers */}
-      <div className="grid gap-2 px-1 text-xs font-medium" style={{ gridTemplateColumns: '1fr 1fr 90px 72px 28px', color: 'var(--color-text-muted)' }}>
+      <div className="grid gap-2 px-1 text-xs font-medium text-text-muted" style={{ gridTemplateColumns: '1fr 1fr 90px 72px 28px' }}>
         <span>Thuis</span><span>Uit</span><span>Datum</span><span>Tijd</span><span />
       </div>
 
@@ -336,8 +336,7 @@ export default function AdminLeagueMatches() {
       </div>
 
       <button type="button" onClick={() => setRows((prev) => [...prev, emptyRow(matchday)])}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed text-sm opacity-50 hover:opacity-80 transition-opacity"
-        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed text-sm opacity-50 hover:opacity-80 transition-opacity border-border text-text-muted">
         <Plus size={16} />Wedstrijd toevoegen
       </button>
 
@@ -356,15 +355,14 @@ export default function AdminLeagueMatches() {
         </div>
       ) : (
         <button onClick={handleSave} disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}>
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50 bg-secondary text-secondary-text">
           <Save size={16} />{saving ? 'Opslaan...' : `Speelronde ${matchday} opslaan`}
         </button>
       )}
 
       {/* Genereer 2e helft */}
       {N > 0 && (
-        <div className="rounded-xl border p-4 space-y-3" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl border p-4 space-y-3 bg-surface border-border">
           <div>
             <p className="text-sm font-semibold">2e helft genereren</p>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -379,8 +377,8 @@ export default function AdminLeagueMatches() {
             </div>
           ) : (
             <button onClick={handleMirror} disabled={mirroring}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-opacity"
-              style={{ backgroundColor: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-opacity bg-surface-2 text-text"
+              style={{ border: '1px solid var(--color-border)' }}>
               <Copy size={15} />
               {mirroring ? 'Bezig...' : `Genereer speelronden ${N + 1}–${N * 2}`}
             </button>
@@ -389,7 +387,7 @@ export default function AdminLeagueMatches() {
       )}
 
       {existingMatches.length > 0 && (
-        <div className="rounded-xl border p-4" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl border p-4 bg-surface border-border">
           <p className="text-xs text-slate-400">
             {existingMatches.length} wedstrijden · {filledMatchdays.length} speelronden
             {filledMatchdays.length > 0 && ` (R1–R${filledMatchdays[filledMatchdays.length - 1]})`}

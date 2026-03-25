@@ -73,11 +73,9 @@ export default function Stats() {
       ) : stats.length === 0 ? (
         <EmptyState icon={BarChart2}>Nog geen statistieken beschikbaar</EmptyState>
       ) : (
-        <div className="rounded-xl border overflow-hidden"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="rounded-xl border overflow-hidden bg-surface border-border">
           {/* Header */}
-          <div className="px-4 py-3 border-b flex text-xs font-medium text-slate-400 uppercase tracking-wide"
-               style={{ borderColor: 'var(--color-border)' }}>
+          <div className="px-4 py-3 border-b flex text-xs font-medium text-slate-400 uppercase tracking-wide border-border">
             <span className="flex-1">Speler</span>
             <span className="w-10 text-center">Gesp.</span>
             <span className="w-10 text-center">Uitg.</span>
@@ -90,8 +88,7 @@ export default function Stats() {
             const isOpen = expanded[player.player_id]
 
             return (
-              <div key={player.player_id} className="border-b last:border-0"
-                   style={{ borderColor: 'var(--color-border)' }}>
+              <div key={player.player_id} className="border-b last:border-0 border-border">
                 {/* Player row */}
                 <div
                   className={`flex items-center px-4 py-3 text-sm ${hasDetail ? 'cursor-pointer select-none' : ''}`}
@@ -115,16 +112,14 @@ export default function Stats() {
 
                 {/* Expandable goal/assist breakdown */}
                 {hasDetail && isOpen && (
-                  <div className="pb-2 pt-0"
-                       style={{ backgroundColor: 'var(--color-surface-2)' }}>
+                  <div className="pb-2 pt-0 bg-surface-2">
                     {goalMap[player.player_id].map(({ match, goals, assists }) => {
                       const ourScore = match.is_home ? match.score_home : match.score_away
                       const theirScore = match.is_home ? match.score_away : match.score_home
                       const hasScore = ourScore != null && theirScore != null
                       return (
                         <div key={match.id}
-                             className="flex items-center gap-2 px-6 py-1.5 text-xs"
-                             style={{ color: 'var(--color-text-muted)' }}>
+                             className="flex items-center gap-2 px-6 py-1.5 text-xs text-text-muted">
                           <span className="w-20 flex-shrink-0">{formatDate(match.match_date)}</span>
                           <span className="flex-1 truncate">
                             {match.is_home ? 'Thuis' : 'Uit'} vs {match.opponent.replace(/ Heren.*/, '')}
@@ -134,8 +129,8 @@ export default function Stats() {
                               {ourScore}–{theirScore}
                             </span>
                           )}
-                          <span className="flex-shrink-0 font-semibold"
-                                style={{ color: 'var(--color-secondary)', minWidth: '3rem', textAlign: 'right' }}>
+                          <span className="flex-shrink-0 font-semibold text-secondary"
+                                style={{ minWidth: '3rem', textAlign: 'right' }}>
                             {goals > 0 && `${goals} goal${goals > 1 ? 's' : ''}`}
                             {goals > 0 && assists > 0 && ' · '}
                             {assists > 0 && `${assists} ass.`}
