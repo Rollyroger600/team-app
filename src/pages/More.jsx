@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle, XCircle, HelpCircle, Settings, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react'
+import { CheckCircle, XCircle, HelpCircle, Settings, ChevronDown, ChevronUp, ShieldCheck, Flag } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
+import EmptyState from '../components/ui/EmptyState'
+import { UmpireCard } from '../components/ui/UmpireCard'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDate, formatTime } from '../lib/utils'
+import { parseISO, subDays, isPast } from 'date-fns'
 
 const STATUS_OPTIONS = [
   { status: 'available',   icon: CheckCircle, label: 'Ja',        active: 'bg-green-500/25 border-green-500/60 text-green-400' },
@@ -31,6 +34,7 @@ export default function More() {
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
   const { activeTeam } = useTeamStore()
   const queryClient = useQueryClient()
+  const [tab, setTab] = useState('beschikbaarheid')
   const [expanded, setExpanded] = useState(new Set())
   const [saving, setSaving] = useState(null)
   const [myAvail, setMyAvail] = useState({})     // optimistic: match_id → status
@@ -100,6 +104,33 @@ export default function More() {
   const matches = data?.matches || []
   const members = data?.members || []
 
+  // Umpire duties query
+  const { data: umpireData, isLoading: umpireLoading } = useQuery({
+    queryKey: ['umpire', activeTeam?.id],
+    queryFn: async () => {
+      const { data: duties } = await supabase
+        .from('umpire_duties')
+        .select('id, match_id, player_id, umpire_match_desc, notes, status, profiles(full_name, nickname), matches(match_date, opponent, is_home)')
+        .eq('team_id', activeTeam.id)
+        .order('created_at', { ascending: true })
+
+      const today = new Date().toISOString().split('T')[0]
+      const all = (duties || []).map(d => ({
+        ...d,
+        umpire_date: d.matches?.match_date ? subDays(parseISO(d.matches.match_date), 1) : null,
+      }))
+
+      return {
+        upcoming: all.filter(d => !d.umpire_date || !isPast(d.umpire_date) || d.umpire_date.toISOString().split('T')[0] >= today),
+        past: all.filter(d => d.umpire_date && isPast(d.umpire_date) && d.umpire_date.toISOString().split('T')[0] < today).reverse(),
+      }
+    },
+    enabled: !!activeTeam?.id && !!user?.id,
+  })
+
+  const umpireUpcoming = umpireData?.upcoming || []
+  const umpirePast = umpireData?.past || []
+
   const availMutation = useMutation({
     mutationFn: async ({ matchId, next }) => {
       if (next) {
@@ -148,7 +179,7 @@ export default function More() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between pt-2">
-        <h1 className="text-2xl font-bold">Beschikbaarheid</h1>
+        <h1 className="text-2xl font-bold">Meer</h1>
         <div className="flex items-center gap-2">
           {isAdmin && (
             <Link to="/admin"
@@ -167,7 +198,26 @@ export default function More() {
         </div>
       </div>
 
-      {isLoading ? (
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 rounded-xl bg-surface">
+        {[
+          { key: 'beschikbaarheid', label: 'Beschikbaarheid' },
+          { key: 'fluitbeurten', label: 'Fluitbeurten' },
+        ].map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === t.key ? 'bg-primary text-text' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Beschikbaarheid tab */}
+      {tab === 'beschikbaarheid' && (isLoading ? (
         <PageLoader />
       ) : matches.length === 0 ? (
         <div className="rounded-xl p-8 border text-center bg-surface border-border">
@@ -254,7 +304,28 @@ export default function More() {
             )
           })}
         </div>
-      )}
+      ))}
+
+      {/* Fluitbeurten tab */}
+      {tab === 'fluitbeurten' && (umpireLoading ? (
+        <PageLoader />
+      ) : umpireUpcoming.length === 0 && umpirePast.length === 0 ? (
+        <EmptyState icon={Flag}>Geen fluitbeurten gepland</EmptyState>
+      ) : (
+        <div className="space-y-2">
+          {umpireUpcoming.map(duty => (
+            <UmpireCard key={duty.id} duty={duty} isOwn={duty.player_id === user.id} past={false} />
+          ))}
+          {umpirePast.length > 0 && (
+            <>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-1 pt-2">Gefloten</p>
+              {umpirePast.map(duty => (
+                <UmpireCard key={duty.id} duty={duty} isOwn={duty.player_id === user.id} past={true} />
+              ))}
+            </>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

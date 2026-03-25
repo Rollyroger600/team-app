@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, CheckCircle, XCircle, HelpCircle, Users, ChevronDown, ChevronUp } from 'lucide-react'
+import { Calendar, CheckCircle, XCircle, HelpCircle, Users, ChevronDown, ChevronUp, Flag } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
@@ -8,6 +8,8 @@ import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDate, formatTime } from '../lib/utils'
 import { formatGatheringDisplay } from '../lib/gathering'
+import { parseISO, subDays, isPast, format } from 'date-fns'
+import { nl } from 'date-fns/locale'
 
 export default function Dashboard() {
   const { user, profile } = useAuthStore()
@@ -102,6 +104,27 @@ export default function Dashboard() {
   const availabilityCount = availData?.availabilityCount || { available: 0, total: 0 }
   const teamAvailability = availData?.teamAvailability || []
   const totalMembers = availData?.totalMembers || 0
+
+  // Query: next umpire duty
+  const { data: nextDuty } = useQuery({
+    queryKey: ['umpire', activeTeam?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('umpire_duties')
+        .select('id, match_id, player_id, umpire_match_desc, notes, profiles(full_name, nickname), matches(match_date, opponent)')
+        .eq('team_id', activeTeam.id)
+        .order('created_at', { ascending: true })
+
+      const today = new Date().toISOString().split('T')[0]
+      const upcoming = (data || []).filter(d => {
+        if (!d.matches?.match_date) return true
+        const umpireDate = subDays(parseISO(d.matches.match_date), 1)
+        return !isPast(umpireDate) || umpireDate.toISOString().split('T')[0] >= today
+      })
+      return upcoming[0] || null
+    },
+    enabled: !!activeTeam?.id,
+  })
 
   // Mutation: set availability
   const availMutation = useMutation({
@@ -231,6 +254,36 @@ export default function Dashboard() {
           <p className="text-slate-400">Geen aankomende wedstrijden</p>
         </div>
       )}
+
+      {/* Next umpire duty */}
+      {nextDuty && (() => {
+        const sat = nextDuty.matches?.match_date
+          ? format(subDays(parseISO(nextDuty.matches.match_date), 1), 'EEEE d MMM', { locale: nl })
+          : nextDuty.umpire_match_desc
+        const assignedName = nextDuty.profiles?.nickname || nextDuty.profiles?.full_name?.split(' ')[0]
+        const isOwn = nextDuty.player_id === user?.id
+        return (
+          <div className="rounded-xl p-4 border bg-surface border-border"
+               style={isOwn ? { borderColor: 'rgba(245,158,11,0.4)', backgroundColor: 'rgba(245,158,11,0.06)' } : {}}>
+            <p className="text-xs text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Flag size={12} /> Eerste volgende fluitbeurt
+            </p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm">{sat}</p>
+                {nextDuty.matches && (
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Bij thuiswedstrijd vs {nextDuty.matches.opponent} ({formatDate(nextDuty.matches.match_date)})
+                  </p>
+                )}
+              </div>
+              <span className={`text-sm font-medium flex-shrink-0 ${isOwn ? 'text-amber-400' : 'text-slate-300'}`}>
+                {isOwn ? 'Jij' : (assignedName || 'Niet toegewezen')}
+              </span>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Latest announcement */}
       {latestAnnouncement && (
