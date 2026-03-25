@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BarChart2, ChevronDown, ChevronRight } from 'lucide-react'
+import PageLoader from '../components/ui/PageLoader'
+import EmptyState from '../components/ui/EmptyState'
 import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDate } from '../lib/utils'
@@ -67,16 +69,9 @@ export default function Stats() {
       <h1 className="text-2xl font-bold pt-2">Statistieken</h1>
 
       {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-               style={{ borderColor: 'var(--color-secondary)' }} />
-        </div>
+        <PageLoader />
       ) : stats.length === 0 ? (
-        <div className="rounded-xl p-8 border text-center"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-          <BarChart2 size={40} className="mx-auto mb-3 text-slate-600" />
-          <p className="text-slate-400">Nog geen statistieken beschikbaar</p>
-        </div>
+        <EmptyState icon={BarChart2}>Nog geen statistieken beschikbaar</EmptyState>
       ) : (
         <div className="rounded-xl border overflow-hidden"
              style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>

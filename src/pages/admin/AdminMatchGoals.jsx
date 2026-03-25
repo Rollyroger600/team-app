@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Trash2, Target, Square } from 'lucide-react'
+import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
 import { formatDate, formatTime } from '../../lib/utils'
 
@@ -111,12 +112,7 @@ export default function AdminMatchGoals() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-40">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-             style={{ borderColor: 'var(--color-secondary)' }} />
-      </div>
-    )
+    return <PageLoader />
   }
 
   const selectClass = "flex-1 px-2.5 py-2 rounded-lg text-sm outline-none focus:border-amber-400"

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckCircle, XCircle, HelpCircle, Settings, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react'
+import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
@@ -155,10 +156,7 @@ export default function More() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-               style={{ borderColor: 'var(--color-secondary)' }} />
-        </div>
+        <PageLoader />
       ) : matches.length === 0 ? (
         <div className="rounded-xl p-8 border text-center"
              style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Flag } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import PageLoader from '../components/ui/PageLoader'
+import EmptyState from '../components/ui/EmptyState'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDate } from '../lib/utils'
@@ -93,12 +95,7 @@ export default function Umpire() {
   }, [activeTeam?.id, user?.id])
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-40">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-             style={{ borderColor: 'var(--color-secondary)' }} />
-      </div>
-    )
+    return <PageLoader />
   }
 
   return (
@@ -106,11 +103,7 @@ export default function Umpire() {
       <h1 className="text-2xl font-bold pt-2">Fluitbeurten</h1>
 
       {upcoming.length === 0 && past.length === 0 ? (
-        <div className="rounded-xl p-8 border text-center"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-          <Flag size={40} className="mx-auto mb-3 text-slate-600" />
-          <p className="text-slate-400">Geen fluitbeurten gepland</p>
-        </div>
+        <EmptyState icon={Flag}>Geen fluitbeurten gepland</EmptyState>
       ) : (
         <>
           {upcoming.length > 0 && (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Calendar, CheckCircle, XCircle, HelpCircle, Users, ChevronDown, ChevronUp } from 'lucide-react'
+import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
@@ -95,11 +96,7 @@ export default function Dashboard() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-40">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-secondary)' }} />
-      </div>
-    )
+    return <PageLoader />
   }
 
   const gatheringInfo = nextMatch ? formatGatheringDisplay(nextMatch, teamSettings) : null

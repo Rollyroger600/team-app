@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Trophy, Search, X, Check, Trash2, ChevronRight, PlusCircle, MapPin, Car } from 'lucide-react'
+import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import { geocodeAddress, getTravelDuration } from '../../lib/travel'
@@ -714,12 +715,7 @@ export default function AdminLeague() {
           </Link>
           <h1 className="text-2xl font-bold">Competitie</h1>
         </div>
-        <div className="flex items-center justify-center h-40">
-          <div
-            className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-            style={{ borderColor: 'var(--color-secondary)' }}
-          />
-        </div>
+        <PageLoader />
       </div>
     )
   }

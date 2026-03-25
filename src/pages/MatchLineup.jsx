@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Save } from 'lucide-react'
+import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import { formatDate, formatTime } from '../lib/utils'
@@ -127,12 +128,7 @@ export default function MatchLineup() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-40">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-             style={{ borderColor: 'var(--color-secondary)' }} />
-      </div>
-    )
+    return <PageLoader />
   }
 
   // Groepeer roster per positierij

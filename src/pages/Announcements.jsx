@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { MessageSquare } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import PageLoader from '../components/ui/PageLoader'
+import EmptyState from '../components/ui/EmptyState'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDateLong } from '../lib/utils'
 
@@ -27,14 +29,9 @@ export default function Announcements() {
       <h1 className="text-2xl font-bold pt-2">Berichten</h1>
 
       {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-secondary)' }} />
-        </div>
+        <PageLoader />
       ) : announcements.length === 0 ? (
-        <div className="rounded-xl p-8 border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-          <MessageSquare size={40} className="mx-auto mb-3 text-slate-600" />
-          <p className="text-slate-400">Geen berichten</p>
-        </div>
+        <EmptyState icon={MessageSquare}>Geen berichten</EmptyState>
       ) : (
         <div className="space-y-3">
           {announcements.map((item) => (

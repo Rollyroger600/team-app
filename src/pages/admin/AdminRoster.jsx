@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Users, Check, X } from 'lucide-react'
+import PageLoader from '../../components/ui/PageLoader'
+import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 
@@ -60,11 +62,7 @@ export default function AdminRoster() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-40">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-secondary)' }} />
-      </div>
-    )
+    return <PageLoader />
   }
 
   return (
@@ -92,10 +90,7 @@ export default function AdminRoster() {
       </div>
 
       {availability.length === 0 ? (
-        <div className="rounded-xl p-8 border text-center" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-          <Users size={40} className="mx-auto mb-3 text-slate-600" />
-          <p className="text-slate-400">Geen beschikbare spelers</p>
-        </div>
+        <EmptyState icon={Users}>Geen beschikbare spelers</EmptyState>
       ) : (
         <div className="space-y-2">
           {availability.map((item) => {

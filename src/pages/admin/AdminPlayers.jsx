@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Users, UserPlus, Mail, ChevronDown, ChevronUp, Check } from 'lucide-react'
+import PageLoader from '../../components/ui/PageLoader'
+import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 
@@ -143,16 +145,9 @@ export default function AdminPlayers() {
 
       {/* Player list */}
       {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-               style={{ borderColor: 'var(--color-secondary)' }} />
-        </div>
+        <PageLoader />
       ) : players.length === 0 ? (
-        <div className="rounded-xl p-8 border text-center"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-          <Users size={40} className="mx-auto mb-3 text-slate-600" />
-          <p className="text-slate-400 mb-4">Nog geen spelers toegevoegd</p>
-        </div>
+        <EmptyState icon={Users}>Nog geen spelers toegevoegd</EmptyState>
       ) : (
         <div className="space-y-2">
           {players.map((membership) => {

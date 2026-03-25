@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Flag, Wand2, Trash2, UserPlus } from 'lucide-react'
+import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import { formatDate } from '../../lib/utils'
@@ -149,11 +150,7 @@ export default function AdminUmpire() {
                style={{ borderColor: 'var(--color-secondary)' }} />
         </div>
       ) : grouped.length === 0 && orphans.length === 0 ? (
-        <div className="rounded-xl p-8 border text-center"
-             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-          <Flag size={32} className="mx-auto mb-2 text-slate-600" />
-          <p className="text-slate-400 text-sm">Nog geen fluitbeurten. Klik op "Genereer" hierboven.</p>
-        </div>
+        <EmptyState icon={Flag}>Nog geen fluitbeurten. Klik op "Genereer" hierboven.</EmptyState>
       ) : (
         <div className="space-y-3">
           {grouped.map(({ match, duties: matchDuties }) => {
