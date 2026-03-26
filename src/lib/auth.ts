@@ -17,7 +17,7 @@ async function callAuthHandler(body: Record<string, unknown>, authToken?: string
     body: JSON.stringify(body),
   })
   const data = await res.json()
-  if (!res.ok) throw new Error(data?.error ?? 'Onbekende fout')
+  if (!res.ok) throw new Error(data?.error ?? data?.message ?? 'Onbekende fout')
   return data
 }
 

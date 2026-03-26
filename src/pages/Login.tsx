@@ -87,8 +87,8 @@ export default function Login() {
 
   // ── After login: load profile then navigate ───────────────────────────────
   async function finishLogin() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) await loadProfile(user)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) await loadProfile(session.user)
     navigate('/')
   }
 
