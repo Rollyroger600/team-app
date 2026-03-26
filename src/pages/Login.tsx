@@ -9,6 +9,7 @@ import {
   type LoginPlayer,
 } from '../lib/auth'
 import { supabase } from '../lib/supabase'
+import useAuthStore from '../stores/useAuthStore'
 import React from 'react'
 
 type Step = 'team' | 'name' | 'pin' | 'setup_pin'
@@ -16,6 +17,7 @@ type Step = 'team' | 'name' | 'pin' | 'setup_pin'
 export default function Login() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { loadProfile } = useAuthStore()
 
   const [step, setStep] = useState<Step>('team')
   const [error, setError] = useState('')
@@ -83,6 +85,13 @@ export default function Login() {
     setStep('name')
   }
 
+  // ── After login: load profile then navigate ───────────────────────────────
+  async function finishLogin() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) await loadProfile(user)
+    navigate('/')
+  }
+
   // ── Step 1: Team selection ─────────────────────────────────────────────────
   function handleClubChange(clubId: string) {
     setSelectedClubId(clubId)
@@ -117,7 +126,7 @@ export default function Login() {
 
     if (result.error) { setError(result.error); setPin(''); return }
     if (result.needs_pin_setup) { setStep('setup_pin'); return }
-    if (result.session) navigate('/')
+    if (result.session) await finishLogin()
   }
 
   // ── Step 4: First-time PIN setup ──────────────────────────────────────────
@@ -138,7 +147,7 @@ export default function Login() {
     const result = await setupPin(selectedPlayer!.player_id, pin)
     setLoading(false)
     if (result.error) { setError(result.error); return }
-    if (result.session) navigate('/')
+    if (result.session) await finishLogin()
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
