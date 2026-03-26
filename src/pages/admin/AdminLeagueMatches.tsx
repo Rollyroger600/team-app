@@ -1,0 +1,441 @@
+import React from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
+import { ArrowLeft, Plus, Save, Trash2, ChevronDown, Check, AlertCircle, Calendar, Copy } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '../../lib/supabase'
+import useTeamStore from '../../stores/useTeamStore'
+import type { League, LeagueMatch } from '../../types/app'
+
+interface LeagueTeamDisplay {
+  id: string
+  display_name: string
+  is_own_team: boolean
+}
+
+interface MatchRow {
+  _id: string
+  _saved?: boolean
+  matchday: number
+  date: string
+  time: string
+  home_team_id: string
+  away_team_id: string
+}
+
+interface LeagueMatchesQueryData {
+  league: League | null
+  leagueTeams: LeagueTeamDisplay[]
+  ownTeamId: string | null
+  existingMatches: LeagueMatch[]
+}
+
+interface SaveMutationVars {
+  leagueId: string
+  matchdayNum: number
+  toSave: MatchRow[]
+  matchdayDateVal: string
+}
+
+function emptyRow(matchday: number): MatchRow {
+  return { _id: crypto.randomUUID(), matchday, date: '', time: '', home_team_id: '', away_team_id: '' }
+}
+
+function buildRows(matchday: number, count = 6): MatchRow[] {
+  return Array.from({ length: count }, () => emptyRow(matchday))
+}
+
+// --- Team select ---
+interface TeamSelectProps {
+  value: string
+  onChange: (v: string) => void
+  teams: LeagueTeamDisplay[]
+  placeholder: string
+  ownTeamId: string | null
+}
+
+function TeamSelect({ value, onChange, teams, placeholder, ownTeamId }: TeamSelectProps): React.JSX.Element {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm outline-none"
+        style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: value ? 'var(--color-text)' : 'var(--color-text-muted)' }}
+      >
+        <option value="">{placeholder}</option>
+        {teams.map((t) => (
+          <option key={t.id} value={t.id}>{t.id === ownTeamId ? `★ ${t.display_name}` : t.display_name}</option>
+        ))}
+      </select>
+      <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 opacity-40" />
+    </div>
+  )
+}
+
+// --- Match row ---
+interface MatchRowComponentProps {
+  row: MatchRow
+  teams: LeagueTeamDisplay[]
+  ownTeamId: string | null
+  matchdayDate: string
+  onChange: (id: string, field: keyof MatchRow, value: string) => void
+  onRemove: (id: string) => void
+}
+
+function MatchRowComponent({ row, teams, ownTeamId, matchdayDate, onChange, onRemove }: MatchRowComponentProps): React.JSX.Element {
+  const isOwn = row.home_team_id === ownTeamId || row.away_team_id === ownTeamId
+  const dateValue = row.date
+
+  return (
+    <div
+      className={`grid gap-2 items-center rounded-xl p-3 border ${isOwn ? 'border-amber-500/40 bg-amber-500/5' : ''}`}
+      style={{ gridTemplateColumns: '1fr 1fr 90px 72px 28px', ...(!isOwn ? { borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-2)' } : {}) }}
+    >
+      <TeamSelect value={row.home_team_id} onChange={(v) => onChange(row._id, 'home_team_id', v)} teams={teams} placeholder="Thuis" ownTeamId={ownTeamId} />
+      <TeamSelect value={row.away_team_id} onChange={(v) => onChange(row._id, 'away_team_id', v)} teams={teams} placeholder="Uit" ownTeamId={ownTeamId} />
+
+      <div className="relative">
+        <input
+          type="date"
+          value={dateValue}
+          onChange={(e) => onChange(row._id, 'date', e.target.value)}
+          className="w-full rounded-lg border px-2 py-2 text-xs outline-none"
+          style={{
+            backgroundColor: 'var(--color-surface-2)',
+            borderColor: dateValue ? 'var(--color-border)' : matchdayDate ? 'rgb(245 158 11 / 0.3)' : 'var(--color-border)',
+            color: dateValue ? 'var(--color-text)' : 'var(--color-text-muted)',
+          }}
+        />
+        {!dateValue && matchdayDate && (
+          <span className="absolute inset-0 flex items-center px-2 text-xs text-amber-400/70 pointer-events-none">
+            {new Date(matchdayDate + 'T12:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+          </span>
+        )}
+      </div>
+
+      <input
+        type="time"
+        value={row.time}
+        onChange={(e) => onChange(row._id, 'time', e.target.value)}
+        className="w-full rounded-lg border px-2 py-2 text-xs outline-none"
+        style={{ backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: row.time ? 'var(--color-text)' : 'var(--color-text-muted)' }}
+      />
+
+      <button type="button" onClick={() => onRemove(row._id)}
+        className="flex items-center justify-center w-7 h-7 rounded-lg opacity-40 hover:opacity-80 hover:bg-red-500/10 hover:text-red-400 transition-all">
+        <Trash2 size={13} />
+      </button>
+    </div>
+  )
+}
+
+// --- Main ---
+export default function AdminLeagueMatches(): React.JSX.Element {
+  const { activeTeam } = useTeamStore()
+  const teamId = activeTeam?.id
+  const queryClient = useQueryClient()
+
+  const [matchday, setMatchday] = useState(1)
+  const [matchdayDate, setMatchdayDate] = useState('')
+  const [rows, setRows] = useState<MatchRow[]>(() => buildRows(1))
+
+  const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [mirroring, setMirroring] = useState(false)
+  const [mirrorDone, setMirrorDone] = useState(false)
+
+  const { data, isLoading } = useQuery<LeagueMatchesQueryData>({
+    queryKey: ['adminLeagueMatches', teamId],
+    queryFn: async (): Promise<LeagueMatchesQueryData> => {
+      const { data: lg } = await supabase.from('leagues').select('*').eq('team_id', teamId!)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      if (!lg) return { league: null, leagueTeams: [], ownTeamId: null, existingMatches: [] }
+
+      const { data: lt } = await supabase.from('league_teams').select('id, team_name, is_own_team')
+        .eq('league_id', lg.id).order('team_name')
+      const teams: LeagueTeamDisplay[] = ((lt || []) as { id: string; team_name: string; is_own_team: boolean }[]).map((t) => ({ id: t.id, display_name: t.team_name, is_own_team: t.is_own_team }))
+      const own = teams.find((t) => t.is_own_team)
+
+      const { data: em } = await supabase.from('league_matches').select('*').eq('league_id', lg.id)
+        .order('matchday', { ascending: true })
+
+      return {
+        league: lg as League,
+        leagueTeams: teams,
+        ownTeamId: own?.id || null,
+        existingMatches: (em as LeagueMatch[]) || [],
+      }
+    },
+    enabled: !!teamId,
+  })
+
+  const league = data?.league || null
+  const leagueTeams = data?.leagueTeams || []
+  const ownTeamId = data?.ownTeamId || null
+  const existingMatches = data?.existingMatches || []
+
+  // Laad rows + gedeelde datum wanneer speelronde wijzigt
+  useEffect(() => {
+    const existing = existingMatches.filter((m) => m.matchday === matchday)
+    if (existing.length > 0) {
+      const dates = [...new Set(existing.map((m) => m.match_date).filter(Boolean))] as string[]
+      setMatchdayDate(dates.length === 1 ? dates[0] : '')
+      setRows(existing.map((m) => ({
+        _id: m.id, _saved: true, matchday: m.matchday ?? matchday,
+        date: m.match_date ? m.match_date.slice(0, 10) : '',
+        time: m.match_time ? m.match_time.slice(0, 5) : '',
+        home_team_id: m.home_team_id || '', away_team_id: m.away_team_id || '',
+      })))
+    } else {
+      setMatchdayDate('')
+      setRows(buildRows(matchday))
+    }
+    setSaved(false); setSaveError(''); setMirrorDone(false)
+  }, [matchday, existingMatches])
+
+  const handleChange = useCallback((id: string, field: keyof MatchRow, value: string) => {
+    setRows((prev) => prev.map((r) => r._id === id ? { ...r, [field]: value } : r))
+    setSaved(false)
+  }, [])
+
+  const handleRemove = useCallback((id: string) => {
+    setRows((prev) => prev.filter((r) => r._id !== id))
+  }, [])
+
+  function handleMatchdayDateChange(date: string): void {
+    setMatchdayDate(date)
+    setSaved(false)
+  }
+
+  const saveMutation = useMutation<void, Error, SaveMutationVars>({
+    mutationFn: async ({ leagueId, matchdayNum, toSave, matchdayDateVal }: SaveMutationVars): Promise<void> => {
+      await supabase.from('league_matches').delete().eq('league_id', leagueId).eq('matchday', matchdayNum)
+      const inserts = toSave.map((r) => ({
+        league_id: leagueId, matchday: matchdayNum,
+        match_date: r.date || matchdayDateVal || null,
+        match_time: r.time ? r.time + ':00' : null,
+        home_team_id: r.home_team_id, away_team_id: r.away_team_id,
+      }))
+      const { error: insertErr } = await supabase.from('league_matches').insert(inserts)
+      if (insertErr) throw insertErr
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminLeagueMatches', teamId] })
+      setSaved(true)
+    },
+    onError: (err) => {
+      setSaveError(err.message)
+    },
+  })
+
+  async function handleSave(): Promise<void> {
+    if (!league) return
+    setSaveError(''); setSaved(false)
+
+    const toSave = rows.filter((r) => r.home_team_id && r.away_team_id && (r.date || matchdayDate))
+    if (toSave.length === 0) {
+      setSaveError('Vul minstens thuis, uit én (speelronde)datum in.')
+      return
+    }
+
+    await saveMutation.mutateAsync({ leagueId: league.id, matchdayNum: matchday, toSave, matchdayDateVal: matchdayDate })
+  }
+
+  async function handleMirror(): Promise<void> {
+    if (!league) return
+    const filledRounds = [...new Set(existingMatches.map((m) => m.matchday))].filter((d): d is number => d !== null).sort((a, b) => a - b)
+    if (filledRounds.length === 0) return
+    const N = filledRounds.length
+    setMirroring(true)
+
+    const inserts: { league_id: string; matchday: number; match_date: null; match_time: null; home_team_id: string | null; away_team_id: string | null }[] = []
+    filledRounds.forEach((round, idx) => {
+      const roundMatches = existingMatches.filter((m) => m.matchday === round)
+      const newRound = N + idx + 1
+      roundMatches.forEach((m) => {
+        inserts.push({
+          league_id: league.id,
+          matchday: newRound,
+          match_date: null,
+          match_time: null,
+          home_team_id: m.away_team_id,
+          away_team_id: m.home_team_id,
+        })
+      })
+    })
+
+    const secondHalfRounds = filledRounds.map((_, idx) => N + idx + 1)
+    await supabase.from('league_matches').delete().eq('league_id', league.id).in('matchday', secondHalfRounds)
+
+    const { error } = await supabase.from('league_matches').insert(inserts)
+    if (!error) {
+      queryClient.invalidateQueries({ queryKey: ['adminLeagueMatches', teamId] })
+      setMirrorDone(true)
+    }
+    setMirroring(false)
+  }
+
+  const filledMatchdays = [...new Set(existingMatches.map((m) => m.matchday))].filter((d): d is number => d !== null).sort((a, b) => a - b)
+  const N = filledMatchdays.length
+  const secondHalfExists = filledMatchdays.some((d) => d > N / 2 + 0.5)
+  const saving = saveMutation.isPending
+
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="flex items-center gap-3 pt-2">
+          <Link to="/admin/league" className="opacity-50"><ArrowLeft size={20} /></Link>
+          <div className="h-7 w-48 rounded-lg bg-slate-700 animate-pulse" />
+        </div>
+        {[1, 2, 3].map((i) => <div key={i} className="h-14 rounded-xl bg-slate-800 animate-pulse" />)}
+      </div>
+    )
+  }
+
+  if (!league) {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="flex items-center gap-3 pt-2">
+          <Link to="/admin/league" className="text-slate-400 hover:text-slate-200"><ArrowLeft size={20} /></Link>
+          <h1 className="text-2xl font-bold">Comp. wedstrijden</h1>
+        </div>
+        <div className="rounded-xl p-8 border text-center bg-surface border-border">
+          <Calendar size={40} className="mx-auto mb-3 text-slate-600" />
+          <p className="font-medium mb-2">Geen competitie aangemaakt</p>
+          <Link to="/admin/league" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium mt-4 bg-secondary text-secondary-text">
+            Naar competitie-instellingen
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4 pb-8 space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3 pt-2">
+        <Link to="/admin/league" className="text-slate-400 hover:text-slate-200"><ArrowLeft size={20} /></Link>
+        <div>
+          <h1 className="text-xl font-bold leading-tight">Wedstrijden invoeren</h1>
+          <p className="text-xs text-slate-400">{league.name} · {league.season}</p>
+        </div>
+      </div>
+
+      {/* Speelronde selector + gedeelde datum */}
+      <div className="rounded-xl border p-4 space-y-4 bg-surface border-border">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-text-muted">Speelronde</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMatchday((d) => Math.max(1, d - 1))} disabled={matchday <= 1}
+              className="w-8 h-8 rounded-lg border text-sm font-bold disabled:opacity-30 hover:bg-slate-700 transition-colors border-border">‹</button>
+            <span className="w-8 text-center font-bold text-lg">{matchday}</span>
+            <button onClick={() => setMatchday((d) => d + 1)}
+              className="w-8 h-8 rounded-lg border text-sm font-bold hover:bg-slate-700 transition-colors border-border">›</button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium mb-1.5 text-text-muted">
+            Datum speelronde {matchday}
+            <span className="ml-1 opacity-60">(geldt voor alle wedstrijden, tenzij individueel overschreven)</span>
+          </label>
+          <input
+            type="date"
+            value={matchdayDate}
+            onChange={(e) => handleMatchdayDateChange(e.target.value)}
+            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-amber-400"
+            style={{ backgroundColor: 'var(--color-surface-2)', borderColor: matchdayDate ? 'rgb(245 158 11 / 0.5)' : 'var(--color-border)', color: 'var(--color-text)' }}
+          />
+        </div>
+
+        {filledMatchdays.length > 0 && (
+          <div className="flex gap-1.5 flex-wrap">
+            {filledMatchdays.map((d) => (
+              <button key={d} onClick={() => setMatchday(d)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${d === matchday ? 'bg-amber-500 text-slate-900' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                R{d}
+              </button>
+            ))}
+            {!filledMatchdays.includes(matchday) && (
+              <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-slate-500 border border-dashed border-slate-600">R{matchday} (nieuw)</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Column headers */}
+      <div className="grid gap-2 px-1 text-xs font-medium text-text-muted" style={{ gridTemplateColumns: '1fr 1fr 90px 72px 28px' }}>
+        <span>Thuis</span><span>Uit</span><span>Datum</span><span>Tijd</span><span />
+      </div>
+
+      {/* Rows */}
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <MatchRowComponent key={row._id} row={row} teams={leagueTeams} ownTeamId={ownTeamId}
+            matchdayDate={matchdayDate} onChange={handleChange} onRemove={handleRemove} />
+        ))}
+      </div>
+
+      <button type="button" onClick={() => setRows((prev) => [...prev, emptyRow(matchday)])}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed text-sm opacity-50 hover:opacity-80 transition-opacity border-border text-text-muted">
+        <Plus size={16} />Wedstrijd toevoegen
+      </button>
+
+      {saveError && (
+        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+          <AlertCircle size={16} className="flex-shrink-0" />{saveError}
+        </div>
+      )}
+
+      {saved ? (
+        <div className="flex items-center gap-2 text-sm text-green-400 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3">
+          <Check size={16} className="flex-shrink-0" />
+          Speelronde {matchday} opgeslagen
+          <button className="ml-auto text-xs underline opacity-70 hover:opacity-100"
+            onClick={() => { setMatchday((d) => d + 1); setSaved(false) }}>Volgende →</button>
+        </div>
+      ) : (
+        <button onClick={handleSave} disabled={saving}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50 bg-secondary text-secondary-text">
+          <Save size={16} />{saving ? 'Opslaan...' : `Speelronde ${matchday} opslaan`}
+        </button>
+      )}
+
+      {/* Genereer 2e helft */}
+      {N > 0 && (
+        <div className="rounded-xl border p-4 space-y-3 bg-surface border-border">
+          <div>
+            <p className="text-sm font-semibold">2e helft genereren</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Kopieert speelronden 1–{N} met thuis/uit omgedraaid naar ronden {N + 1}–{N * 2}.
+              Datums vul je daarna per speelronde in.
+            </p>
+          </div>
+
+          {mirrorDone ? (
+            <div className="flex items-center gap-2 text-sm text-green-400">
+              <Check size={15} />Speelronden {N + 1}–{N * 2} aangemaakt
+            </div>
+          ) : (
+            <button onClick={handleMirror} disabled={mirroring}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-opacity bg-surface-2 text-text"
+              style={{ border: '1px solid var(--color-border)' }}>
+              <Copy size={15} />
+              {mirroring ? 'Bezig...' : `Genereer speelronden ${N + 1}–${N * 2}`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {existingMatches.length > 0 && (
+        <div className="rounded-xl border p-4 bg-surface border-border">
+          <p className="text-xs text-slate-400">
+            {existingMatches.length} wedstrijden · {filledMatchdays.length} speelronden
+            {filledMatchdays.length > 0 && ` (R1–R${filledMatchdays[filledMatchdays.length - 1]})`}
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}

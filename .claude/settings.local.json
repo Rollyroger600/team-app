@@ -55,7 +55,14 @@
       "Bash(supabase link:*)",
       "Bash(supabase functions:*)",
       "Bash(grep -l \"useState\\\\|useEffect\" /Users/rogier/Documents/Claud_AI/Team_App/src/pages/*.jsx /Users/rogier/Documents/Claud_AI/Team_App/src/pages/admin/*.jsx)",
-      "Bash(grep -l \"setLoading\\\\|loadPlayers\\\\|loadMatches\\\\|loadData\\\\|loadDashboard\\\\|loadAnnouncements\\\\|loadStats\" /Users/rogier/Documents/Claud_AI/Team_App/src/pages/*.jsx /Users/rogier/Documents/Claud_AI/Team_App/src/pages/admin/*.jsx)"
+      "Bash(grep -l \"setLoading\\\\|loadPlayers\\\\|loadMatches\\\\|loadData\\\\|loadDashboard\\\\|loadAnnouncements\\\\|loadStats\" /Users/rogier/Documents/Claud_AI/Team_App/src/pages/*.jsx /Users/rogier/Documents/Claud_AI/Team_App/src/pages/admin/*.jsx)",
+      "Bash(npx supabase:*)",
+      "Bash(npx tsc:*)",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Bash(if grep:*)",
+      "Bash(! grep:*)",
+      "Bash(then)"
     ]
   }
 }

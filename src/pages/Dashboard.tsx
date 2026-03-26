@@ -1,0 +1,324 @@
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { Calendar, CheckCircle, XCircle, HelpCircle, Users, ChevronDown, ChevronUp, Flag } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import PageLoader from '../components/ui/PageLoader'
+import { supabase } from '../lib/supabase'
+import useAuthStore from '../stores/useAuthStore'
+import useTeamStore from '../stores/useTeamStore'
+import { formatDate, formatTime } from '../lib/utils'
+import { formatGatheringDisplay } from '../lib/gathering'
+import { groupDuties } from '../components/ui/UmpireCard'
+import { format } from 'date-fns'
+import { nl } from 'date-fns/locale'
+import type { Match, AvailabilityStatus, UmpireDutyWithJoins } from '../types/app'
+
+interface Phase1Data {
+  match: Match | null
+  announcement: { id: string; title: string | null; body: string; created_at: string | null; profiles: { full_name: string | null } | null } | null
+}
+
+interface TeamAvailabilityMember {
+  player_id: string
+  full_name: string
+  status: AvailabilityStatus | null
+}
+
+interface AvailData {
+  myAvailability: AvailabilityStatus | null
+  availabilityCount: { available: number; total: number }
+  teamAvailability: TeamAvailabilityMember[]
+  totalMembers: number
+}
+
+export default function Dashboard() {
+  const { user, profile } = useAuthStore()
+  const { activeTeam, teamSettings } = useTeamStore()
+  const queryClient = useQueryClient()
+  const [showTeam, setShowTeam] = useState(false)
+  const [myAvailability, setMyAvailability] = useState<AvailabilityStatus | null>(null)
+  const [availabilityInitialized, setAvailabilityInitialized] = useState(false)
+
+  // Query 1: next match + latest announcement
+  const { data: phase1, isLoading: loadingPhase1 } = useQuery<Phase1Data>({
+    queryKey: ['nextMatch', activeTeam?.id],
+    queryFn: async (): Promise<Phase1Data> => {
+      const today = new Date().toISOString().split('T')[0]
+      const [matchRes, announcementRes] = await Promise.all([
+        supabase.from('matches')
+          .select('*')
+          .eq('team_id', activeTeam!.id)
+          .eq('status', 'upcoming')
+          .gte('match_date', today)
+          .order('match_date', { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+        supabase.from('announcements')
+          .select('*, profiles(full_name)')
+          .eq('team_id', activeTeam!.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      ])
+      return { match: matchRes.data || null, announcement: announcementRes.data as Phase1Data['announcement'] || null }
+    },
+    enabled: !!activeTeam?.id && !!user?.id,
+  })
+
+  const nextMatch = phase1?.match || null
+  const latestAnnouncement = phase1?.announcement || null
+
+  // Query 2: availability for the next match
+  const { data: availData } = useQuery<AvailData>({
+    queryKey: ['matchAvailability', nextMatch?.id, user?.id],
+    queryFn: async (): Promise<AvailData> => {
+      const [myAvRes, allAvRes, membersRes] = await Promise.all([
+        supabase.from('match_availability')
+          .select('status')
+          .eq('match_id', nextMatch!.id)
+          .eq('player_id', user!.id)
+          .maybeSingle(),
+        supabase.from('match_availability')
+          .select('player_id, status, profiles(full_name)')
+          .eq('match_id', nextMatch!.id),
+        supabase.from('team_memberships')
+          .select('player_id, profiles(full_name, nickname)')
+          .eq('team_id', activeTeam!.id)
+          .eq('active', true),
+      ])
+      const allAv = allAvRes.data || []
+      const available = allAv.filter(a => a.status === 'available').length
+      const members = membersRes.data || []
+      const avMap: Record<string, { status: string; name: string | null | undefined }> = {}
+      for (const a of allAv) avMap[a.player_id] = { status: a.status, name: (a as { player_id: string; status: string; profiles: { full_name?: string | null } | null }).profiles?.full_name }
+      const teamAvailability: TeamAvailabilityMember[] = members.map(m => ({
+        player_id: m.player_id,
+        full_name: (m.profiles as { full_name?: string | null; nickname?: string | null } | null)?.nickname || (m.profiles as { full_name?: string | null } | null)?.full_name?.split(' ')[0] || '?',
+        status: (avMap[m.player_id]?.status as AvailabilityStatus | null) || null,
+      }))
+      return {
+        myAvailability: (myAvRes.data?.status as AvailabilityStatus | null) || null,
+        availabilityCount: { available, total: allAv.length },
+        teamAvailability,
+        totalMembers: members.length,
+      }
+    },
+    enabled: !!nextMatch?.id && !!user?.id,
+  })
+
+  // Sync server myAvailability to local state once on first load
+  useEffect(() => {
+    if (availData && !availabilityInitialized) {
+      setMyAvailability(availData.myAvailability)
+      setAvailabilityInitialized(true)
+    }
+  }, [availData, availabilityInitialized])
+
+  // After invalidation, re-sync
+  useEffect(() => {
+    if (availData) {
+      setMyAvailability(availData.myAvailability)
+    }
+  }, [availData?.myAvailability])
+
+  const availabilityCount = availData?.availabilityCount || { available: 0, total: 0 }
+  const teamAvailability = availData?.teamAvailability || []
+  const totalMembers = availData?.totalMembers || 0
+
+  // Query: next umpire duty group
+  const { data: nextDutyGroup } = useQuery({
+    queryKey: ['umpireNext', activeTeam?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('umpire_duties')
+        .select('id, match_id, player_id, umpire_match_desc, notes, profiles(full_name, nickname), matches(match_date, opponent)')
+        .eq('team_id', activeTeam!.id)
+        .order('created_at', { ascending: true })
+
+      const today = new Date().toISOString().split('T')[0]
+      const { upcoming } = groupDuties((data as unknown as UmpireDutyWithJoins[]) || [], today)
+      return upcoming[0] || null
+    },
+    enabled: !!activeTeam?.id,
+  })
+
+  // Mutation: set availability
+  const availMutation = useMutation<void, Error, AvailabilityStatus>({
+    mutationFn: async (status: AvailabilityStatus) => {
+      await supabase.from('match_availability').upsert({
+        match_id: nextMatch!.id,
+        player_id: user!.id,
+        status,
+        responded_at: new Date().toISOString()
+      }, { onConflict: 'match_id,player_id' })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['matchAvailability', nextMatch?.id, user?.id] })
+    },
+  })
+
+  async function handleSetAvailability(status: AvailabilityStatus) {
+    if (!nextMatch || !user) return
+    setMyAvailability(status) // optimistic
+    await availMutation.mutateAsync(status)
+  }
+
+  if (loadingPhase1) {
+    return <PageLoader />
+  }
+
+  const gatheringInfo = nextMatch ? formatGatheringDisplay(nextMatch, teamSettings) : null
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Header */}
+      <div className="pt-2">
+        <p className="text-slate-400 text-sm">Welkom terug,</p>
+        <h1 className="text-2xl font-bold">{profile?.full_name?.split(' ')[0] || 'Speler'}</h1>
+        <p className="text-slate-400 text-sm">{activeTeam?.name}</p>
+      </div>
+
+      {/* Next match card */}
+      {nextMatch ? (
+        <div className="rounded-xl p-4 border bg-surface border-border">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                {nextMatch.is_home ? 'Thuiswedstrijd' : 'Uitwedstrijd'}
+              </p>
+              <h2 className="text-xl font-bold">vs {nextMatch.opponent}</h2>
+              <p className="text-slate-400 mt-1">
+                {formatDate(nextMatch.match_date)} • {formatTime(nextMatch.match_time)}
+              </p>
+            </div>
+            <Link to={`/matches/${nextMatch.id}`}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-primary text-text">
+              Details
+            </Link>
+          </div>
+
+          {/* Gathering info */}
+          {gatheringInfo && !gatheringInfo.isNtb && (
+            <div className="text-sm py-2 px-3 rounded-lg mb-3"
+                 style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', borderLeft: '3px solid var(--color-secondary)' }}>
+              <span className="font-semibold text-amber-400">{gatheringInfo.time}</span>
+              <span className="text-slate-300 ml-2">{gatheringInfo.label}</span>
+            </div>
+          )}
+
+          {/* Quick availability buttons */}
+          <div className="mb-3">
+            <p className="text-xs text-slate-400 mb-2">Jouw beschikbaarheid:</p>
+            <div className="flex gap-2">
+              {([
+                { status: 'available' as const, icon: CheckCircle, label: 'Beschikbaar', color: 'bg-green-500/20 border-green-500/50 text-green-400' },
+                { status: 'unavailable' as const, icon: XCircle, label: 'Niet beschikbaar', color: 'bg-red-500/20 border-red-500/50 text-red-400' },
+                { status: 'maybe' as const, icon: HelpCircle, label: 'Misschien', color: 'bg-amber-500/20 border-amber-500/50 text-amber-400' },
+              ]).map(({ status, icon: Icon, label, color }) => (
+                <button
+                  key={status}
+                  onClick={() => handleSetAvailability(status)}
+                  className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-xs transition-all ${
+                    myAvailability === status
+                      ? color + ' ring-2 ring-offset-1 ring-offset-transparent'
+                      : 'border-slate-700 text-slate-500 hover:border-slate-500'
+                  }`}
+                >
+                  <Icon size={18} />
+                  <span className="hidden sm:block">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Team beschikbaarheid uitklap */}
+          <button
+            onClick={() => setShowTeam(v => !v)}
+            className="w-full flex items-center justify-between text-xs pt-2 border-t transition-colors hover:text-slate-300 border-border text-text-muted"
+          >
+            <span className="flex items-center gap-1.5">
+              <Users size={13} />
+              <span>
+                <span className={availabilityCount.available >= 11 ? 'text-green-400 font-semibold' : availabilityCount.available >= 8 ? 'text-amber-400 font-semibold' : 'text-red-400 font-semibold'}>
+                  {availabilityCount.available}
+                </span>
+                /{totalMembers} opgegeven beschikbaar
+              </span>
+            </span>
+            {showTeam ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+
+          {showTeam && teamAvailability.length > 0 && (
+            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+              {teamAvailability.map(m => (
+                <div key={m.player_id} className="flex items-center gap-2 text-xs py-0.5">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                    m.status === 'available' ? 'bg-green-400' :
+                    m.status === 'unavailable' ? 'bg-red-400' :
+                    m.status === 'maybe' ? 'bg-amber-400' : 'bg-slate-600'
+                  }`} />
+                  <span className={`truncate ${m.player_id === user?.id ? 'text-amber-400' : 'text-slate-300'}`}>
+                    {m.full_name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl p-6 border text-center bg-surface border-border">
+          <Calendar size={32} className="mx-auto mb-2 text-slate-600" />
+          <p className="text-slate-400">Geen aankomende wedstrijden</p>
+        </div>
+      )}
+
+      {/* Next umpire duty */}
+      {nextDutyGroup && (() => {
+        const { match, duties, umpireDate } = nextDutyGroup
+        const satLabel = umpireDate
+          ? format(umpireDate, 'EEEE d MMM', { locale: nl })
+          : duties[0]?.umpire_match_desc || '?'
+        const isOwn = duties.some(d => d.player_id === user?.id)
+        const names = duties.map(d =>
+          d.profiles?.nickname || d.profiles?.full_name?.split(' ')[0] || 'open'
+        ).join(' & ')
+        return (
+          <div className="rounded-xl p-4 border bg-surface border-border"
+               style={isOwn ? { borderColor: 'rgba(245,158,11,0.4)', backgroundColor: 'rgba(245,158,11,0.06)' } : {}}>
+            <p className="text-xs text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Flag size={12} /> Eerste volgende fluitbeurt
+            </p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm">{satLabel}</p>
+                {match && (
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Bij thuiswedstrijd vs {match.opponent} ({formatDate(match.match_date)})
+                  </p>
+                )}
+              </div>
+              <span className={`text-sm font-medium flex-shrink-0 ${isOwn ? 'text-amber-400' : 'text-slate-300'}`}>
+                {names}
+              </span>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Latest announcement */}
+      {latestAnnouncement && (
+        <div className="rounded-xl p-4 border bg-surface border-border">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-sm">Laatste bericht</h3>
+            <Link to="/announcements" className="text-xs text-amber-400">Alle berichten</Link>
+          </div>
+          {latestAnnouncement.title && (
+            <p className="font-medium mb-1">{latestAnnouncement.title}</p>
+          )}
+          <p className="text-slate-400 text-sm line-clamp-3">{latestAnnouncement.body}</p>
+          <p className="text-xs text-slate-500 mt-2">Door {latestAnnouncement.profiles?.full_name}</p>
+        </div>
+      )}
+    </div>
+  )
+}
