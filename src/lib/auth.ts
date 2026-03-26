@@ -8,8 +8,8 @@ async function callAuthHandler(body: Record<string, unknown>, authToken?: string
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'apikey': ANON_KEY,
+    'Authorization': `Bearer ${authToken ?? ANON_KEY}`,
   }
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
 
   const res = await fetch(EDGE_URL, {
     method: 'POST',
