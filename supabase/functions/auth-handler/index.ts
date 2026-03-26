@@ -273,10 +273,23 @@ async function login(body: Record<string, unknown>) {
     locked_until:    null,
   }).eq('player_id', player_id)
 
-  const { data: session, error: signInError } = await svc.auth.signInWithPassword({
+  // First attempt at sign-in
+  let { data: session, error: signInError } = await svc.auth.signInWithPassword({
     email:    creds.internal_email,
     password: creds.internal_password,
   })
+
+  // If sign-in fails (e.g. missing auth.identities for SQL-created users), repair and retry once
+  if (signInError) {
+    await svc.auth.admin.updateUserById(player_id as string, {
+      password: creds.internal_password,
+    })
+    ;({ data: session, error: signInError } = await svc.auth.signInWithPassword({
+      email:    creds.internal_email,
+      password: creds.internal_password,
+    }))
+  }
+
   if (signInError) return json({ error: signInError.message }, 500)
 
   return json({ session: session.session })
