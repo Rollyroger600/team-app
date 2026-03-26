@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
+import bcrypt from 'npm:bcryptjs'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -237,7 +237,7 @@ async function login(body: Record<string, unknown>) {
   }
 
   // Verify PIN
-  const valid = await bcrypt.compare(pin as string, creds.pin_hash as string)
+  const valid = bcrypt.compareSync(pin as string, creds.pin_hash as string)
 
   if (!valid) {
     const attempts = (creds.failed_attempts ?? 0) + 1
@@ -296,7 +296,7 @@ async function setPin(body: Record<string, unknown>) {
     return json({ error: 'PIN is al ingesteld. Gebruik change_pin of vraag een reset aan.' }, 400)
   }
 
-  const pinHash = await bcrypt.hash(pinStr)
+  const pinHash = bcrypt.hashSync(pinStr, 10)
   await svc.from('player_credentials').update({
     pin_hash:    pinHash,
     has_set_pin: true,
@@ -366,10 +366,10 @@ async function changePin(body: Record<string, unknown>, authHeader: string | nul
     return json({ error: 'Geen PIN ingesteld' }, 400)
   }
 
-  const valid = await bcrypt.compare(current_pin as string, creds.pin_hash)
+  const valid = bcrypt.compareSync(current_pin as string, creds.pin_hash)
   if (!valid) return json({ error: 'Huidige PIN onjuist' }, 401)
 
-  const newHash = await bcrypt.hash(newPinStr)
+  const newHash = bcrypt.hashSync(newPinStr, 10)
   await svc.from('player_credentials').update({ pin_hash: newHash }).eq('player_id', caller.user.id)
 
   return json({ ok: true })
