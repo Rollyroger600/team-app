@@ -25,7 +25,7 @@ export default function Login() {
 
   // Step 1 — team selection
   const [clubs, setClubs] = useState<{ id: string; name: string }[]>([])
-  const [teams, setTeams] = useState<{ id: string; name: string; club_id: string }[]>([])
+  const [teams, setTeams] = useState<{ id: string; name: string; club_id: string | null }[]>([])
   const [selectedClubId, setSelectedClubId] = useState('')
   const [selectedTeamId, setSelectedTeamId] = useState('')
 
@@ -88,9 +88,14 @@ export default function Login() {
   // ── After login: load profile then navigate ───────────────────────────────
   async function finishLogin() {
     const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      setError('Sessie kon niet worden opgestart. Probeer opnieuw.')
+      setLoading(false)
+      return
+    }
     // Start loadProfile in background — it synchronously sets user first, then
     // fires async DB queries. Navigate immediately so ProtectedRoute sees the user.
-    if (session?.user) void loadProfile(session.user)
+    void loadProfile(session.user)
     navigate('/')
   }
 

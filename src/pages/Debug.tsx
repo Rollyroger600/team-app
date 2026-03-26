@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getPlayersForLogin } from '../lib/auth'
 import useAuthStore from '../stores/useAuthStore'
 
 export default function Debug() {
+  const navigate = useNavigate()
   const { user, profile, memberships, clubAdminClubIds, loading, initialized, loadProfile } = useAuthStore()
   const [session, setSession] = useState<Record<string, unknown> | null>(null)
   const [log, setLog] = useState<string[]>([])
   const [testing, setTesting] = useState(false)
-
-  function addLog(msg: string) {
-    setLog(prev => [...prev, `${new Date().toISOString().slice(11, 23)} ${msg}`])
-  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
@@ -23,27 +22,29 @@ export default function Debug() {
     })
   }, [])
 
+  // Gate: in production, redirect to login if not authenticated
+  if (import.meta.env.PROD && initialized && !user) {
+    return <Navigate to="/login" replace />
+  }
+
+  function addLog(msg: string) {
+    setLog(prev => [...prev, `${new Date().toISOString().slice(11, 23)} ${msg}`])
+  }
+
   async function testEdgeFunction() {
     setTesting(true)
     addLog('Testing Edge Function...')
-    try {
-      const { data: { session: s } } = await supabase.auth.getSession()
-      const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-handler`
-      const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-      const res = await fetch(EDGE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': ANON_KEY,
-          'Authorization': `Bearer ${s?.access_token ?? ANON_KEY}`,
-        },
-        body: JSON.stringify({ action: 'get_players_for_login', team_id: memberships[0]?.team_id ?? 'test' }),
-      })
-      const data = await res.json()
-      addLog(`Edge Function status: ${res.status}`)
-      addLog(`Response: ${JSON.stringify(data).slice(0, 100)}`)
-    } catch (err) {
-      addLog(`Error: ${(err as Error).message}`)
+    const teamId = memberships[0]?.team_id
+    if (!teamId) {
+      addLog('No team membership — cannot test (need a team_id)')
+      setTesting(false)
+      return
+    }
+    const { players, error } = await getPlayersForLogin(teamId)
+    if (error) {
+      addLog(`Error: ${error}`)
+    } else {
+      addLog(`OK — ${players.length} spelers opgehaald`)
     }
     setTesting(false)
   }
@@ -57,11 +58,6 @@ export default function Debug() {
     } else {
       addLog('No session found')
     }
-  }
-
-  async function forceNavigate() {
-    addLog('Navigating to home...')
-    window.location.href = '/'
   }
 
   const row = (label: string, value: unknown) => (
@@ -116,11 +112,11 @@ export default function Debug() {
           className="py-2 rounded-xl text-sm font-semibold bg-surface border border-border text-text disabled:opacity-50">
           {testing ? 'Testing...' : 'Test Edge Fn'}
         </button>
-        <button onClick={forceNavigate}
+        <button onClick={() => navigate('/')}
           className="py-2 rounded-xl text-sm font-semibold bg-secondary text-secondary-text">
           Force → Home
         </button>
-        <button onClick={() => supabase.auth.signOut().then(() => window.location.href = '/login')}
+        <button onClick={() => supabase.auth.signOut().then(() => navigate('/login'))}
           className="py-2 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
           Sign out
         </button>

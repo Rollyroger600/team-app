@@ -135,15 +135,19 @@ async function createPlayer(body: Record<string, unknown>, authHeader: string | 
   const playerId = authUser.user.id
 
   // Update profile with display_name and jersey_number
-  await svc.from('profiles').update({
+  const { error: profileError } = await svc.from('profiles').update({
     full_name: (full_name as string).trim(),
     display_name: ((display_name as string) || (full_name as string)).trim(),
     jersey_number: jersey_number ? parseInt(jersey_number as string) : null,
     email: internalEmail,
   }).eq('id', playerId)
+  if (profileError) {
+    await svc.auth.admin.deleteUser(playerId)
+    return json({ error: 'Kon profiel niet bijwerken: ' + profileError.message }, 500)
+  }
 
   // Store credentials (pin_hash null until player sets PIN)
-  await svc.from('player_credentials').insert({
+  const { error: credError } = await svc.from('player_credentials').insert({
     player_id:         playerId,
     internal_email:    internalEmail,
     internal_password: internalPassword,
@@ -151,6 +155,10 @@ async function createPlayer(body: Record<string, unknown>, authHeader: string | 
     has_set_pin:       false,
     failed_attempts:   0,
   })
+  if (credError) {
+    await svc.auth.admin.deleteUser(playerId)
+    return json({ error: 'Kon credentials niet opslaan: ' + credError.message }, 500)
+  }
 
   // Add to team
   await svc.from('team_memberships').upsert({
@@ -194,6 +202,7 @@ async function getPlayersForLogin(body: Record<string, unknown>) {
 
   // Fetch has_set_pin for each player so the client can skip to setup immediately
   const playerIds = (data || []).map((p: { player_id: string }) => p.player_id)
+  if (playerIds.length === 0) return json({ players: [], team_id: resolvedTeamId })
   const { data: creds } = await svc
     .from('player_credentials')
     .select('player_id, has_set_pin')
@@ -239,7 +248,7 @@ async function login(body: Record<string, unknown>) {
   }
 
   // Verify PIN
-  const valid = bcrypt.compareSync(pin as string, creds.pin_hash as string)
+  const valid = await bcrypt.compare(pin as string, creds.pin_hash as string)
 
   if (!valid) {
     const attempts = (creds.failed_attempts ?? 0) + 1
@@ -298,7 +307,7 @@ async function setPin(body: Record<string, unknown>) {
     return json({ error: 'PIN is al ingesteld. Gebruik change_pin of vraag een reset aan.' }, 400)
   }
 
-  const pinHash = bcrypt.hashSync(pinStr, 10)
+  const pinHash = await bcrypt.hash(pinStr, 10)
   await svc.from('player_credentials').update({
     pin_hash:    pinHash,
     has_set_pin: true,
@@ -368,10 +377,10 @@ async function changePin(body: Record<string, unknown>, authHeader: string | nul
     return json({ error: 'Geen PIN ingesteld' }, 400)
   }
 
-  const valid = bcrypt.compareSync(current_pin as string, creds.pin_hash)
+  const valid = await bcrypt.compare(current_pin as string, creds.pin_hash)
   if (!valid) return json({ error: 'Huidige PIN onjuist' }, 401)
 
-  const newHash = bcrypt.hashSync(newPinStr, 10)
+  const newHash = await bcrypt.hash(newPinStr, 10)
   await svc.from('player_credentials').update({ pin_hash: newHash }).eq('player_id', caller.user.id)
 
   return json({ ok: true })
