@@ -103,7 +103,17 @@ export default function Login() {
     setConfirmPin('')
     setPinStep('enter')
     setError('')
-    setStep('pin')
+    setLoading(true)
+
+    // Check immediately if PIN setup is needed — don't wait for user to submit
+    const check = await loginWithPin(player.player_id, '')
+    setLoading(false)
+
+    if (check.needs_pin_setup) {
+      setStep('setup_pin')
+    } else {
+      setStep('pin')
+    }
   }
 
   // ── Step 3: PIN entry ─────────────────────────────────────────────────────
