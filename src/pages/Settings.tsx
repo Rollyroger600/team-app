@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { LogOut, Save } from 'lucide-react'
+import { LogOut, Save, Lock, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { changePin } from '../lib/auth'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 
@@ -26,6 +27,16 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
+  // PIN change
+  const [showPinSection, setShowPinSection] = useState(false)
+  const [currentPin, setCurrentPin] = useState('')
+  const [newPin, setNewPin] = useState('')
+  const [confirmNewPin, setConfirmNewPin] = useState('')
+  const [showPins, setShowPins] = useState(false)
+  const [pinSaving, setPinSaving] = useState(false)
+  const [pinError, setPinError] = useState('')
+  const [pinSaved, setPinSaved] = useState(false)
+
   async function handleSave() {
     if (!user?.id) return
     setSaving(true)
@@ -48,6 +59,22 @@ export default function Settings() {
   async function handleSignOut() {
     setSigningOut(true)
     await signOut()
+  }
+
+  async function handleChangePin() {
+    if (newPin !== confirmNewPin) { setPinError('Nieuwe PINs komen niet overeen'); return }
+    if (!/^\d{4,6}$/.test(newPin)) { setPinError('PIN moet 4 tot 6 cijfers zijn'); return }
+    setPinSaving(true)
+    setPinError('')
+    setPinSaved(false)
+    const result = await changePin(currentPin, newPin)
+    setPinSaving(false)
+    if (result.error) { setPinError(result.error); return }
+    setCurrentPin('')
+    setNewPin('')
+    setConfirmNewPin('')
+    setPinSaved(true)
+    setTimeout(() => { setPinSaved(false); setShowPinSection(false) }, 2500)
   }
 
   const inputClass = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400"
@@ -128,6 +155,58 @@ export default function Settings() {
           <p className="font-medium">{activeTeam?.name || 'Geen team'}</p>
           {activeClub && <p className="text-sm text-slate-400">{activeClub.name}</p>}
         </div>
+      </div>
+
+      {/* Change PIN */}
+      <div className="rounded-xl border overflow-hidden bg-surface border-border">
+        <button
+          onClick={() => { setShowPinSection(v => !v); setPinError('') }}
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-surface-2"
+        >
+          <Lock size={18} className="text-amber-400" />
+          <span className="font-medium">Pincode wijzigen</span>
+        </button>
+        {showPinSection && (
+          <div className="px-4 pb-4 space-y-2 border-t border-border pt-3">
+            {(['Huidige PIN', 'Nieuwe PIN', 'Bevestig nieuwe PIN'] as const).map((label, i) => {
+              const vals = [currentPin, newPin, confirmNewPin]
+              const setters = [setCurrentPin, setNewPin, setConfirmNewPin]
+              return (
+                <div key={i}>
+                  <label className="block text-xs text-slate-400 mb-1">{label}</label>
+                  <div className="relative">
+                    <input
+                      type={showPins ? 'text' : 'password'}
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={vals[i]}
+                      onChange={e => setters[i](e.target.value.replace(/\D/g, ''))}
+                      placeholder="••••"
+                      className={inputClass}
+                      style={inputStyle}
+                    />
+                    {i === 2 && (
+                      <button type="button" onClick={() => setShowPins(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-80">
+                        {showPins ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {pinError && <p className="text-red-400 text-xs">{pinError}</p>}
+            {pinSaved && <p className="text-green-400 text-xs">PIN gewijzigd!</p>}
+            <button
+              onClick={handleChangePin}
+              disabled={pinSaving || !currentPin || !newPin || !confirmNewPin}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 bg-secondary text-secondary-text mt-1"
+            >
+              <Lock size={14} />
+              {pinSaving ? 'Bezig...' : 'PIN wijzigen'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Sign out */}

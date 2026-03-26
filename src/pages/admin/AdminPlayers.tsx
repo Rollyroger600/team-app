@@ -1,12 +1,14 @@
 import React from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Users, UserPlus, Mail } from 'lucide-react'
+import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
+import { createPlayer, resetPlayerPin } from '../../lib/auth'
 import useTeamStore from '../../stores/useTeamStore'
+import useAuthStore from '../../stores/useAuthStore'
 import type { Profile } from '../../types/app'
 
 interface PlayerMembership {
@@ -16,17 +18,17 @@ interface PlayerMembership {
   role: 'player' | 'team_admin'
   active: boolean
   created_at: string | null
-  profiles: Pick<Profile, 'id' | 'full_name' | 'nickname' | 'email' | 'jersey_number' | 'position'> | null
+  profiles: Pick<Profile, 'id' | 'full_name' | 'nickname' | 'display_name' | 'jersey_number' | 'position'> | null
 }
 
-interface InviteForm {
-  email: string
+interface AddForm {
   full_name: string
+  display_name: string
   jersey_number: string
   role: string
 }
 
-interface InviteResult {
+interface ActionResult {
   ok: boolean
   message: string
 }
@@ -38,18 +40,21 @@ const ROLES = [
 
 export default function AdminPlayers(): React.JSX.Element {
   const { activeTeam } = useTeamStore()
+  const { isClubAdmin } = useAuthStore()
   const queryClient = useQueryClient()
-  const [showInvite, setShowInvite] = useState(false)
-  const [form, setForm] = useState<InviteForm>({ email: '', full_name: '', jersey_number: '', role: 'player' })
-  const [inviting, setInviting] = useState(false)
-  const [inviteResult, setInviteResult] = useState<InviteResult | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState<AddForm>({ full_name: '', display_name: '', jersey_number: '', role: 'player' })
+  const [adding, setAdding] = useState(false)
+  const [addResult, setAddResult] = useState<ActionResult | null>(null)
+  const [resettingPin, setResettingPin] = useState<string | null>(null)
+  const [pinResetResults, setPinResetResults] = useState<Record<string, ActionResult>>({})
 
   const { data: players = [], isLoading } = useQuery<PlayerMembership[]>({
     queryKey: ['adminPlayers', activeTeam?.id],
     queryFn: async (): Promise<PlayerMembership[]> => {
       const { data } = await supabase
         .from('team_memberships')
-        .select('*, profiles(id, full_name, nickname, email, jersey_number, position)')
+        .select('*, profiles(id, full_name, nickname, display_name, jersey_number, position)')
         .eq('team_id', activeTeam!.id)
         .order('created_at', { ascending: true })
       return (data as unknown as PlayerMembership[]) || []
@@ -57,36 +62,51 @@ export default function AdminPlayers(): React.JSX.Element {
     enabled: !!activeTeam?.id,
   })
 
-  async function handleInvite(e: React.FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleAdd(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()
-    setInviting(true)
-    setInviteResult(null)
+    setAdding(true)
+    setAddResult(null)
 
-    const { data, error } = await supabase.functions.invoke('invite-player', {
-      body: {
-        email: form.email.trim().toLowerCase(),
-        full_name: form.full_name.trim(),
-        jersey_number: form.jersey_number || null,
-        role: form.role,
-        team_id: activeTeam!.id,
-        redirect_url: `${window.location.origin}/set-password`,
-      },
+    const result = await createPlayer({
+      team_id: activeTeam!.id,
+      full_name: form.full_name.trim(),
+      display_name: form.display_name.trim() || form.full_name.trim().split(' ')[0],
+      jersey_number: form.jersey_number ? parseInt(form.jersey_number) : null,
+      role: form.role as 'player' | 'team_admin',
     })
 
-    if (error || !(data as { ok?: boolean })?.ok) {
-      setInviteResult({ ok: false, message: (data as { error?: string })?.error || error?.message || 'Onbekende fout' })
-      setInviting(false)
+    if (result.error) {
+      setAddResult({ ok: false, message: result.error })
+      setAdding(false)
       return
     }
 
-    setInviteResult({ ok: true, message: `Uitnodiging verstuurd naar ${form.email}.` })
-    setForm({ email: '', full_name: '', jersey_number: '', role: 'player' })
-    setInviting(false)
+    setAddResult({ ok: true, message: `Speler aangemaakt. Ze kunnen nu inloggen met hun naam en PIN instellen.` })
+    setForm({ full_name: '', display_name: '', jersey_number: '', role: 'player' })
+    setAdding(false)
     queryClient.invalidateQueries({ queryKey: ['adminPlayers', activeTeam?.id] })
+  }
+
+  async function handleResetPin(playerId: string): Promise<void> {
+    if (!activeTeam?.id) return
+    setResettingPin(playerId)
+    const result = await resetPlayerPin(playerId, activeTeam.id)
+    setResettingPin(null)
+    setPinResetResults(prev => ({
+      ...prev,
+      [playerId]: result.error
+        ? { ok: false, message: result.error }
+        : { ok: true, message: 'PIN gereset — speler kiest nieuwe PIN bij volgende login' },
+    }))
+    setTimeout(() => {
+      setPinResetResults(prev => { const n = { ...prev }; delete n[playerId]; return n })
+    }, 4000)
   }
 
   const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none focus:border-amber-400'
   const inputStyle = { backgroundColor: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
+
+  const canResetPin = isClubAdmin()
 
   return (
     <div className="p-4 space-y-4 pb-8">
@@ -98,42 +118,45 @@ export default function AdminPlayers(): React.JSX.Element {
           <h1 className="text-2xl font-bold">Spelers</h1>
         </div>
         <button
-          onClick={() => { setShowInvite(v => !v); setInviteResult(null) }}
+          onClick={() => { setShowAdd(v => !v); setAddResult(null) }}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-secondary text-secondary-text"
         >
           <UserPlus size={16} />
-          Uitnodigen
+          Toevoegen
         </button>
       </div>
 
-      {/* Invite form */}
-      {showInvite && (
+      {/* Add player form */}
+      {showAdd && (
         <div className="rounded-xl border p-4 space-y-3 bg-surface border-border">
           <h2 className="font-semibold text-sm flex items-center gap-2">
-            <Mail size={16} className="text-amber-400" /> Speler uitnodigen via e-mail
+            <UserPlus size={16} className="text-amber-400" /> Nieuwe speler aanmaken
           </h2>
-          <form onSubmit={handleInvite} className="space-y-2">
+          <p className="text-xs text-text-muted">
+            De speler kiest zelf een pincode bij de eerste keer inloggen.
+          </p>
+          <form onSubmit={handleAdd} className="space-y-2">
             <input
-              type="email" required
-              placeholder="E-mailadres"
-              value={form.email}
-              onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+              type="text" required
+              placeholder="Volledige naam (bijv. Kevin de Jong)"
+              value={form.full_name}
+              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
               className={inputClass} style={inputStyle}
             />
             <input
-              type="text" required
-              placeholder="Volledige naam"
-              value={form.full_name}
-              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
+              type="text"
+              placeholder="Weergavenaam op loginscherm (bijv. Kevin)"
+              value={form.display_name}
+              onChange={e => setForm(p => ({ ...p, display_name: e.target.value }))}
               className={inputClass} style={inputStyle}
             />
             <div className="flex gap-2">
               <input
                 type="number" min="1" max="99"
-                placeholder="Rugnummer"
+                placeholder="Rugnr."
                 value={form.jersey_number}
                 onChange={e => setForm(p => ({ ...p, jersey_number: e.target.value }))}
-                className="w-32 px-3 py-2 rounded-lg text-sm outline-none text-center"
+                className="w-28 px-3 py-2 rounded-lg text-sm outline-none text-center"
                 style={inputStyle}
               />
               <select
@@ -145,17 +168,18 @@ export default function AdminPlayers(): React.JSX.Element {
                 {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             </div>
-            {inviteResult && (
-              <p className={`text-xs px-3 py-2 rounded-lg ${inviteResult.ok ? 'text-green-400 bg-green-500/10' : 'text-red-400 bg-red-500/10'}`}>
-                {inviteResult.message}
-              </p>
+            {addResult && (
+              <div className={`flex items-start gap-2 text-xs px-3 py-2 rounded-lg ${addResult.ok ? 'text-green-400 bg-green-500/10' : 'text-red-400 bg-red-500/10'}`}>
+                {addResult.ok ? <Check size={13} className="mt-0.5 flex-shrink-0" /> : <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />}
+                {addResult.message}
+              </div>
             )}
             <button
               type="submit"
-              disabled={inviting}
+              disabled={adding}
               className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 bg-secondary text-secondary-text"
             >
-              {inviting ? 'Versturen...' : 'Uitnodiging versturen'}
+              {adding ? 'Aanmaken...' : 'Speler aanmaken'}
             </button>
           </form>
         </div>
@@ -170,25 +194,45 @@ export default function AdminPlayers(): React.JSX.Element {
         <div className="space-y-2">
           {players.map((membership) => {
             const p = membership.profiles
+            const pinResult = pinResetResults[membership.player_id]
             return (
               <div key={membership.id}
                    className="flex items-center gap-3 p-4 rounded-xl border bg-surface border-border">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-primary">
-                  {p?.jersey_number || p?.full_name?.[0]?.toUpperCase() || '?'}
+                  {p?.jersey_number || p?.display_name?.[0]?.toUpperCase() || p?.full_name?.[0]?.toUpperCase() || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">
-                    {p?.nickname ? `${p.nickname} ` : ''}{p?.full_name || 'Onbekend'}
+                    {p?.display_name || p?.full_name || 'Onbekend'}
                   </p>
-                  <p className="text-xs text-slate-400 truncate">{p?.email}</p>
+                  {p?.full_name && p.display_name && p.display_name !== p.full_name && (
+                    <p className="text-xs text-slate-400 truncate">{p.full_name}</p>
+                  )}
+                  {pinResult && (
+                    <p className={`text-xs mt-0.5 ${pinResult.ok ? 'text-green-400' : 'text-red-400'}`}>
+                      {pinResult.message}
+                    </p>
+                  )}
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full flex-shrink-0"
-                      style={{
-                        backgroundColor: membership.role === 'team_admin' ? 'rgba(245,158,11,0.2)' : 'rgba(100,116,139,0.2)',
-                        color: membership.role === 'team_admin' ? '#f59e0b' : '#94a3b8'
-                      }}>
-                  {membership.role === 'team_admin' ? 'Admin' : 'Speler'}
-                </span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs px-2 py-1 rounded-full"
+                        style={{
+                          backgroundColor: membership.role === 'team_admin' ? 'rgba(245,158,11,0.2)' : 'rgba(100,116,139,0.2)',
+                          color: membership.role === 'team_admin' ? '#f59e0b' : '#94a3b8'
+                        }}>
+                    {membership.role === 'team_admin' ? 'Admin' : 'Speler'}
+                  </span>
+                  {canResetPin && (
+                    <button
+                      onClick={() => handleResetPin(membership.player_id)}
+                      disabled={resettingPin === membership.player_id}
+                      title="PIN resetten"
+                      className="p-1.5 rounded-lg opacity-50 hover:opacity-100 transition-opacity disabled:opacity-30"
+                    >
+                      <RotateCcw size={14} className={resettingPin === membership.player_id ? 'animate-spin' : ''} />
+                    </button>
+                  )}
+                </div>
               </div>
             )
           })}

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Users, Calendar, Trophy, Flag, MessageSquare, Settings, BarChart2, PlusCircle, LogOut, Target } from 'lucide-react'
+import { Users, Calendar, Trophy, Flag, MessageSquare, Settings, BarChart2, PlusCircle, LogOut, Target, ShieldCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
@@ -71,6 +71,13 @@ const adminSections: AdminSection[] = [
     icon: MessageSquare,
     to: '/admin/announcements/new',
     color: 'bg-teal-500/20 text-teal-400',
+  },
+  {
+    title: 'Rollen',
+    description: 'Admin-rechten toewijzen',
+    icon: ShieldCheck,
+    to: '/admin/roles',
+    color: 'bg-indigo-500/20 text-indigo-400',
   },
   {
     title: 'Team instellingen',

@@ -10,8 +10,6 @@ import AdminRoute from './components/layout/AdminRoute'
 
 // Pages
 import Login from './pages/Login'
-import SetPassword from './pages/SetPassword'
-import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import Matches from './pages/Matches'
 import MatchDetail from './pages/MatchDetail'
@@ -38,6 +36,7 @@ import AdminUmpire from './pages/admin/AdminUmpire'
 import AdminMatchGoals from './pages/admin/AdminMatchGoals'
 import AdminAnnouncements from './pages/admin/AdminAnnouncements'
 import AdminTeamSettings from './pages/admin/AdminTeamSettings'
+import AdminRoles from './pages/admin/AdminRoles'
 
 export default function App() {
   const { initialize, loading, initialized, memberships } = useAuthStore()
@@ -67,8 +66,6 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/set-password" element={<SetPassword />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
@@ -96,6 +93,7 @@ export default function App() {
               <Route path="/admin/umpire" element={<AdminUmpire />} />
               <Route path="/admin/announcements/new" element={<AdminAnnouncements />} />
               <Route path="/admin/settings" element={<AdminTeamSettings />} />
+              <Route path="/admin/roles" element={<AdminRoles />} />
             </Route>
           </Route>
         </Route>

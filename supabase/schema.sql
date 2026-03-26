@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS clubs (
   registry_id     UUID REFERENCES clubs_registry(id) ON DELETE SET NULL,
   name            TEXT NOT NULL,              -- "HC Leiden" (kan afwijken van registry)
   short_name      TEXT,
+  slug            TEXT UNIQUE,               -- URL slug voor login team-selectie (bijv. "hcleiden")
   -- Kleuren voor app-theming (overschrijft registry kleuren)
   primary_color   TEXT DEFAULT '#1e3a5f',
   secondary_color TEXT DEFAULT '#f59e0b',
@@ -62,6 +63,7 @@ CREATE TABLE IF NOT EXISTS teams (
   club_id                 UUID REFERENCES clubs(id) ON DELETE CASCADE,
   name                    TEXT NOT NULL,              -- "Heren 30-1"
   short_name              TEXT,
+  slug                    TEXT UNIQUE,               -- URL slug voor login (bijv. "heren30-1")
   season                  TEXT DEFAULT '2025-2026',
   league_id               UUID,                       -- FK toegevoegd na leagues
   -- Verzameltijd instellingen (aanpasbaar door team_admin)
@@ -78,6 +80,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   id                UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email             TEXT NOT NULL,
   full_name         TEXT,
+  display_name      TEXT,           -- weergavenaam in de app (bijv. voornaam), gebruikt op login scherm
+  nickname          TEXT,           -- bijnaam (optioneel)
   phone             TEXT,
   jersey_number     SMALLINT,
   position          TEXT,           -- 'goalkeeper', 'defender', 'midfielder', 'forward'
@@ -86,6 +90,23 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at        TIMESTAMPTZ DEFAULT now(),
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
+
+-- ============================================================
+-- 4b. PLAYER CREDENTIALS (PIN auth — nooit via RLS toegankelijk)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS player_credentials (
+  player_id          UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+  internal_email     TEXT UNIQUE NOT NULL,   -- "{uuid}@team.internal" — nooit aan gebruiker getoond
+  internal_password  TEXT NOT NULL,          -- random 32-char — Edge Fn gebruikt dit om Supabase sessie op te halen
+  pin_hash           TEXT,                   -- bcrypt hash — NULL totdat speler PIN instelt
+  has_set_pin        BOOLEAN DEFAULT false,
+  failed_attempts    INT DEFAULT 0,
+  locked_until       TIMESTAMPTZ            -- NULL = niet geblokkeerd
+);
+
+ALTER TABLE player_credentials ENABLE ROW LEVEL SECURITY;
+-- Blokkeert ALLE directe client toegang — alleen via service role key in Edge Functions
+CREATE POLICY "No direct access" ON player_credentials FOR ALL USING (false);
 
 -- ============================================================
 -- 5. TEAM MEMBERSHIPS
@@ -201,6 +222,9 @@ CREATE TABLE IF NOT EXISTS match_availability (
   status        TEXT NOT NULL DEFAULT 'unknown',  -- 'available' | 'unavailable' | 'maybe' | 'unknown'
   note          TEXT,
   responded_at  TIMESTAMPTZ,
+  set_by        UUID REFERENCES profiles(id),     -- admin die status heeft overschreven (NULL = eigen opgave)
+  overridden    BOOLEAN DEFAULT false,             -- true = door admin overschreven
+  override_note TEXT,                             -- optionele reden van admin
   created_at    TIMESTAMPTZ DEFAULT now(),
   UNIQUE (match_id, player_id)
 );
@@ -363,11 +387,12 @@ GROUP BY p.id, p.full_name, tm.team_id, ud.umpire_count;
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name)
+  INSERT INTO public.profiles (id, email, full_name, display_name)
   VALUES (
     new.id,
     new.email,
-    COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1))
+    COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    COALESCE(new.raw_user_meta_data->>'display_name', new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1))
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN new;
@@ -461,6 +486,28 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
   );
 $$;
 
+CREATE OR REPLACE FUNCTION is_club_admin_for_team(p_team_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM club_memberships cm
+    JOIN teams t ON t.club_id = cm.club_id
+    WHERE cm.player_id = auth.uid()
+      AND t.id = p_team_id
+      AND cm.role = 'club_admin'
+  ) OR is_platform_admin();
+$$;
+
+-- RPC: geeft spelersnamen terug voor login naam-picker (unauthenticated via Edge Function service role)
+CREATE OR REPLACE FUNCTION get_team_players_for_login(p_team_id UUID)
+RETURNS TABLE (player_id UUID, display_name TEXT, jersey_number SMALLINT)
+LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT p.id, COALESCE(p.display_name, p.full_name, p.nickname) AS display_name, p.jersey_number
+  FROM profiles p
+  JOIN team_memberships tm ON tm.player_id = p.id
+  WHERE tm.team_id = p_team_id AND tm.active = true
+  ORDER BY p.jersey_number ASC NULLS LAST, display_name ASC;
+$$;
+
 -- ---- CLUBS REGISTRY ----
 -- Iedereen kan clubs opzoeken (voor autocomplete bij poule-invoer)
 CREATE POLICY "Authenticated users can view clubs registry"
@@ -500,15 +547,17 @@ CREATE POLICY "Platform admins can manage all profiles"
   ON profiles FOR ALL USING (is_platform_admin());
 
 -- ---- CLUBS ----
-CREATE POLICY "Authenticated users can view clubs"
-  ON clubs FOR SELECT USING (auth.role() = 'authenticated');
+-- Unauthenticated read needed for login team-selection screen
+CREATE POLICY "Anyone can view clubs"
+  ON clubs FOR SELECT USING (true);
 
 CREATE POLICY "Platform admins can manage clubs"
   ON clubs FOR ALL USING (is_platform_admin());
 
 -- ---- TEAMS ----
-CREATE POLICY "Team members can view their team"
-  ON teams FOR SELECT USING (is_team_member(id));
+-- Unauthenticated read needed for login team-selection screen
+CREATE POLICY "Anyone can view teams"
+  ON teams FOR SELECT USING (true);
 
 CREATE POLICY "Team admins can update their team"
   ON teams FOR UPDATE USING (is_team_admin(id) OR is_platform_admin());
@@ -595,6 +644,13 @@ CREATE POLICY "Team members can view availability"
 
 CREATE POLICY "Players can manage own availability"
   ON match_availability FOR ALL USING (player_id = auth.uid());
+
+CREATE POLICY "Team admins can manage all availability"
+  ON match_availability FOR ALL
+  USING (
+    is_team_admin((SELECT team_id FROM matches WHERE id = match_availability.match_id))
+    OR is_platform_admin()
+  );
 
 -- ---- MATCH ROSTER ----
 CREATE POLICY "Team members can view roster"

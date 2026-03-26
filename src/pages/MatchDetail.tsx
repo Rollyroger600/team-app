@@ -13,6 +13,7 @@ import type { Match, AvailabilityStatus } from '../types/app'
 interface MatchDetailData {
   match: Match | null
   myAvailability: AvailabilityStatus | null
+  myOverridden: boolean
   availability: { status: string; profiles: { full_name: string | null } | null }[]
 }
 
@@ -29,12 +30,13 @@ export default function MatchDetail() {
     queryFn: async (): Promise<MatchDetailData> => {
       const [matchRes, myAvRes, allAvRes] = await Promise.all([
         supabase.from('matches').select('*').eq('id', id!).single(),
-        supabase.from('match_availability').select('status').eq('match_id', id!).eq('player_id', user!.id).maybeSingle(),
+        supabase.from('match_availability').select('status, overridden').eq('match_id', id!).eq('player_id', user!.id).maybeSingle(),
         supabase.from('match_availability').select('status, profiles(full_name)').eq('match_id', id!)
       ])
       return {
         match: matchRes.data || null,
         myAvailability: (myAvRes.data?.status as AvailabilityStatus | null) || null,
+        myOverridden: (myAvRes.data as { overridden?: boolean } | null)?.overridden === true,
         availability: (allAvRes.data || []) as MatchDetailData['availability'],
       }
     },
@@ -150,6 +152,11 @@ export default function MatchDetail() {
       {/* Availability section */}
       <div className="rounded-xl p-4 border bg-surface border-border">
         <h2 className="font-semibold mb-3">Jouw beschikbaarheid</h2>
+        {data?.myOverridden && (
+          <div className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-1.5 mb-3">
+            Aangepast door admin
+          </div>
+        )}
         <div className="flex gap-2 mb-4">
           {([
             { status: 'available' as const, icon: CheckCircle, label: 'Beschikbaar', color: 'bg-green-500/20 border-green-500/50 text-green-400' },

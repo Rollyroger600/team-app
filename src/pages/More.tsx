@@ -65,6 +65,7 @@ interface MoreData {
   members: MemberItem[]
   myAvailMap: Record<string, string>
   allAvailMap: Record<string, AvailPlayer[]>
+  myOverriddenMap: Record<string, boolean>
 }
 
 interface UmpireData {
@@ -113,11 +114,13 @@ export default function More() {
       let myAvailMap: Record<string, string> = {}
       let allAvailMap: Record<string, AvailPlayer[]> = {}
 
+      let myOverriddenMap: Record<string, boolean> = {}
+
       if (matchList.length > 0) {
         const [myAvRes, allAvRes] = await Promise.all([
           supabase
             .from('match_availability')
-            .select('match_id, status')
+            .select('match_id, status, overridden')
             .eq('player_id', user!.id),
           supabase
             .from('match_availability')
@@ -125,7 +128,10 @@ export default function More() {
             .in('match_id', matchList.map(m => m.id)),
         ])
 
-        for (const a of (myAvRes.data || [])) myAvailMap[a.match_id] = a.status
+        for (const a of (myAvRes.data || []) as { match_id: string; status: string; overridden?: boolean }[]) {
+          myAvailMap[a.match_id] = a.status
+          if (a.overridden) myOverriddenMap[a.match_id] = true
+        }
 
         for (const a of (allAvRes.data || [])) {
           if (!allAvailMap[a.match_id]) allAvailMap[a.match_id] = []
@@ -133,7 +139,7 @@ export default function More() {
         }
       }
 
-      return { matches: matchList, members: memberList, myAvailMap, allAvailMap }
+      return { matches: matchList, members: memberList, myAvailMap, allAvailMap, myOverriddenMap }
     },
     enabled: !!activeTeam?.id && !!user?.id,
   })
@@ -264,6 +270,7 @@ export default function More() {
         <div className="rounded-xl border overflow-hidden bg-surface border-border">
           {matches.map((match, i) => {
             const myStatus = myAvail[match.id] || null
+            const myOverridden = data?.myOverriddenMap?.[match.id] === true
             const isSaving = saving?.startsWith(match.id)
             const isExpanded = expanded.has(match.id)
             const matchAvail = allAvail[match.id] || []
@@ -284,6 +291,9 @@ export default function More() {
                     <p className="font-medium text-sm truncate">
                       {match.is_home ? 'Thuis' : 'Uit'} vs {match.opponent}
                     </p>
+                    {myOverridden && (
+                      <p className="text-xs text-amber-400 mt-0.5">Aangepast door admin</p>
+                    )}
                   </div>
 
                   {/* Snelle knoppen */}
