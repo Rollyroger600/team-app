@@ -286,12 +286,25 @@ export default function Login() {
           {/* ── Step 4: Eerste keer PIN instellen ── */}
           {step === 'setup_pin' && (
             <div className="space-y-4">
-              <h2 className="font-semibold text-text">
-                {pinStep === 'enter' ? 'Kies een pincode' : 'Bevestig je pincode'}
-              </h2>
+              <div className="flex items-center gap-2">
+                {pinStep === 'enter' && (
+                  <button onClick={() => { setStep('name'); setPin(''); setConfirmPin(''); setError('') }}
+                    className="opacity-50 hover:opacity-80">
+                    <ChevronLeft size={18} />
+                  </button>
+                )}
+                <div>
+                  <p className="text-xs text-text-muted mb-0.5">
+                    {selectedPlayer?.display_name}
+                  </p>
+                  <h2 className="font-semibold text-text">
+                    {pinStep === 'enter' ? 'Kies een pincode' : 'Bevestig je pincode'}
+                  </h2>
+                </div>
+              </div>
               <p className="text-sm text-text-muted">
                 {pinStep === 'enter'
-                  ? 'Kies een pincode van 4 tot 6 cijfers. Onthoud hem goed!'
+                  ? 'Je logt voortaan in met deze pincode. Onthoud hem goed!'
                   : 'Voer je pincode nogmaals in ter bevestiging.'}
               </p>
 
