@@ -97,23 +97,14 @@ export default function Login() {
   }
 
   // ── Step 2: Name picker ───────────────────────────────────────────────────
-  async function handleSelectPlayer(player: LoginPlayer) {
+  function handleSelectPlayer(player: LoginPlayer) {
     setSelectedPlayer(player)
     setPin('')
     setConfirmPin('')
     setPinStep('enter')
     setError('')
-    setLoading(true)
-
-    // Check immediately if PIN setup is needed — don't wait for user to submit
-    const check = await loginWithPin(player.player_id, '')
-    setLoading(false)
-
-    if (check.needs_pin_setup) {
-      setStep('setup_pin')
-    } else {
-      setStep('pin')
-    }
+    // has_set_pin is included in the name-picker response — no extra API call needed
+    setStep(player.has_set_pin ? 'pin' : 'setup_pin')
   }
 
   // ── Step 3: PIN entry ─────────────────────────────────────────────────────

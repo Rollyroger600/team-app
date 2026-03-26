@@ -190,7 +190,22 @@ async function getPlayersForLogin(body: Record<string, unknown>) {
   const { data, error } = await svc.rpc('get_team_players_for_login', { p_team_id: resolvedTeamId })
   if (error) return json({ error: error.message }, 500)
 
-  return json({ players: data, team_id: resolvedTeamId })
+  // Fetch has_set_pin for each player so the client can skip to setup immediately
+  const playerIds = (data || []).map((p: { player_id: string }) => p.player_id)
+  const { data: creds } = await svc
+    .from('player_credentials')
+    .select('player_id, has_set_pin')
+    .in('player_id', playerIds)
+
+  const credMap: Record<string, boolean> = {}
+  for (const c of (creds || [])) credMap[c.player_id] = c.has_set_pin
+
+  const players = (data || []).map((p: { player_id: string }) => ({
+    ...p,
+    has_set_pin: credMap[p.player_id] ?? false,
+  }))
+
+  return json({ players, team_id: resolvedTeamId })
 }
 
 /**

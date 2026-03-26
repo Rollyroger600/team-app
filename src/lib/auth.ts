@@ -25,6 +25,7 @@ export interface LoginPlayer {
   player_id: string
   display_name: string
   jersey_number: number | null
+  has_set_pin: boolean
 }
 
 export async function getPlayersForLogin(
