@@ -37,6 +37,7 @@ import AdminMatchGoals from './pages/admin/AdminMatchGoals'
 import AdminAnnouncements from './pages/admin/AdminAnnouncements'
 import AdminTeamSettings from './pages/admin/AdminTeamSettings'
 import AdminRoles from './pages/admin/AdminRoles'
+import Debug from './pages/Debug'
 
 export default function App() {
   const { initialize, loading, initialized, memberships } = useAuthStore()
@@ -66,6 +67,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/debug" element={<Debug />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>

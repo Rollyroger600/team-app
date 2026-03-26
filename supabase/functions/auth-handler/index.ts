@@ -43,10 +43,12 @@ function randomString(length: number): string {
 /** Resolve authenticated caller; returns null and sends 401 if not auth'd */
 async function resolveCaller(authHeader: string | null) {
   if (!authHeader) return null
-  const client = callerClient(authHeader)
-  const { data: { user }, error } = await client.auth.getUser()
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
+  // Use service-role admin client to validate the JWT — more reliable than anon client
+  const svc = adminClient()
+  const { data: { user }, error } = await svc.auth.getUser(token)
   if (error || !user) return null
-  return { user, client }
+  return { user, client: callerClient(authHeader) }
 }
 
 /** Check if caller is team_admin or platform_admin for the given team */
