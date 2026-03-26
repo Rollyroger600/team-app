@@ -88,7 +88,9 @@ export default function Login() {
   // ── After login: load profile then navigate ───────────────────────────────
   async function finishLogin() {
     const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) await loadProfile(session.user)
+    // Start loadProfile in background — it synchronously sets user first, then
+    // fires async DB queries. Navigate immediately so ProtectedRoute sees the user.
+    if (session?.user) void loadProfile(session.user)
     navigate('/')
   }
 
