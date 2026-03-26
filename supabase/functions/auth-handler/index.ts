@@ -308,10 +308,20 @@ async function setPin(body: Record<string, unknown>) {
   }
 
   const pinHash = await bcrypt.hash(pinStr, 10)
-  await svc.from('player_credentials').update({
+  const { error: updateCredError } = await svc.from('player_credentials').update({
     pin_hash:    pinHash,
     has_set_pin: true,
   }).eq('player_id', player_id)
+  if (updateCredError) return json({ error: 'Kon PIN niet opslaan: ' + updateCredError.message }, 500)
+
+  // Ensure the auth user is fully initialized via the admin API.
+  // This creates the auth.identities row if it is missing, which happens
+  // when a user was created via raw SQL instead of auth.admin.createUser().
+  // Without this row, signInWithPassword returns "Database error querying schema".
+  const { error: syncError } = await svc.auth.admin.updateUserById(player_id as string, {
+    password: creds.internal_password,
+  })
+  if (syncError) return json({ error: 'Auth sync mislukt: ' + syncError.message }, 500)
 
   // Sign in and return session
   const { data: session, error: signInError } = await svc.auth.signInWithPassword({
