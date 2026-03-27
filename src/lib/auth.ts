@@ -11,14 +11,27 @@ async function callAuthHandler(body: Record<string, unknown>, authToken?: string
     'Authorization': `Bearer ${authToken ?? ANON_KEY}`,
   }
 
-  const res = await fetch(EDGE_URL, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data?.error ?? data?.message ?? 'Onbekende fout')
-  return data
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 20000)
+
+  try {
+    const res = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data?.error ?? data?.message ?? 'Onbekende fout')
+    return data
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Verzoek duurde te lang. Probeer opnieuw.')
+    }
+    throw err
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 export interface LoginPlayer {

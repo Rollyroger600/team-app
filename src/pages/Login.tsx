@@ -38,6 +38,26 @@ export default function Login() {
   const [confirmPin, setConfirmPin] = useState('')
   const [pinStep, setPinStep] = useState<'enter' | 'confirm'>('enter')
 
+  // ── Auto-submit when PIN reaches max length (6 digits) ────────────────────
+  // useEffect ensures handlePinSubmit closes over the CURRENT pin value.
+  // Calling setTimeout(onSubmit) inside PinInput would capture a stale closure
+  // (the pin state before the last digit was added), submitting the wrong PIN.
+  useEffect(() => {
+    if (step !== 'pin' || pin.length < 6 || loading) return
+    const t = setTimeout(handlePinSubmit, 100)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin, step, loading])
+
+  useEffect(() => {
+    if (step !== 'setup_pin' || loading) return
+    const activePin = pinStep === 'enter' ? pin : confirmPin
+    if (activePin.length < 6) return
+    const t = setTimeout(handleSetupPinSubmit, 100)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin, confirmPin, step, pinStep, loading])
+
   // ── On mount: check for slug params and pre-load team ─────────────────────
   useEffect(() => {
     const clubSlug = searchParams.get('club')
@@ -270,7 +290,6 @@ export default function Login() {
               <PinInput
                 value={pin}
                 onChange={setPin}
-                onSubmit={handlePinSubmit}
                 loading={loading}
               />
 
@@ -318,7 +337,6 @@ export default function Login() {
               <PinInput
                 value={pinStep === 'enter' ? pin : confirmPin}
                 onChange={pinStep === 'enter' ? setPin : setConfirmPin}
-                onSubmit={handleSetupPinSubmit}
                 loading={loading}
               />
 
@@ -355,11 +373,10 @@ export default function Login() {
 interface PinInputProps {
   value: string
   onChange: (v: string) => void
-  onSubmit: () => void
   loading: boolean
 }
 
-function PinInput({ value, onChange, onSubmit, loading }: PinInputProps) {
+function PinInput({ value, onChange, loading }: PinInputProps) {
   const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]
 
   function handleKey(d: number | 'del') {
@@ -369,7 +386,6 @@ function PinInput({ value, onChange, onSubmit, loading }: PinInputProps) {
     } else {
       const next = value + String(d)
       if (next.length <= 6) onChange(next)
-      if (next.length === 6) setTimeout(onSubmit, 100)
     }
   }
 
