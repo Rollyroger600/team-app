@@ -21,9 +21,6 @@ import Announcements from './pages/Announcements'
 import Settings from './pages/Settings'
 import More from './pages/More'
 
-// Dev tools
-import DevSwitcher from './components/dev/DevSwitcher'
-
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminPlayers from './pages/admin/AdminPlayers'
@@ -102,7 +99,6 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <DevSwitcher />
     </BrowserRouter>
     </QueryClientProvider>
   )

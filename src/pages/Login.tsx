@@ -38,30 +38,10 @@ export default function Login() {
   const [confirmPin, setConfirmPin] = useState('')
   const [pinStep, setPinStep] = useState<'enter' | 'confirm'>('enter')
 
-  // ── Auto-submit when PIN reaches max length (6 digits) ────────────────────
-  // useEffect ensures handlePinSubmit closes over the CURRENT pin value.
-  // Calling setTimeout(onSubmit) inside PinInput would capture a stale closure
-  // (the pin state before the last digit was added), submitting the wrong PIN.
+  // ── On mount: check for slug params, env defaults, or load clubs ──────────
   useEffect(() => {
-    if (step !== 'pin' || pin.length < 6 || loading) return
-    const t = setTimeout(handlePinSubmit, 100)
-    return () => clearTimeout(t)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pin, step, loading])
-
-  useEffect(() => {
-    if (step !== 'setup_pin' || loading) return
-    const activePin = pinStep === 'enter' ? pin : confirmPin
-    if (activePin.length < 6) return
-    const t = setTimeout(handleSetupPinSubmit, 100)
-    return () => clearTimeout(t)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pin, confirmPin, step, pinStep, loading])
-
-  // ── On mount: check for slug params and pre-load team ─────────────────────
-  useEffect(() => {
-    const clubSlug = searchParams.get('club')
-    const teamSlug = searchParams.get('team')
+    const clubSlug = searchParams.get('club') || import.meta.env.VITE_DEFAULT_CLUB_SLUG
+    const teamSlug = searchParams.get('team') || import.meta.env.VITE_DEFAULT_TEAM_SLUG
 
     if (clubSlug && teamSlug) {
       loadPlayersBySlug(clubSlug, teamSlug)
@@ -113,9 +93,7 @@ export default function Login() {
       setLoading(false)
       return
     }
-    // Start loadProfile in background — it synchronously sets user first, then
-    // fires async DB queries. Navigate immediately so ProtectedRoute sees the user.
-    void loadProfile(session.user)
+    await loadProfile(session.user)
     navigate('/')
   }
 
@@ -144,11 +122,11 @@ export default function Login() {
   }
 
   // ── Step 3: PIN entry ─────────────────────────────────────────────────────
-  async function handlePinSubmit() {
-    if (pin.length < 4) return
+  async function handlePinSubmit(pinValue: string) {
+    if (pinValue.length < 4) return
     setLoading(true)
     setError('')
-    const result = await loginWithPin(selectedPlayer!.player_id, pin)
+    const result = await loginWithPin(selectedPlayer!.player_id, pinValue)
     setLoading(false)
 
     if (result.error) { setError(result.error); setPin(''); return }
@@ -157,14 +135,15 @@ export default function Login() {
   }
 
   // ── Step 4: First-time PIN setup ──────────────────────────────────────────
-  async function handleSetupPinSubmit() {
+  async function handleSetupPinSubmit(pinValue: string) {
     if (pinStep === 'enter') {
-      if (pin.length < 4) return
+      if (pinValue.length < 4) return
+      setPin(pinValue)
       setPinStep('confirm')
       return
     }
-    // confirm step
-    if (pin !== confirmPin) {
+    // confirm step — pinValue is the freshly-typed confirmation PIN
+    if (pinValue !== pin) {
       setError('PINs komen niet overeen. Probeer opnieuw.')
       setConfirmPin('')
       return
@@ -290,13 +269,14 @@ export default function Login() {
               <PinInput
                 value={pin}
                 onChange={setPin}
+                onComplete={handlePinSubmit}
                 loading={loading}
               />
 
               {error && <ErrorBox>{error}</ErrorBox>}
 
               <button
-                onClick={handlePinSubmit}
+                onClick={() => handlePinSubmit(pin)}
                 disabled={pin.length < 4 || loading}
                 className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50 bg-secondary text-secondary-text"
               >
@@ -337,13 +317,14 @@ export default function Login() {
               <PinInput
                 value={pinStep === 'enter' ? pin : confirmPin}
                 onChange={pinStep === 'enter' ? setPin : setConfirmPin}
+                onComplete={handleSetupPinSubmit}
                 loading={loading}
               />
 
               {error && <ErrorBox>{error}</ErrorBox>}
 
               <button
-                onClick={handleSetupPinSubmit}
+                onClick={() => handleSetupPinSubmit(pinStep === 'enter' ? pin : confirmPin)}
                 disabled={(pinStep === 'enter' ? pin : confirmPin).length < 4 || loading}
                 className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50 bg-secondary text-secondary-text"
               >
@@ -373,20 +354,23 @@ export default function Login() {
 interface PinInputProps {
   value: string
   onChange: (v: string) => void
+  onComplete: (v: string) => void
   loading: boolean
 }
 
-function PinInput({ value, onChange, loading }: PinInputProps) {
-  const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]
-
+function PinInput({ value, onChange, onComplete, loading }: PinInputProps) {
   function handleKey(d: number | 'del') {
     if (loading) return
     if (d === 'del') {
       onChange(value.slice(0, -1))
-    } else {
-      const next = value + String(d)
-      if (next.length <= 6) onChange(next)
+      return
     }
+    const next = value + String(d)
+    if (next.length > 6) return
+    onChange(next)
+    // Pass the fresh value directly — avoids relying on a closure over
+    // state that hasn't re-rendered yet.
+    if (next.length === 6) onComplete(next)
   }
 
   return (

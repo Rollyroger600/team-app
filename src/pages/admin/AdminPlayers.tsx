@@ -1,12 +1,12 @@
 import React from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle, ShieldCheck, Shield, Lock } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
-import { createPlayer, resetPlayerPin } from '../../lib/auth'
+import { createPlayer, resetPlayerPin, changePlayerRole, getPlayersStatus, type PlayerStatus } from '../../lib/auth'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
 import type { Profile } from '../../types/app'
@@ -35,8 +35,18 @@ interface ActionResult {
 
 const ROLES = [
   { value: 'player', label: 'Speler' },
-  { value: 'team_admin', label: 'Admin' },
+  { value: 'team_admin', label: 'Aanvoerder' },
 ]
+
+function roleLabel(role: string) {
+  return role === 'team_admin' ? 'Aanvoerder' : 'Speler'
+}
+
+function roleBadgeStyle(role: string) {
+  return role === 'team_admin'
+    ? { backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }
+    : { backgroundColor: 'rgba(100,116,139,0.15)', color: '#94a3b8' }
+}
 
 export default function AdminPlayers(): React.JSX.Element {
   const { activeTeam } = useTeamStore()
@@ -48,6 +58,10 @@ export default function AdminPlayers(): React.JSX.Element {
   const [addResult, setAddResult] = useState<ActionResult | null>(null)
   const [resettingPin, setResettingPin] = useState<string | null>(null)
   const [pinResetResults, setPinResetResults] = useState<Record<string, ActionResult>>({})
+  const [changingRole, setChangingRole] = useState<string | null>(null)
+  const [roleErrors, setRoleErrors] = useState<Record<string, string>>({})
+
+  const canManage = isClubAdmin(activeTeam?.club_id)
 
   const { data: players = [], isLoading } = useQuery<PlayerMembership[]>({
     queryKey: ['adminPlayers', activeTeam?.id],
@@ -56,11 +70,24 @@ export default function AdminPlayers(): React.JSX.Element {
         .from('team_memberships')
         .select('*, profiles(id, full_name, nickname, display_name, jersey_number, position)')
         .eq('team_id', activeTeam!.id)
+        .eq('active', true)
         .order('created_at', { ascending: true })
       return (data as unknown as PlayerMembership[]) || []
     },
     enabled: !!activeTeam?.id,
   })
+
+  const { data: statuses = [] } = useQuery<PlayerStatus[]>({
+    queryKey: ['adminPlayersStatus', activeTeam?.id],
+    queryFn: async (): Promise<PlayerStatus[]> => {
+      const { statuses: s } = await getPlayersStatus(activeTeam!.id)
+      return s
+    },
+    enabled: !!activeTeam?.id && canManage,
+  })
+
+  const statusMap: Record<string, PlayerStatus> = {}
+  for (const s of statuses) statusMap[s.player_id] = s
 
   async function handleAdd(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()
@@ -81,10 +108,11 @@ export default function AdminPlayers(): React.JSX.Element {
       return
     }
 
-    setAddResult({ ok: true, message: `Speler aangemaakt. Ze kunnen nu inloggen met hun naam en PIN instellen.` })
+    setAddResult({ ok: true, message: 'Speler aangemaakt. Ze kunnen nu inloggen en hun pincode instellen.' })
     setForm({ full_name: '', display_name: '', jersey_number: '', role: 'player' })
     setAdding(false)
     queryClient.invalidateQueries({ queryKey: ['adminPlayers', activeTeam?.id] })
+    queryClient.invalidateQueries({ queryKey: ['adminPlayersStatus', activeTeam?.id] })
   }
 
   async function handleResetPin(playerId: string): Promise<void> {
@@ -96,17 +124,30 @@ export default function AdminPlayers(): React.JSX.Element {
       ...prev,
       [playerId]: result.error
         ? { ok: false, message: result.error }
-        : { ok: true, message: 'PIN gereset — speler kiest nieuwe PIN bij volgende login' },
+        : { ok: true, message: 'PIN gereset — speler kiest nieuwe bij volgende login' },
     }))
     setTimeout(() => {
       setPinResetResults(prev => { const n = { ...prev }; delete n[playerId]; return n })
     }, 4000)
+    queryClient.invalidateQueries({ queryKey: ['adminPlayersStatus', activeTeam?.id] })
+  }
+
+  async function handleToggleRole(membership: PlayerMembership): Promise<void> {
+    if (!canManage || !activeTeam?.id) return
+    const newRole = membership.role === 'team_admin' ? 'player' : 'team_admin'
+    setChangingRole(membership.player_id)
+    const result = await changePlayerRole(membership.player_id, activeTeam.id, newRole)
+    setChangingRole(null)
+    if (result.error) {
+      setRoleErrors(prev => ({ ...prev, [membership.player_id]: result.error! }))
+      setTimeout(() => setRoleErrors(prev => { const n = { ...prev }; delete n[membership.player_id]; return n }), 4000)
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['adminPlayers', activeTeam?.id] })
+    }
   }
 
   const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none focus:border-amber-400'
   const inputStyle = { backgroundColor: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
-
-  const canResetPin = isClubAdmin()
 
   return (
     <div className="p-4 space-y-4 pb-8">
@@ -117,16 +158,26 @@ export default function AdminPlayers(): React.JSX.Element {
           </Link>
           <h1 className="text-2xl font-bold">Spelers</h1>
         </div>
-        <button
-          onClick={() => { setShowAdd(v => !v); setAddResult(null) }}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-secondary text-secondary-text"
-        >
-          <UserPlus size={16} />
-          Toevoegen
-        </button>
+        {canManage && (
+          <button
+            onClick={() => { setShowAdd(v => !v); setAddResult(null) }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-secondary text-secondary-text"
+          >
+            <UserPlus size={16} />
+            Toevoegen
+          </button>
+        )}
       </div>
 
-      {/* Add player form */}
+      {/* Legenda */}
+      <div className="flex items-center gap-4 text-xs text-text-muted px-1">
+        <span className="flex items-center gap-1"><ShieldCheck size={12} className="text-amber-400" /> Aanvoerder</span>
+        <span className="flex items-center gap-1"><Check size={12} className="text-green-400" /> PIN ingesteld</span>
+        <span className="flex items-center gap-1"><AlertCircle size={12} className="text-orange-400" /> PIN niet ingesteld</span>
+        <span className="flex items-center gap-1"><Lock size={12} className="text-red-400" /> Geblokkeerd</span>
+      </div>
+
+      {/* Speler toevoegen */}
       {showAdd && (
         <div className="rounded-xl border p-4 space-y-3 bg-surface border-border">
           <h2 className="font-semibold text-sm flex items-center gap-2">
@@ -185,7 +236,7 @@ export default function AdminPlayers(): React.JSX.Element {
         </div>
       )}
 
-      {/* Player list */}
+      {/* Spelerslijst */}
       {isLoading ? (
         <PageLoader />
       ) : players.length === 0 ? (
@@ -194,42 +245,85 @@ export default function AdminPlayers(): React.JSX.Element {
         <div className="space-y-2">
           {players.map((membership) => {
             const p = membership.profiles
+            const status = statusMap[membership.player_id]
             const pinResult = pinResetResults[membership.player_id]
+            const roleErr = roleErrors[membership.player_id]
+            const isLocked = status?.locked_until && new Date(status.locked_until) > new Date()
+
             return (
               <div key={membership.id}
-                   className="flex items-center gap-3 p-4 rounded-xl border bg-surface border-border">
+                   className="flex items-center gap-3 p-3 rounded-xl border bg-surface border-border">
+                {/* Avatar */}
                 <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-primary">
-                  {p?.jersey_number || p?.display_name?.[0]?.toUpperCase() || p?.full_name?.[0]?.toUpperCase() || '?'}
+                  {p?.jersey_number != null
+                    ? p.jersey_number
+                    : (p?.display_name?.[0] ?? p?.full_name?.[0] ?? '?').toUpperCase()}
                 </div>
+
+                {/* Naam */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">
-                    {p?.display_name || p?.full_name || 'Onbekend'}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    {membership.role === 'team_admin' && (
+                      <ShieldCheck size={13} className="text-amber-400 flex-shrink-0" />
+                    )}
+                    <p className="font-medium text-sm truncate">
+                      {p?.display_name || p?.full_name || 'Onbekend'}
+                    </p>
+                  </div>
                   {p?.full_name && p.display_name && p.display_name !== p.full_name && (
                     <p className="text-xs text-slate-400 truncate">{p.full_name}</p>
                   )}
+                  {/* Feedback berichten */}
                   {pinResult && (
                     <p className={`text-xs mt-0.5 ${pinResult.ok ? 'text-green-400' : 'text-red-400'}`}>
                       {pinResult.message}
                     </p>
                   )}
+                  {roleErr && <p className="text-xs mt-0.5 text-red-400">{roleErr}</p>}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs px-2 py-1 rounded-full"
-                        style={{
-                          backgroundColor: membership.role === 'team_admin' ? 'rgba(245,158,11,0.2)' : 'rgba(100,116,139,0.2)',
-                          color: membership.role === 'team_admin' ? '#f59e0b' : '#94a3b8'
-                        }}>
-                    {membership.role === 'team_admin' ? 'Admin' : 'Speler'}
+
+                {/* Status + acties */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {/* PIN status */}
+                  {status && (
+                    isLocked
+                      ? <Lock size={14} className="text-red-400" title="Account geblokkeerd" />
+                      : status.has_set_pin
+                        ? <Check size={14} className="text-green-400" title="PIN ingesteld" />
+                        : <AlertCircle size={14} className="text-orange-400" title="PIN nog niet ingesteld" />
+                  )}
+
+                  {/* Rol badge */}
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={roleBadgeStyle(membership.role)}>
+                    {roleLabel(membership.role)}
                   </span>
-                  {canResetPin && (
+
+                  {/* Rol toggle — alleen club_admin */}
+                  {canManage && (
+                    <button
+                      onClick={() => handleToggleRole(membership)}
+                      disabled={changingRole === membership.player_id}
+                      title={membership.role === 'team_admin' ? 'Terug naar speler' : 'Maak aanvoerder'}
+                      className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity disabled:opacity-20"
+                    >
+                      {changingRole === membership.player_id
+                        ? <RotateCcw size={13} className="animate-spin" />
+                        : membership.role === 'team_admin'
+                          ? <Shield size={13} />
+                          : <ShieldCheck size={13} />
+                      }
+                    </button>
+                  )}
+
+                  {/* PIN reset — alleen club_admin */}
+                  {canManage && (
                     <button
                       onClick={() => handleResetPin(membership.player_id)}
                       disabled={resettingPin === membership.player_id}
                       title="PIN resetten"
-                      className="p-1.5 rounded-lg opacity-50 hover:opacity-100 transition-opacity disabled:opacity-30"
+                      className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity disabled:opacity-20"
                     >
-                      <RotateCcw size={14} className={resettingPin === membership.player_id ? 'animate-spin' : ''} />
+                      <RotateCcw size={13} className={resettingPin === membership.player_id ? 'animate-spin' : ''} />
                     </button>
                   )}
                 </div>

@@ -157,6 +157,26 @@ export async function createPlayer(params: {
   }
 }
 
+export interface PlayerStatus {
+  player_id: string
+  has_set_pin: boolean
+  failed_attempts: number
+  locked_until: string | null
+}
+
+export async function getPlayersStatus(
+  teamId: string
+): Promise<{ statuses: PlayerStatus[]; error?: string }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { statuses: [], error: 'Niet ingelogd' }
+  try {
+    const data = await callAuthHandler({ action: 'get_players_status', team_id: teamId }, session.access_token)
+    return { statuses: data.statuses ?? [] }
+  } catch (err) {
+    return { statuses: [], error: (err as Error).message }
+  }
+}
+
 export async function signOut(): Promise<{ error: AuthError | null }> {
   const { error } = await supabase.auth.signOut()
   return { error }

@@ -10,12 +10,13 @@ interface AuthState {
   clubAdminClubIds: string[]
   loading: boolean
   initialized: boolean
+  profileLoaded: boolean
   initialize: () => Promise<void>
   loadProfile: (user: User) => Promise<void>
   isPlatformAdmin: () => boolean
   isTeamAdmin: (teamId: string) => boolean
   isAnyTeamAdmin: () => boolean
-  isClubAdmin: (clubId?: string) => boolean
+  isClubAdmin: (clubId?: string | null) => boolean
   getActiveTeam: () => Team | null
   getActiveClub: () => Club | null
   signOut: () => Promise<void>
@@ -28,6 +29,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
   clubAdminClubIds: [],
   loading: true,
   initialized: false,
+  profileLoaded: false,
 
   initialize: async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -36,11 +38,16 @@ const useAuthStore = create<AuthState>((set, get) => ({
     }
     set({ loading: false, initialized: true })
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
+      // Supabase-js holds an internal auth lock for the duration of this
+      // callback — awaiting another Supabase call (e.g. loadProfile's
+      // .from() queries) directly inside it deadlocks every future call
+      // (getSession, setSession, .from(), ...) forever. Defer to the next
+      // tick so this callback returns and releases the lock first.
       if (event === 'SIGNED_IN' && session?.user) {
-        await get().loadProfile(session.user)
+        setTimeout(() => { get().loadProfile(session.user) }, 0)
       } else if (event === 'SIGNED_OUT') {
-        set({ user: null, profile: null, memberships: [], clubAdminClubIds: [] })
+        set({ user: null, profile: null, memberships: [], clubAdminClubIds: [], profileLoaded: false })
       }
     })
   },
@@ -70,6 +77,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       profile: profile as Profile | null,
       memberships: (memberships as unknown as TeamMembership[]) || [],
       clubAdminClubIds,
+      profileLoaded: true,
     })
   },
 
@@ -88,7 +96,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
     return memberships.some(m => m.role === 'team_admin')
   },
 
-  isClubAdmin: (clubId?: string) => {
+  isClubAdmin: (clubId?: string | null) => {
     const { profile, clubAdminClubIds } = get()
     if (profile?.is_platform_admin) return true
     if (clubId) return clubAdminClubIds.includes(clubId)
@@ -108,7 +116,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut()
-    set({ user: null, profile: null, memberships: [], clubAdminClubIds: [] })
+    set({ user: null, profile: null, memberships: [], clubAdminClubIds: [], profileLoaded: false })
   }
 }))
 

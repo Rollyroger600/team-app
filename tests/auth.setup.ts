@@ -1,31 +1,33 @@
 /**
- * Auth setup: log in as admin and player, save storage state.
- * Runs once before all other test suites.
+ * Auth setup: log in as team_admin and plain player via the real PIN
+ * flow, save storage state. Runs once before all other test suites.
+ * Uses the dedicated qa-club/qa-team fixture data (see .env.test) —
+ * never the real pilot roster.
  */
-import { test as setup, expect } from '@playwright/test'
+import { test as setup, expect, type Page } from '@playwright/test'
 
 const ADMIN_FILE = '.playwright/admin.json'
 const PLAYER_FILE = '.playwright/player.json'
 
-async function login(page: any, email: string, password: string) {
-  await page.goto('/login')
-  // Step 1: email
-  await page.getByPlaceholder('jouw@email.nl').fill(email)
-  await page.getByRole('button', { name: 'Doorgaan' }).click()
-  // Wait for password step (Supabase RPC can be slow on cold start in CI)
-  await page.getByPlaceholder('Jouw wachtwoord').waitFor({ timeout: 20_000 })
-  await page.getByPlaceholder('Jouw wachtwoord').fill(password)
-  await page.getByRole('button', { name: 'Inloggen' }).click()
-  // Wait for redirect to dashboard
+async function enterPin(page: Page, pin: string) {
+  for (const digit of pin) {
+    await page.getByRole('button', { name: digit, exact: true }).click()
+  }
+}
+
+async function loginAsPlayer(page: Page, displayName: string, pin: string) {
+  await page.goto(`/login?club=${process.env.QA_CLUB_SLUG}&team=${process.env.QA_TEAM_SLUG}`)
+  await page.getByRole('button', { name: displayName, exact: true }).click()
+  await enterPin(page, pin)
   await expect(page).toHaveURL('/', { timeout: 20_000 })
 }
 
-setup('authenticate as admin', async ({ page }) => {
-  await login(page, process.env.TEST_ADMIN_EMAIL!, process.env.TEST_ADMIN_PASSWORD!)
+setup('authenticate as team_admin', async ({ page }) => {
+  await loginAsPlayer(page, process.env.QA_TEAM_ADMIN_NAME!, process.env.QA_TEAM_ADMIN_PIN!)
   await page.context().storageState({ path: ADMIN_FILE })
 })
 
 setup('authenticate as player', async ({ page }) => {
-  await login(page, process.env.TEST_PLAYER_EMAIL!, process.env.TEST_PLAYER_PASSWORD!)
+  await loginAsPlayer(page, process.env.QA_PLAYER_NAME!, process.env.QA_PLAYER_PIN!)
   await page.context().storageState({ path: PLAYER_FILE })
 })

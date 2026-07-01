@@ -74,10 +74,6 @@ async function isAdminForTeam(callerUserId: string, teamId: string): Promise<boo
 /** Check if caller is club_admin for the club that owns this team, or platform_admin */
 async function isClubAdminForTeam(callerUserId: string, teamId: string): Promise<boolean> {
   const svc = adminClient()
-  const { data } = await svc.rpc('is_club_admin_for_team_as_user', { p_user_id: callerUserId, p_team_id: teamId })
-  if (data) return true
-
-  // Fallback: manual check
   const { data: team } = await svc.from('teams').select('club_id').eq('id', teamId).single()
   if (!team?.club_id) return false
 
@@ -273,23 +269,10 @@ async function login(body: Record<string, unknown>) {
     locked_until:    null,
   }).eq('player_id', player_id)
 
-  // First attempt at sign-in
-  let { data: session, error: signInError } = await svc.auth.signInWithPassword({
+  const { data: session, error: signInError } = await svc.auth.signInWithPassword({
     email:    creds.internal_email,
     password: creds.internal_password,
   })
-
-  // If sign-in fails (e.g. missing auth.identities for SQL-created users), repair and retry once
-  if (signInError) {
-    await svc.auth.admin.updateUserById(player_id as string, {
-      password: creds.internal_password,
-    })
-    ;({ data: session, error: signInError } = await svc.auth.signInWithPassword({
-      email:    creds.internal_email,
-      password: creds.internal_password,
-    }))
-  }
-
   if (signInError) return json({ error: signInError.message }, 500)
 
   return json({ session: session.session })
@@ -326,15 +309,6 @@ async function setPin(body: Record<string, unknown>) {
     has_set_pin: true,
   }).eq('player_id', player_id)
   if (updateCredError) return json({ error: 'Kon PIN niet opslaan: ' + updateCredError.message }, 500)
-
-  // Ensure the auth user is fully initialized via the admin API.
-  // This creates the auth.identities row if it is missing, which happens
-  // when a user was created via raw SQL instead of auth.admin.createUser().
-  // Without this row, signInWithPassword returns "Database error querying schema".
-  const { error: syncError } = await svc.auth.admin.updateUserById(player_id as string, {
-    password: creds.internal_password,
-  })
-  if (syncError) return json({ error: 'Auth sync mislukt: ' + syncError.message }, 500)
 
   // Sign in and return session
   const { data: session, error: signInError } = await svc.auth.signInWithPassword({
@@ -410,6 +384,38 @@ async function changePin(body: Record<string, unknown>, authHeader: string | nul
 }
 
 /**
+ * get_players_status — returns PIN/lock status per player for admin view
+ * Caller must be team_admin or higher
+ */
+async function getPlayersStatus(body: Record<string, unknown>, authHeader: string | null) {
+  const caller = await resolveCaller(authHeader)
+  if (!caller) return json({ error: 'Niet geauthenticeerd' }, 401)
+
+  const { team_id } = body
+  if (!team_id) return json({ error: 'team_id vereist' }, 400)
+
+  const isAdmin = await isAdminForTeam(caller.user.id, team_id as string)
+  if (!isAdmin) return json({ error: 'Geen toestemming' }, 403)
+
+  const svc = adminClient()
+  const { data: memberships } = await svc
+    .from('team_memberships')
+    .select('player_id')
+    .eq('team_id', team_id)
+    .eq('active', true)
+
+  const playerIds = (memberships || []).map((m: { player_id: string }) => m.player_id)
+  if (playerIds.length === 0) return json({ statuses: [] })
+
+  const { data: creds } = await svc
+    .from('player_credentials')
+    .select('player_id, has_set_pin, failed_attempts, locked_until')
+    .in('player_id', playerIds)
+
+  return json({ statuses: creds || [] })
+}
+
+/**
  * change_role — club_admin+ changes a team member's role
  * team_admins cannot change roles (peer protection)
  */
@@ -451,13 +457,14 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization')
 
     switch (action) {
-      case 'create_player':       return createPlayer(body, authHeader)
+      case 'create_player':         return createPlayer(body, authHeader)
       case 'get_players_for_login': return getPlayersForLogin(body)
-      case 'login':               return login(body)
-      case 'set_pin':             return setPin(body)
-      case 'reset_pin':           return resetPin(body, authHeader)
-      case 'change_pin':          return changePin(body, authHeader)
-      case 'change_role':         return changeRole(body, authHeader)
+      case 'get_players_status':    return getPlayersStatus(body, authHeader)
+      case 'login':                 return login(body)
+      case 'set_pin':               return setPin(body)
+      case 'reset_pin':             return resetPin(body, authHeader)
+      case 'change_pin':            return changePin(body, authHeader)
+      case 'change_role':           return changeRole(body, authHeader)
       default:
         return json({ error: `Onbekende actie: ${action}` }, 400)
     }

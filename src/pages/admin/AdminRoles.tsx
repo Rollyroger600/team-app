@@ -27,7 +27,7 @@ export default function AdminRoles(): React.JSX.Element {
   const [changingRole, setChangingRole] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const canChangeRoles = isClubAdmin()
+  const canChangeRoles = isClubAdmin(activeTeam?.club_id)
 
   const { data: players = [], isLoading } = useQuery<PlayerMembership[]>({
     queryKey: ['adminRoles', activeTeam?.id],
@@ -99,7 +99,7 @@ export default function AdminRoles(): React.JSX.Element {
                           backgroundColor: membership.role === 'team_admin' ? 'rgba(245,158,11,0.2)' : 'rgba(100,116,139,0.2)',
                           color: membership.role === 'team_admin' ? '#f59e0b' : '#94a3b8'
                         }}>
-                    {membership.role === 'team_admin' ? 'Admin' : 'Speler'}
+                    {membership.role === 'team_admin' ? 'Aanvoerder' : 'Speler'}
                   </span>
                   {canChangeRoles && (
                     <button
@@ -109,7 +109,7 @@ export default function AdminRoles(): React.JSX.Element {
                     >
                       {changingRole === membership.player_id
                         ? '...'
-                        : membership.role === 'team_admin' ? 'Maak speler' : 'Maak admin'}
+                        : membership.role === 'team_admin' ? 'Maak speler' : 'Maak aanvoerder'}
                     </button>
                   )}
                 </div>
