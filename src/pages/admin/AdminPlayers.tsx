@@ -1,12 +1,12 @@
 import React from 'react'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle, ShieldCheck, Shield, Lock } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle, ShieldCheck, Shield, Lock, LogIn } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
-import { createPlayer, resetPlayerPin, changePlayerRole, getPlayersStatus, type PlayerStatus } from '../../lib/auth'
+import { createPlayer, resetPlayerPin, changePlayerRole, getPlayersStatus, impersonatePlayer, type PlayerStatus } from '../../lib/auth'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
 import type { Profile } from '../../types/app'
@@ -17,7 +17,7 @@ interface PlayerMembership {
   player_id: string
   role: 'player' | 'team_admin'
   active: boolean
-  created_at: string | null
+  joined_at: string | null
   profiles: Pick<Profile, 'id' | 'full_name' | 'nickname' | 'display_name' | 'jersey_number' | 'position'> | null
 }
 
@@ -49,8 +49,9 @@ function roleBadgeStyle(role: string) {
 }
 
 export default function AdminPlayers(): React.JSX.Element {
+  const navigate = useNavigate()
   const { activeTeam } = useTeamStore()
-  const { isClubAdmin } = useAuthStore()
+  const { isClubAdmin, loadProfile } = useAuthStore()
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState<AddForm>({ full_name: '', display_name: '', jersey_number: '', role: 'player' })
@@ -60,6 +61,8 @@ export default function AdminPlayers(): React.JSX.Element {
   const [pinResetResults, setPinResetResults] = useState<Record<string, ActionResult>>({})
   const [changingRole, setChangingRole] = useState<string | null>(null)
   const [roleErrors, setRoleErrors] = useState<Record<string, string>>({})
+  const [impersonating, setImpersonating] = useState<string | null>(null)
+  const [impersonateErrors, setImpersonateErrors] = useState<Record<string, string>>({})
 
   const canManage = isClubAdmin(activeTeam?.club_id)
 
@@ -71,7 +74,7 @@ export default function AdminPlayers(): React.JSX.Element {
         .select('*, profiles(id, full_name, nickname, display_name, jersey_number, position)')
         .eq('team_id', activeTeam!.id)
         .eq('active', true)
-        .order('created_at', { ascending: true })
+        .order('joined_at', { ascending: true })
       return (data as unknown as PlayerMembership[]) || []
     },
     enabled: !!activeTeam?.id,
@@ -144,6 +147,22 @@ export default function AdminPlayers(): React.JSX.Element {
     } else {
       queryClient.invalidateQueries({ queryKey: ['adminPlayers', activeTeam?.id] })
     }
+  }
+
+  async function handleImpersonate(membership: PlayerMembership): Promise<void> {
+    if (!canManage || !activeTeam?.id) return
+    setImpersonateErrors(prev => { const n = { ...prev }; delete n[membership.player_id]; return n })
+    setImpersonating(membership.player_id)
+    const result = await impersonatePlayer(membership.player_id, activeTeam.id)
+    if (result.error) {
+      setImpersonating(null)
+      setImpersonateErrors(prev => ({ ...prev, [membership.player_id]: result.error! }))
+      setTimeout(() => setImpersonateErrors(prev => { const n = { ...prev }; delete n[membership.player_id]; return n }), 4000)
+      return
+    }
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) await loadProfile(session.user)
+    navigate('/')
   }
 
   const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none focus:border-amber-400'
@@ -280,6 +299,9 @@ export default function AdminPlayers(): React.JSX.Element {
                     </p>
                   )}
                   {roleErr && <p className="text-xs mt-0.5 text-red-400">{roleErr}</p>}
+                  {impersonateErrors[membership.player_id] && (
+                    <p className="text-xs mt-0.5 text-red-400">{impersonateErrors[membership.player_id]}</p>
+                  )}
                 </div>
 
                 {/* Status + acties */}
@@ -324,6 +346,18 @@ export default function AdminPlayers(): React.JSX.Element {
                       className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity disabled:opacity-20"
                     >
                       <RotateCcw size={13} className={resettingPin === membership.player_id ? 'animate-spin' : ''} />
+                    </button>
+                  )}
+
+                  {/* Inloggen als — alleen club_admin, voor support/testen */}
+                  {canManage && (
+                    <button
+                      onClick={() => handleImpersonate(membership)}
+                      disabled={impersonating === membership.player_id}
+                      title="Inloggen als deze speler"
+                      className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity disabled:opacity-20"
+                    >
+                      <LogIn size={13} className={impersonating === membership.player_id ? 'animate-pulse' : ''} />
                     </button>
                   )}
                 </div>

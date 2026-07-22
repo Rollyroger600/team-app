@@ -51,7 +51,7 @@ async function resolveCaller(authHeader: string | null) {
   return { user, client: callerClient(authHeader) }
 }
 
-/** Check if caller is team_admin or platform_admin for the given team */
+/** Check if caller is team_admin, club_admin (for this team's club), or platform_admin */
 async function isAdminForTeam(callerUserId: string, teamId: string): Promise<boolean> {
   const svc = adminClient()
   const { data: membership } = await svc
@@ -63,12 +63,7 @@ async function isAdminForTeam(callerUserId: string, teamId: string): Promise<boo
     .single()
   if (membership?.role === 'team_admin') return true
 
-  const { data: profile } = await svc
-    .from('profiles')
-    .select('is_platform_admin')
-    .eq('id', callerUserId)
-    .single()
-  return profile?.is_platform_admin === true
+  return isClubAdminForTeam(callerUserId, teamId)
 }
 
 /** Check if caller is club_admin for the club that owns this team, or platform_admin */
@@ -346,6 +341,38 @@ async function resetPin(body: Record<string, unknown>, authHeader: string | null
 }
 
 /**
+ * impersonate — admin logs in as a player, for support/testing
+ * Never needs the player's PIN — the admin's own authority is the check.
+ * Same team_admin+ threshold as reset_pin/create_player.
+ */
+async function impersonate(body: Record<string, unknown>, authHeader: string | null) {
+  const caller = await resolveCaller(authHeader)
+  if (!caller) return json({ error: 'Niet geauthenticeerd' }, 401)
+
+  const { player_id, team_id } = body
+  if (!player_id || !team_id) return json({ error: 'player_id en team_id zijn verplicht' }, 400)
+
+  const isAdmin = await isAdminForTeam(caller.user.id, team_id as string)
+  if (!isAdmin) return json({ error: 'Geen toestemming' }, 403)
+
+  const svc = adminClient()
+  const { data: creds } = await svc
+    .from('player_credentials')
+    .select('internal_email, internal_password')
+    .eq('player_id', player_id)
+    .single()
+  if (!creds) return json({ error: 'Speler niet gevonden' }, 404)
+
+  const { data: session, error: signInError } = await svc.auth.signInWithPassword({
+    email:    creds.internal_email,
+    password: creds.internal_password,
+  })
+  if (signInError) return json({ error: signInError.message }, 500)
+
+  return json({ session: session.session })
+}
+
+/**
  * change_pin — authenticated player changes their own PIN
  */
 async function changePin(body: Record<string, unknown>, authHeader: string | null) {
@@ -465,6 +492,7 @@ Deno.serve(async (req) => {
       case 'reset_pin':             return resetPin(body, authHeader)
       case 'change_pin':            return changePin(body, authHeader)
       case 'change_role':           return changeRole(body, authHeader)
+      case 'impersonate':           return impersonate(body, authHeader)
       default:
         return json({ error: `Onbekende actie: ${action}` }, 400)
     }

@@ -12,6 +12,17 @@ async function enterPin(page: Page, pin: string) {
   }
 }
 
+// For PINs shorter than 6 digits, auto-submit never fires — click the
+// visible submit button explicitly ("Inloggen" / "Doorgaan" / "Pincode
+// instellen"). Safe to call after a 6-digit PIN too: if it already
+// auto-submitted and navigated away, the button is simply gone.
+async function submitPinIfNeeded(page: Page) {
+  const submit = page.getByRole('button', { name: /^(Inloggen|Doorgaan|Pincode instellen)$/ })
+  if (await submit.isVisible({ timeout: 500 }).catch(() => false)) {
+    await submit.click()
+  }
+}
+
 async function goToNamePicker(page: Page) {
   await page.goto(`/login?club=${process.env.QA_CLUB_SLUG}&team=${process.env.QA_TEAM_SLUG}`)
   await expect(page.getByText('Wie ben jij?')).toBeVisible({ timeout: 10_000 })
@@ -33,6 +44,7 @@ test.describe('Authenticatie', () => {
     await goToNamePicker(page)
     await page.getByRole('button', { name: process.env.QA_PLAYER_NAME!, exact: true }).click()
     await enterPin(page, process.env.QA_PLAYER_PIN!)
+    await submitPinIfNeeded(page)
     await expect(page).toHaveURL('/', { timeout: 20_000 })
   })
 
@@ -88,6 +100,7 @@ test.describe('Authenticatie', () => {
     await goToNamePicker(page)
     await page.getByRole('button', { name: process.env.QA_TEAM_ADMIN_NAME!, exact: true }).click()
     await enterPin(page, process.env.QA_TEAM_ADMIN_PIN!)
+    await submitPinIfNeeded(page)
     await expect(page).toHaveURL('/', { timeout: 20_000 })
 
     await page.goto('/more')
@@ -100,6 +113,7 @@ test.describe('Authenticatie', () => {
     await goToNamePicker(page)
     await page.getByRole('button', { name: process.env.QA_PLAYER_NAME!, exact: true }).click()
     await enterPin(page, process.env.QA_PLAYER_PIN!)
+    await submitPinIfNeeded(page)
     await expect(page).toHaveURL('/', { timeout: 20_000 })
 
     await page.goto('/more')
@@ -112,6 +126,7 @@ test.describe('Authenticatie', () => {
     await goToNamePicker(page)
     await page.getByRole('button', { name: process.env.QA_PLAYER_NAME!, exact: true }).click()
     await enterPin(page, process.env.QA_PLAYER_PIN!)
+    await submitPinIfNeeded(page)
     await expect(page).toHaveURL('/', { timeout: 20_000 })
     await logout(page)
   })

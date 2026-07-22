@@ -125,6 +125,19 @@ export async function resetPlayerPin(playerId: string, teamId: string): Promise<
   }
 }
 
+export async function impersonatePlayer(playerId: string, teamId: string): Promise<{ ok?: boolean; error?: string }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { error: 'Niet ingelogd' }
+  try {
+    const data = await callAuthHandler({ action: 'impersonate', player_id: playerId, team_id: teamId }, session.access_token)
+    if (!data.session) return { error: 'Geen sessie ontvangen' }
+    await supabase.auth.setSession(data.session)
+    return { ok: true }
+  } catch (err) {
+    return { error: (err as Error).message }
+  }
+}
+
 export async function changePlayerRole(
   playerId: string,
   teamId: string,

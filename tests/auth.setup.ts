@@ -15,10 +15,21 @@ async function enterPin(page: Page, pin: string) {
   }
 }
 
+// PINs shorter than 6 digits never auto-submit — click the visible
+// submit button explicitly. Safe for 6-digit PINs too: if auto-submit
+// already navigated away, the button is simply gone.
+async function submitPinIfNeeded(page: Page) {
+  const submit = page.getByRole('button', { name: /^(Inloggen|Doorgaan|Pincode instellen)$/ })
+  if (await submit.isVisible({ timeout: 500 }).catch(() => false)) {
+    await submit.click()
+  }
+}
+
 async function loginAsPlayer(page: Page, displayName: string, pin: string) {
   await page.goto(`/login?club=${process.env.QA_CLUB_SLUG}&team=${process.env.QA_TEAM_SLUG}`)
   await page.getByRole('button', { name: displayName, exact: true }).click()
   await enterPin(page, pin)
+  await submitPinIfNeeded(page)
   await expect(page).toHaveURL('/', { timeout: 20_000 })
 }
 

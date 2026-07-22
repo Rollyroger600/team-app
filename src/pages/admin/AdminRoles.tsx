@@ -37,7 +37,7 @@ export default function AdminRoles(): React.JSX.Element {
         .select('*, profiles(id, full_name, display_name, jersey_number)')
         .eq('team_id', activeTeam!.id)
         .eq('active', true)
-        .order('created_at', { ascending: true })
+        .order('joined_at', { ascending: true })
       return (data as unknown as PlayerMembership[]) || []
     },
     enabled: !!activeTeam?.id,
