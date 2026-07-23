@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { BarChart2, ChevronDown, ChevronRight } from 'lucide-react'
 import PageLoader from '../components/ui/PageLoader'
 import EmptyState from '../components/ui/EmptyState'
-import MiniPodium from '../components/ui/MiniPodium'
+import StatsPodiums from '../components/ui/MiniPodium'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDate } from '../lib/utils'
 import { useTeamStats, topByGoals, topByGoalsPlusAssists } from '../lib/stats'
@@ -47,8 +47,7 @@ export default function Stats() {
             </div>
           </div>
 
-          <MiniPodium title="🏑 Topscorer" entries={topscorers} statSuffix="doelpunten" />
-          <MiniPodium title="⭐ MVP" entries={mvps} statSuffix="goals + assists" />
+          <StatsPodiums topscorers={topscorers} mvps={mvps} />
 
           {/* Spelerslijst */}
           <div className="rounded-xl border overflow-hidden bg-surface border-border">
