@@ -51,17 +51,35 @@ export default function Login() {
   }, [])
 
   async function loadClubs() {
+    setLoading(true)
     const { data } = await supabase.from('clubs').select('id, name').order('name')
-    setClubs(data ?? [])
+    const list = data ?? []
+    setClubs(list)
+    // Only one club in the whole app — skip straight to picking its team.
+    if (list.length === 1) {
+      setSelectedClubId(list[0].id)
+      await loadTeamsForClub(list[0].id)
+    } else {
+      setLoading(false)
+    }
   }
 
   async function loadTeamsForClub(clubId: string) {
+    setLoading(true)
     const { data } = await supabase
       .from('teams')
       .select('id, name, club_id')
       .eq('club_id', clubId)
       .order('name')
-    setTeams(data ?? [])
+    const list = data ?? []
+    setTeams(list)
+    // Only one team at this club — skip straight to the name picker.
+    if (list.length === 1) {
+      setSelectedTeamId(list[0].id)
+      await loadPlayersByTeamId(list[0].id)
+    } else {
+      setLoading(false)
+    }
   }
 
   async function loadPlayersByTeamId(teamId: string) {
@@ -98,16 +116,16 @@ export default function Login() {
   }
 
   // ── Step 1: Team selection ─────────────────────────────────────────────────
-  function handleClubChange(clubId: string) {
+  async function handleClubSelect(clubId: string) {
     setSelectedClubId(clubId)
     setSelectedTeamId('')
     setTeams([])
-    if (clubId) loadTeamsForClub(clubId)
+    await loadTeamsForClub(clubId)
   }
 
-  async function handleTeamConfirm() {
-    if (!selectedTeamId) return
-    await loadPlayersByTeamId(selectedTeamId)
+  async function handleTeamSelect(teamId: string) {
+    setSelectedTeamId(teamId)
+    await loadPlayersByTeamId(teamId)
   }
 
   // ── Step 2: Name picker ───────────────────────────────────────────────────
@@ -175,47 +193,51 @@ export default function Login() {
           {/* ── Step 1: Team selectie ── */}
           {step === 'team' && (
             <div className="space-y-4">
-              <h2 className="font-semibold text-text">Kies jouw team</h2>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5 text-text-muted">Club</label>
-                <select
-                  value={selectedClubId}
-                  onChange={e => handleClubChange(e.target.value)}
-                  className="w-full px-3 py-3 rounded-xl border text-sm outline-none bg-surface-2 border-border text-text"
-                >
-                  <option value="">— Selecteer club —</option>
-                  {clubs.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {teams.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium mb-1.5 text-text-muted">Team</label>
-                  <select
-                    value={selectedTeamId}
-                    onChange={e => setSelectedTeamId(e.target.value)}
-                    className="w-full px-3 py-3 rounded-xl border text-sm outline-none bg-surface-2 border-border text-text"
-                  >
-                    <option value="">— Selecteer team —</option>
-                    {teams.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+              {!selectedClubId ? (
+                <>
+                  <h2 className="font-semibold text-text">Kies jouw club</h2>
+                  {clubs.length === 0 && !loading && (
+                    <p className="text-sm text-text-muted text-center py-4">Geen clubs gevonden</p>
+                  )}
+                  <div className="space-y-2">
+                    {clubs.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => handleClubSelect(c.id)}
+                        className="w-full py-3 px-4 rounded-xl border text-sm font-medium text-left transition-colors bg-surface-2 border-border text-text hover:border-amber-400 hover:bg-amber-400/10"
+                      >
+                        {c.name}
+                      </button>
                     ))}
-                  </select>
-                </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => { setSelectedClubId(''); setTeams([]); setError('') }}
+                      className="opacity-50 hover:opacity-80">
+                      <ChevronLeft size={18} />
+                    </button>
+                    <h2 className="font-semibold text-text">Kies jouw team</h2>
+                  </div>
+                  {teams.length === 0 && !loading && (
+                    <p className="text-sm text-text-muted text-center py-4">Geen teams gevonden voor deze club</p>
+                  )}
+                  <div className="space-y-2">
+                    {teams.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => handleTeamSelect(t.id)}
+                        className="w-full py-3 px-4 rounded-xl border text-sm font-medium text-left transition-colors bg-surface-2 border-border text-text hover:border-amber-400 hover:bg-amber-400/10"
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
 
               {error && <ErrorBox>{error}</ErrorBox>}
-
-              <button
-                onClick={handleTeamConfirm}
-                disabled={!selectedTeamId || loading}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50 bg-secondary text-secondary-text"
-              >
-                {loading ? 'Bezig...' : 'Doorgaan'}
-              </button>
             </div>
           )}
 
