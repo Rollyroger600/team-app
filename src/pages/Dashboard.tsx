@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom'
 import { Calendar, CheckCircle, XCircle, HelpCircle, Users, ChevronDown, ChevronUp, Flag } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
+import MiniPodium from '../components/ui/MiniPodium'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDate, formatTime } from '../lib/utils'
 import { formatGatheringDisplay } from '../lib/gathering'
 import { groupDuties } from '../components/ui/UmpireCard'
+import { useTeamStats, topByGoals, topByGoalsPlusAssists } from '../lib/stats'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { Match, AvailabilityStatus, UmpireDutyWithJoins } from '../types/app'
@@ -141,6 +143,11 @@ export default function Dashboard() {
     },
     enabled: !!activeTeam?.id,
   })
+
+  // Podiums (Topscorer / MVP) — shares the same query/cache as the Stats page
+  const { data: teamStats } = useTeamStats(activeTeam?.id)
+  const topscorers = topByGoals(teamStats?.players || [])
+  const mvps = topByGoalsPlusAssists(teamStats?.players || [])
 
   // Mutation: set availability
   const availMutation = useMutation<void, Error, AvailabilityStatus>({
@@ -317,6 +324,18 @@ export default function Dashboard() {
           )}
           <p className="text-slate-400 text-sm line-clamp-3">{latestAnnouncement.body}</p>
           <p className="text-xs text-slate-500 mt-2">Door {latestAnnouncement.profiles?.full_name}</p>
+        </div>
+      )}
+
+      {/* Statistieken podiums */}
+      {(topscorers.length > 0 || mvps.length > 0) && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="font-semibold text-sm">Statistieken</h3>
+            <Link to="/stats" className="text-xs text-amber-400">Alle statistieken</Link>
+          </div>
+          <MiniPodium title="🏑 Topscorer" entries={topscorers} statSuffix="doelpunten" />
+          <MiniPodium title="⭐ MVP" entries={mvps} statSuffix="goals + assists" />
         </div>
       )}
     </div>

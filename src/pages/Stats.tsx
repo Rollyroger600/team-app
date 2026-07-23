@@ -1,136 +1,25 @@
 import { useState } from 'react'
 import { BarChart2, ChevronDown, ChevronRight } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import EmptyState from '../components/ui/EmptyState'
-import { supabase } from '../lib/supabase'
+import MiniPodium from '../components/ui/MiniPodium'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDate } from '../lib/utils'
-import type { PlayerStats } from '../types/app'
-
-interface GoalMatchBreakdown {
-  match: {
-    id: string
-    opponent: string
-    match_date: string
-    is_home: boolean
-    score_home: number | null
-    score_away: number | null
-  }
-  goals: number
-  assists: number
-  cornerGoals: number
-  penaltyGoals: number
-}
-
-interface StatsData {
-  stats: PlayerStats[]
-  goalMap: Record<string, GoalMatchBreakdown[]>
-  totalGoals: number
-  totalCornerGoals: number
-}
-
-interface RawGoalRow {
-  scorer_id: string | null
-  assist_id: string | null
-  is_own_goal: boolean
-  is_penalty: boolean
-  is_penalty_corner: boolean
-  minute: number | null
-  match: {
-    id: string
-    opponent: string
-    match_date: string
-    is_home: boolean
-    score_home: number | null
-    score_away: number | null
-  } | null
-}
+import { useTeamStats, topByGoals, topByGoalsPlusAssists } from '../lib/stats'
 
 export default function Stats() {
   const { activeTeam } = useTeamStore()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
-  const { data, isLoading } = useQuery<StatsData>({
-    queryKey: ['stats', activeTeam?.id],
-    queryFn: async (): Promise<StatsData> => {
-      const [statsRes, goalsRes] = await Promise.all([
-        supabase
-          .from('v_player_stats')
-          .select('*')
-          .eq('team_id', activeTeam!.id)
-          .order('goals', { ascending: false }),
-        supabase
-          .from('goals')
-          .select('scorer_id, assist_id, is_own_goal, is_penalty, is_penalty_corner, minute, match:matches!goals_match_id_fkey(id, opponent, match_date, is_home, score_home, score_away)')
-          .eq('matches.team_id', activeTeam!.id)
-          .not('match', 'is', null),
-      ])
+  const { data, isLoading } = useTeamStats(activeTeam?.id)
 
-      const stats = (statsRes.data || []) as unknown as PlayerStats[]
-      const rawGoals = (goalsRes.data || []) as unknown as RawGoalRow[]
-
-      // Team-wide totals
-      let totalGoals = 0
-      let totalCornerGoals = 0
-      for (const g of rawGoals) {
-        if (g.is_own_goal) continue
-        totalGoals++
-        if (g.is_penalty_corner) totalCornerGoals++
-      }
-
-      // Build per-player breakdown: group goals by player → match
-      const map: Record<string, Record<string, GoalMatchBreakdown>> = {}
-      for (const g of rawGoals) {
-        if (!g.match) continue
-        const mid = g.match.id
-
-        if (!g.is_own_goal && g.scorer_id) {
-          const pid = g.scorer_id
-          if (!map[pid]) map[pid] = {}
-          if (!map[pid][mid]) map[pid][mid] = { match: g.match, goals: 0, assists: 0, cornerGoals: 0, penaltyGoals: 0 }
-          map[pid][mid].goals++
-          if (g.is_penalty_corner) map[pid][mid].cornerGoals++
-          if (g.is_penalty) map[pid][mid].penaltyGoals++
-        }
-
-        if (g.assist_id) {
-          const pid = g.assist_id
-          if (!map[pid]) map[pid] = {}
-          if (!map[pid][mid]) map[pid][mid] = { match: g.match, goals: 0, assists: 0, cornerGoals: 0, penaltyGoals: 0 }
-          map[pid][mid].assists++
-        }
-      }
-
-      // Convert per-player maps to sorted arrays
-      const goalMap: Record<string, GoalMatchBreakdown[]> = {}
-      for (const [pid, matches] of Object.entries(map)) {
-        goalMap[pid] = Object.values(matches).sort(
-          (a, b) => new Date(a.match.match_date).getTime() - new Date(b.match.match_date).getTime()
-        )
-      }
-
-      return { stats, goalMap, totalGoals, totalCornerGoals }
-    },
-    enabled: !!activeTeam?.id,
-  })
-
-  const stats = data?.stats || []
+  const players = data?.players || []
   const goalMap = data?.goalMap || {}
   const totalGoals = data?.totalGoals ?? 0
   const totalCornerGoals = data?.totalCornerGoals ?? 0
 
-  const topscorers = [...stats]
-    .filter(p => (p.goals ?? 0) > 0)
-    .sort((a, b) => (b.goals ?? 0) - (a.goals ?? 0))
-    .slice(0, 3)
-    .map(p => ({ name: p.full_name, value: p.goals ?? 0 }))
-
-  const mvps = [...stats]
-    .filter(p => (p.goals ?? 0) + (p.assists ?? 0) > 0)
-    .sort((a, b) => ((b.goals ?? 0) + (b.assists ?? 0)) - ((a.goals ?? 0) + (a.assists ?? 0)))
-    .slice(0, 3)
-    .map(p => ({ name: p.full_name, value: (p.goals ?? 0) + (p.assists ?? 0) }))
+  const topscorers = topByGoals(players)
+  const mvps = topByGoalsPlusAssists(players)
 
   function toggle(playerId: string) {
     setExpanded(prev => ({ ...prev, [playerId]: !prev[playerId] }))
@@ -142,7 +31,7 @@ export default function Stats() {
 
       {isLoading ? (
         <PageLoader />
-      ) : stats.length === 0 ? (
+      ) : players.length === 0 ? (
         <EmptyState icon={BarChart2}>Nog geen statistieken beschikbaar</EmptyState>
       ) : (
         <>
@@ -166,14 +55,16 @@ export default function Stats() {
             {/* Header */}
             <div className="px-4 py-3 border-b flex text-xs font-medium text-slate-400 uppercase tracking-wide border-border">
               <span className="flex-1">Speler</span>
-              <span className="w-10 text-center">Gesp.</span>
-              <span className="w-10 text-center">Uitg.</span>
-              <span className="w-10 text-center">Doelp.</span>
-              <span className="w-10 text-center">Ass.</span>
+              <span className="w-9 text-center" title="Gespeeld">Gesp.</span>
+              <span className="w-9 text-center" title="Velddoelpunt">VD</span>
+              <span className="w-9 text-center" title="Strafcorner">SC</span>
+              <span className="w-9 text-center" title="Strafbal">SB</span>
+              <span className="w-11 text-center" title="Totaal doelpunten">Goals</span>
+              <span className="w-9 text-center" title="Assist">Ass.</span>
             </div>
 
-            {stats.map((player) => {
-              const hasDetail = ((player.goals ?? 0) > 0 || (player.assists ?? 0) > 0) && goalMap[player.player_id]?.length > 0
+            {players.map((player) => {
+              const hasDetail = (player.goals > 0 || player.assists > 0) && goalMap[player.player_id]?.length > 0
               const isOpen = expanded[player.player_id]
 
               return (
@@ -190,25 +81,28 @@ export default function Stats() {
                         : null}
                     </span>
                     <span className="flex-1 font-medium truncate">{player.full_name}</span>
-                    <span className="w-10 text-center text-slate-300">{player.matches_played || 0}</span>
-                    <span className="w-10 text-center text-slate-500">{player.times_rostered_off || 0}</span>
-                    <span className="w-10 text-center font-semibold"
-                          style={{ color: (player.goals ?? 0) > 0 ? 'var(--color-secondary)' : 'var(--color-text-muted)' }}>
-                      {player.goals || 0}
+                    <span className="w-9 text-center text-slate-300">{player.matches_played}</span>
+                    <span className="w-9 text-center text-slate-300">{player.fieldGoals}</span>
+                    <span className="w-9 text-center text-slate-300">{player.cornerGoals}</span>
+                    <span className="w-9 text-center text-slate-300">{player.penaltyGoals}</span>
+                    <span className="w-11 text-center font-semibold"
+                          style={{ color: player.goals > 0 ? 'var(--color-secondary)' : 'var(--color-text-muted)' }}>
+                      {player.goals}
                     </span>
-                    <span className="w-10 text-center text-slate-300">{player.assists || 0}</span>
+                    <span className="w-9 text-center text-slate-300">{player.assists}</span>
                   </div>
 
-                  {/* Expandable goal/assist breakdown, incl. corner/strafbal */}
+                  {/* Expandable goal/assist breakdown, incl. VD/SC/SB */}
                   {hasDetail && isOpen && (
                     <div className="pb-2 pt-0 bg-surface-2">
-                      {goalMap[player.player_id].map(({ match, goals, assists, cornerGoals, penaltyGoals }) => {
+                      {goalMap[player.player_id].map(({ match, goals, assists, fieldGoals, cornerGoals, penaltyGoals }) => {
                         const ourScore = match.is_home ? match.score_home : match.score_away
                         const theirScore = match.is_home ? match.score_away : match.score_home
                         const hasScore = ourScore != null && theirScore != null
                         const goalTypeParts = [
-                          cornerGoals > 0 ? `${cornerGoals}x corner` : null,
-                          penaltyGoals > 0 ? `${penaltyGoals}x strafbal` : null,
+                          fieldGoals > 0 ? `${fieldGoals}x VD` : null,
+                          cornerGoals > 0 ? `${cornerGoals}x SC` : null,
+                          penaltyGoals > 0 ? `${penaltyGoals}x SB` : null,
                         ].filter(Boolean)
                         return (
                           <div key={match.id}
@@ -240,48 +134,12 @@ export default function Stats() {
               )
             })}
           </div>
+
+          <p className="text-[11px] text-text-muted px-1 leading-relaxed">
+            VD = velddoelpunt, SC = doelpunt uit strafcorner, SB = doelpunt uit strafbal
+          </p>
         </>
       )}
-    </div>
-  )
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-interface MiniPodiumProps {
-  title: string
-  entries: { name: string; value: number }[]
-  statSuffix: string
-}
-
-function MiniPodium({ title, entries, statSuffix }: MiniPodiumProps) {
-  if (entries.length === 0) return null
-  const medals = ['🥇', '🥈', '🥉']
-  const order = ['order-2', 'order-1', 'order-3']
-
-  return (
-    <div className="rounded-xl border p-4 bg-surface border-border">
-      <h2 className="text-sm font-semibold text-text-muted mb-3">{title}</h2>
-      <div className="flex items-end justify-center gap-2">
-        {entries.map((entry, i) => (
-          <div key={entry.name} className={`flex flex-col items-center flex-1 max-w-[7rem] ${order[i]}`}>
-            <span className="text-2xl mb-1">{medals[i]}</span>
-            <div
-              className={`w-full rounded-xl flex flex-col items-center justify-center px-2 ${
-                i === 0 ? 'py-4 border' : 'py-3 border'
-              }`}
-              style={{
-                backgroundColor: i === 0 ? 'rgba(245,158,11,0.1)' : 'var(--color-surface-2)',
-                borderColor: i === 0 ? 'rgba(245,158,11,0.3)' : 'var(--color-border)',
-              }}
-            >
-              <p className="text-sm font-semibold truncate w-full text-center">{entry.name}</p>
-              <p className="text-lg font-bold" style={{ color: 'var(--color-secondary)' }}>{entry.value}</p>
-              <p className="text-[10px] text-text-muted text-center leading-tight">{statSuffix}</p>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
