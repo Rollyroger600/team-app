@@ -4,6 +4,25 @@ import type { AuthError, Session } from '@supabase/supabase-js'
 const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-handler`
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
+/**
+ * Returns a valid access token, proactively refreshing if it's expired or
+ * about to expire. supabase-js's background auto-refresh relies on
+ * setTimeout, which browsers throttle on backgrounded/inactive tabs
+ * (common on mobile) — without this check, a stale token here gets
+ * rejected by the edge function as "Niet geauthenticeerd" even though
+ * the user is still logged in.
+ */
+async function getFreshAccessToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return null
+  const expiresAtMs = (session.expires_at ?? 0) * 1000
+  if (expiresAtMs < Date.now() + 30_000) {
+    const { data: refreshed, error } = await supabase.auth.refreshSession()
+    if (!error && refreshed.session) return refreshed.session.access_token
+  }
+  return session.access_token
+}
+
 async function callAuthHandler(body: Record<string, unknown>, authToken?: string) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -104,10 +123,10 @@ export async function setupPin(playerId: string, pin: string): Promise<{ session
 }
 
 export async function changePin(currentPin: string, newPin: string): Promise<{ ok?: boolean; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { error: 'Niet ingelogd' }
+  const token = await getFreshAccessToken()
+  if (!token) return { error: 'Niet ingelogd' }
   try {
-    await callAuthHandler({ action: 'change_pin', current_pin: currentPin, new_pin: newPin }, session.access_token)
+    await callAuthHandler({ action: 'change_pin', current_pin: currentPin, new_pin: newPin }, token)
     return { ok: true }
   } catch (err) {
     return { error: (err as Error).message }
@@ -115,10 +134,10 @@ export async function changePin(currentPin: string, newPin: string): Promise<{ o
 }
 
 export async function resetPlayerPin(playerId: string, teamId: string): Promise<{ ok?: boolean; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { error: 'Niet ingelogd' }
+  const token = await getFreshAccessToken()
+  if (!token) return { error: 'Niet ingelogd' }
   try {
-    await callAuthHandler({ action: 'reset_pin', player_id: playerId, team_id: teamId }, session.access_token)
+    await callAuthHandler({ action: 'reset_pin', player_id: playerId, team_id: teamId }, token)
     return { ok: true }
   } catch (err) {
     return { error: (err as Error).message }
@@ -126,10 +145,10 @@ export async function resetPlayerPin(playerId: string, teamId: string): Promise<
 }
 
 export async function impersonatePlayer(playerId: string, teamId: string): Promise<{ ok?: boolean; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { error: 'Niet ingelogd' }
+  const token = await getFreshAccessToken()
+  if (!token) return { error: 'Niet ingelogd' }
   try {
-    const data = await callAuthHandler({ action: 'impersonate', player_id: playerId, team_id: teamId }, session.access_token)
+    const data = await callAuthHandler({ action: 'impersonate', player_id: playerId, team_id: teamId }, token)
     if (!data.session) return { error: 'Geen sessie ontvangen' }
     await supabase.auth.setSession(data.session)
     return { ok: true }
@@ -143,10 +162,10 @@ export async function changePlayerRole(
   teamId: string,
   newRole: 'player' | 'team_admin'
 ): Promise<{ ok?: boolean; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { error: 'Niet ingelogd' }
+  const token = await getFreshAccessToken()
+  if (!token) return { error: 'Niet ingelogd' }
   try {
-    await callAuthHandler({ action: 'change_role', player_id: playerId, team_id: teamId, new_role: newRole }, session.access_token)
+    await callAuthHandler({ action: 'change_role', player_id: playerId, team_id: teamId, new_role: newRole }, token)
     return { ok: true }
   } catch (err) {
     return { error: (err as Error).message }
@@ -158,10 +177,10 @@ export async function setPlayerCaptain(
   teamId: string,
   isCaptain: boolean
 ): Promise<{ ok?: boolean; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { error: 'Niet ingelogd' }
+  const token = await getFreshAccessToken()
+  if (!token) return { error: 'Niet ingelogd' }
   try {
-    await callAuthHandler({ action: 'set_captain', player_id: playerId, team_id: teamId, is_captain: isCaptain }, session.access_token)
+    await callAuthHandler({ action: 'set_captain', player_id: playerId, team_id: teamId, is_captain: isCaptain }, token)
     return { ok: true }
   } catch (err) {
     return { error: (err as Error).message }
@@ -175,10 +194,10 @@ export async function createPlayer(params: {
   jersey_number?: number | null
   role?: 'player' | 'team_admin'
 }): Promise<{ player_id?: string; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { error: 'Niet ingelogd' }
+  const token = await getFreshAccessToken()
+  if (!token) return { error: 'Niet ingelogd' }
   try {
-    const data = await callAuthHandler({ action: 'create_player', ...params }, session.access_token)
+    const data = await callAuthHandler({ action: 'create_player', ...params }, token)
     return { player_id: data.player_id }
   } catch (err) {
     return { error: (err as Error).message }
@@ -195,10 +214,10 @@ export interface PlayerStatus {
 export async function getPlayersStatus(
   teamId: string
 ): Promise<{ statuses: PlayerStatus[]; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { statuses: [], error: 'Niet ingelogd' }
+  const token = await getFreshAccessToken()
+  if (!token) return { statuses: [], error: 'Niet ingelogd' }
   try {
-    const data = await callAuthHandler({ action: 'get_players_status', team_id: teamId }, session.access_token)
+    const data = await callAuthHandler({ action: 'get_players_status', team_id: teamId }, token)
     return { statuses: data.statuses ?? [] }
   } catch (err) {
     return { statuses: [], error: (err as Error).message }
