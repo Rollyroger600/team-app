@@ -153,6 +153,21 @@ export async function changePlayerRole(
   }
 }
 
+export async function setPlayerCaptain(
+  playerId: string,
+  teamId: string,
+  isCaptain: boolean
+): Promise<{ ok?: boolean; error?: string }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { error: 'Niet ingelogd' }
+  try {
+    await callAuthHandler({ action: 'set_captain', player_id: playerId, team_id: teamId, is_captain: isCaptain }, session.access_token)
+    return { ok: true }
+  } catch (err) {
+    return { error: (err as Error).message }
+  }
+}
+
 export async function createPlayer(params: {
   team_id: string
   full_name: string

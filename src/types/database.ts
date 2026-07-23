@@ -132,6 +132,7 @@ export type Database = {
           registry_id: string | null
           secondary_color: string | null
           short_name: string | null
+          slug: string | null
         }
         Insert: {
           created_at?: string | null
@@ -142,6 +143,7 @@ export type Database = {
           registry_id?: string | null
           secondary_color?: string | null
           short_name?: string | null
+          slug?: string | null
         }
         Update: {
           created_at?: string | null
@@ -152,6 +154,7 @@ export type Database = {
           registry_id?: string | null
           secondary_color?: string | null
           short_name?: string | null
+          slug?: string | null
         }
         Relationships: [
           {
@@ -463,8 +466,11 @@ export type Database = {
           id: string
           match_id: string
           note: string | null
+          overridden: boolean | null
+          override_note: string | null
           player_id: string
           responded_at: string | null
+          set_by: string | null
           status: string
         }
         Insert: {
@@ -472,8 +478,11 @@ export type Database = {
           id?: string
           match_id: string
           note?: string | null
+          overridden?: boolean | null
+          override_note?: string | null
           player_id: string
           responded_at?: string | null
+          set_by?: string | null
           status?: string
         }
         Update: {
@@ -481,8 +490,11 @@ export type Database = {
           id?: string
           match_id?: string
           note?: string | null
+          overridden?: boolean | null
+          override_note?: string | null
           player_id?: string
           responded_at?: string | null
+          set_by?: string | null
           status?: string
         }
         Relationships: [
@@ -503,6 +515,20 @@ export type Database = {
           {
             foreignKeyName: "match_availability_player_id_fkey"
             columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "v_player_stats"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "match_availability_set_by_fkey"
+            columns: ["set_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_availability_set_by_fkey"
+            columns: ["set_by"]
             isOneToOne: false
             referencedRelation: "v_player_stats"
             referencedColumns: ["player_id"]
@@ -707,6 +733,51 @@ export type Database = {
           },
         ]
       }
+      player_credentials: {
+        Row: {
+          failed_attempts: number | null
+          has_set_pin: boolean | null
+          internal_email: string
+          internal_password: string
+          locked_until: string | null
+          pin_hash: string | null
+          player_id: string
+        }
+        Insert: {
+          failed_attempts?: number | null
+          has_set_pin?: boolean | null
+          internal_email: string
+          internal_password: string
+          locked_until?: string | null
+          pin_hash?: string | null
+          player_id: string
+        }
+        Update: {
+          failed_attempts?: number | null
+          has_set_pin?: boolean | null
+          internal_email?: string
+          internal_password?: string
+          locked_until?: string | null
+          pin_hash?: string | null
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_credentials_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_credentials_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: true
+            referencedRelation: "v_player_stats"
+            referencedColumns: ["player_id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -756,6 +827,7 @@ export type Database = {
         Row: {
           active: boolean | null
           id: string
+          is_captain: boolean | null
           joined_at: string | null
           player_id: string
           role: string
@@ -764,6 +836,7 @@ export type Database = {
         Insert: {
           active?: boolean | null
           id?: string
+          is_captain?: boolean | null
           joined_at?: string | null
           player_id: string
           role?: string
@@ -772,6 +845,7 @@ export type Database = {
         Update: {
           active?: boolean | null
           id?: string
+          is_captain?: boolean | null
           joined_at?: string | null
           player_id?: string
           role?: string
@@ -812,6 +886,7 @@ export type Database = {
           name: string
           season: string | null
           short_name: string | null
+          slug: string | null
           travel_buffer_minutes: number | null
         }
         Insert: {
@@ -824,6 +899,7 @@ export type Database = {
           name: string
           season?: string | null
           short_name?: string | null
+          slug?: string | null
           travel_buffer_minutes?: number | null
         }
         Update: {
@@ -836,6 +912,7 @@ export type Database = {
           name?: string
           season?: string | null
           short_name?: string | null
+          slug?: string | null
           travel_buffer_minutes?: number | null
         }
         Relationships: [
@@ -981,6 +1058,15 @@ export type Database = {
     }
     Functions: {
       check_email_exists: { Args: { p_email: string }; Returns: boolean }
+      get_team_players_for_login: {
+        Args: { p_team_id: string }
+        Returns: {
+          display_name: string
+          jersey_number: number
+          player_id: string
+        }[]
+      }
+      is_club_admin_for_team: { Args: { p_team_id: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }

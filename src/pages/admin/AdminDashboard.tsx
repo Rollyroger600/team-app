@@ -73,8 +73,8 @@ const adminSections: AdminSection[] = [
     color: 'bg-teal-500/20 text-teal-400',
   },
   {
-    title: 'Rollen',
-    description: 'Admin-rechten toewijzen',
+    title: 'Beheerders',
+    description: 'Admin-toegang toewijzen',
     icon: ShieldCheck,
     to: '/admin/roles',
     color: 'bg-indigo-500/20 text-indigo-400',

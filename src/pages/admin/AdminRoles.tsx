@@ -63,12 +63,17 @@ export default function AdminRoles(): React.JSX.Element {
         <Link to="/admin" className="text-slate-400 hover:text-slate-200">
           <ArrowLeft size={20} />
         </Link>
-        <h1 className="text-2xl font-bold">Rollen</h1>
+        <h1 className="text-2xl font-bold">Beheerders</h1>
       </div>
+
+      <p className="text-xs text-text-muted px-1">
+        Beheerders krijgen toegang tot dit admin-paneel. Dit staat los van wie
+        aanvoerder is op het veld — dat stel je in bij Spelers.
+      </p>
 
       {!canChangeRoles && (
         <div className="text-sm text-text-muted px-1">
-          Je kunt rollen bekijken maar niet wijzigen. Alleen club-admins kunnen rollen aanpassen.
+          Je kunt beheerders bekijken maar niet wijzigen. Alleen club-admins kunnen dit aanpassen.
         </div>
       )}
 
@@ -99,7 +104,7 @@ export default function AdminRoles(): React.JSX.Element {
                           backgroundColor: membership.role === 'team_admin' ? 'rgba(245,158,11,0.2)' : 'rgba(100,116,139,0.2)',
                           color: membership.role === 'team_admin' ? '#f59e0b' : '#94a3b8'
                         }}>
-                    {membership.role === 'team_admin' ? 'Aanvoerder' : 'Speler'}
+                    {membership.role === 'team_admin' ? 'Beheerder' : 'Speler'}
                   </span>
                   {canChangeRoles && (
                     <button
@@ -109,7 +114,7 @@ export default function AdminRoles(): React.JSX.Element {
                     >
                       {changingRole === membership.player_id
                         ? '...'
-                        : membership.role === 'team_admin' ? 'Maak speler' : 'Maak aanvoerder'}
+                        : membership.role === 'team_admin' ? 'Verwijder als beheerder' : 'Maak beheerder'}
                     </button>
                   )}
                 </div>

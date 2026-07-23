@@ -1,12 +1,12 @@
 import React from 'react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle, ShieldCheck, Shield, Lock, LogIn } from 'lucide-react'
+import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle, Shield, KeyRound, Lock, LogIn, MoreVertical } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
-import { createPlayer, resetPlayerPin, changePlayerRole, getPlayersStatus, impersonatePlayer, type PlayerStatus } from '../../lib/auth'
+import { createPlayer, resetPlayerPin, changePlayerRole, setPlayerCaptain, getPlayersStatus, impersonatePlayer, type PlayerStatus } from '../../lib/auth'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
 import type { Profile } from '../../types/app'
@@ -16,6 +16,7 @@ interface PlayerMembership {
   team_id: string
   player_id: string
   role: 'player' | 'team_admin'
+  is_captain: boolean | null
   active: boolean
   joined_at: string | null
   profiles: Pick<Profile, 'id' | 'full_name' | 'nickname' | 'display_name' | 'jersey_number' | 'position'> | null
@@ -25,27 +26,11 @@ interface AddForm {
   full_name: string
   display_name: string
   jersey_number: string
-  role: string
 }
 
 interface ActionResult {
   ok: boolean
   message: string
-}
-
-const ROLES = [
-  { value: 'player', label: 'Speler' },
-  { value: 'team_admin', label: 'Aanvoerder' },
-]
-
-function roleLabel(role: string) {
-  return role === 'team_admin' ? 'Aanvoerder' : 'Speler'
-}
-
-function roleBadgeStyle(role: string) {
-  return role === 'team_admin'
-    ? { backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }
-    : { backgroundColor: 'rgba(100,116,139,0.15)', color: '#94a3b8' }
 }
 
 export default function AdminPlayers(): React.JSX.Element {
@@ -54,15 +39,18 @@ export default function AdminPlayers(): React.JSX.Element {
   const { isClubAdmin, loadProfile } = useAuthStore()
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState<AddForm>({ full_name: '', display_name: '', jersey_number: '', role: 'player' })
+  const [form, setForm] = useState<AddForm>({ full_name: '', display_name: '', jersey_number: '' })
   const [adding, setAdding] = useState(false)
   const [addResult, setAddResult] = useState<ActionResult | null>(null)
   const [resettingPin, setResettingPin] = useState<string | null>(null)
   const [pinResetResults, setPinResetResults] = useState<Record<string, ActionResult>>({})
   const [changingRole, setChangingRole] = useState<string | null>(null)
   const [roleErrors, setRoleErrors] = useState<Record<string, string>>({})
+  const [changingCaptain, setChangingCaptain] = useState<string | null>(null)
+  const [captainErrors, setCaptainErrors] = useState<Record<string, string>>({})
   const [impersonating, setImpersonating] = useState<string | null>(null)
   const [impersonateErrors, setImpersonateErrors] = useState<Record<string, string>>({})
+  const [openMenuFor, setOpenMenuFor] = useState<string | null>(null)
 
   const canManage = isClubAdmin(activeTeam?.club_id)
 
@@ -102,7 +90,7 @@ export default function AdminPlayers(): React.JSX.Element {
       full_name: form.full_name.trim(),
       display_name: form.display_name.trim() || form.full_name.trim().split(' ')[0],
       jersey_number: form.jersey_number ? parseInt(form.jersey_number) : null,
-      role: form.role as 'player' | 'team_admin',
+      role: 'player',
     })
 
     if (result.error) {
@@ -112,7 +100,7 @@ export default function AdminPlayers(): React.JSX.Element {
     }
 
     setAddResult({ ok: true, message: 'Speler aangemaakt. Ze kunnen nu inloggen en hun pincode instellen.' })
-    setForm({ full_name: '', display_name: '', jersey_number: '', role: 'player' })
+    setForm({ full_name: '', display_name: '', jersey_number: '' })
     setAdding(false)
     queryClient.invalidateQueries({ queryKey: ['adminPlayers', activeTeam?.id] })
     queryClient.invalidateQueries({ queryKey: ['adminPlayersStatus', activeTeam?.id] })
@@ -144,6 +132,19 @@ export default function AdminPlayers(): React.JSX.Element {
     if (result.error) {
       setRoleErrors(prev => ({ ...prev, [membership.player_id]: result.error! }))
       setTimeout(() => setRoleErrors(prev => { const n = { ...prev }; delete n[membership.player_id]; return n }), 4000)
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['adminPlayers', activeTeam?.id] })
+    }
+  }
+
+  async function handleToggleCaptain(membership: PlayerMembership): Promise<void> {
+    if (!canManage || !activeTeam?.id) return
+    setChangingCaptain(membership.player_id)
+    const result = await setPlayerCaptain(membership.player_id, activeTeam.id, !membership.is_captain)
+    setChangingCaptain(null)
+    if (result.error) {
+      setCaptainErrors(prev => ({ ...prev, [membership.player_id]: result.error! }))
+      setTimeout(() => setCaptainErrors(prev => { const n = { ...prev }; delete n[membership.player_id]; return n }), 4000)
     } else {
       queryClient.invalidateQueries({ queryKey: ['adminPlayers', activeTeam?.id] })
     }
@@ -189,8 +190,9 @@ export default function AdminPlayers(): React.JSX.Element {
       </div>
 
       {/* Legenda */}
-      <div className="flex items-center gap-4 text-xs text-text-muted px-1">
-        <span className="flex items-center gap-1"><ShieldCheck size={12} className="text-amber-400" /> Aanvoerder</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-text-muted px-1">
+        <span className="flex items-center gap-1"><Shield size={12} className="text-blue-400" /> Aanvoerder (op het veld)</span>
+        <span className="flex items-center gap-1"><KeyRound size={12} className="text-amber-400" /> Beheerder (app-toegang)</span>
         <span className="flex items-center gap-1"><Check size={12} className="text-green-400" /> PIN ingesteld</span>
         <span className="flex items-center gap-1"><AlertCircle size={12} className="text-orange-400" /> PIN niet ingesteld</span>
         <span className="flex items-center gap-1"><Lock size={12} className="text-red-400" /> Geblokkeerd</span>
@@ -203,7 +205,7 @@ export default function AdminPlayers(): React.JSX.Element {
             <UserPlus size={16} className="text-amber-400" /> Nieuwe speler aanmaken
           </h2>
           <p className="text-xs text-text-muted">
-            De speler kiest zelf een pincode bij de eerste keer inloggen.
+            De speler kiest zelf een pincode bij de eerste keer inloggen. Aanvoerder- en beheerderstatus stel je daarna in via het menu bij de speler.
           </p>
           <form onSubmit={handleAdd} className="space-y-2">
             <input
@@ -220,24 +222,13 @@ export default function AdminPlayers(): React.JSX.Element {
               onChange={e => setForm(p => ({ ...p, display_name: e.target.value }))}
               className={inputClass} style={inputStyle}
             />
-            <div className="flex gap-2">
-              <input
-                type="number" min="1" max="99"
-                placeholder="Rugnr."
-                value={form.jersey_number}
-                onChange={e => setForm(p => ({ ...p, jersey_number: e.target.value }))}
-                className="w-28 px-3 py-2 rounded-lg text-sm outline-none text-center"
-                style={inputStyle}
-              />
-              <select
-                value={form.role}
-                onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
-                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
-                style={inputStyle}
-              >
-                {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
-            </div>
+            <input
+              type="number" min="1" max="99"
+              placeholder="Rugnr. (optioneel)"
+              value={form.jersey_number}
+              onChange={e => setForm(p => ({ ...p, jersey_number: e.target.value }))}
+              className={inputClass} style={inputStyle}
+            />
             {addResult && (
               <div className={`flex items-start gap-2 text-xs px-3 py-2 rounded-lg ${addResult.ok ? 'text-green-400 bg-green-500/10' : 'text-red-400 bg-red-500/10'}`}>
                 {addResult.ok ? <Check size={13} className="mt-0.5 flex-shrink-0" /> : <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />}
@@ -267,7 +258,10 @@ export default function AdminPlayers(): React.JSX.Element {
             const status = statusMap[membership.player_id]
             const pinResult = pinResetResults[membership.player_id]
             const roleErr = roleErrors[membership.player_id]
+            const captainErr = captainErrors[membership.player_id]
             const isLocked = status?.locked_until && new Date(status.locked_until) > new Date()
+            const name = p?.display_name || p?.full_name || 'Onbekend'
+            const menuOpen = openMenuFor === membership.player_id
 
             return (
               <div key={membership.id}
@@ -279,15 +273,22 @@ export default function AdminPlayers(): React.JSX.Element {
                     : (p?.display_name?.[0] ?? p?.full_name?.[0] ?? '?').toUpperCase()}
                 </div>
 
-                {/* Naam */}
+                {/* Naam + badges */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    {membership.role === 'team_admin' && (
-                      <ShieldCheck size={13} className="text-amber-400 flex-shrink-0" />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-medium text-sm truncate">{name}</p>
+                    {membership.is_captain && (
+                      <span className="text-[11px] px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                            style={{ backgroundColor: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+                        <Shield size={10} /> Aanvoerder
+                      </span>
                     )}
-                    <p className="font-medium text-sm truncate">
-                      {p?.display_name || p?.full_name || 'Onbekend'}
-                    </p>
+                    {membership.role === 'team_admin' && (
+                      <span className="text-[11px] px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                            style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
+                        <KeyRound size={10} /> Beheerder
+                      </span>
+                    )}
                   </div>
                   {p?.full_name && p.display_name && p.display_name !== p.full_name && (
                     <p className="text-xs text-slate-400 truncate">{p.full_name}</p>
@@ -299,68 +300,78 @@ export default function AdminPlayers(): React.JSX.Element {
                     </p>
                   )}
                   {roleErr && <p className="text-xs mt-0.5 text-red-400">{roleErr}</p>}
+                  {captainErr && <p className="text-xs mt-0.5 text-red-400">{captainErr}</p>}
                   {impersonateErrors[membership.player_id] && (
                     <p className="text-xs mt-0.5 text-red-400">{impersonateErrors[membership.player_id]}</p>
                   )}
                 </div>
 
-                {/* Status + acties */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {/* PIN status */}
-                  {status && (
-                    isLocked
-                      ? <Lock size={14} className="text-red-400" title="Account geblokkeerd" />
-                      : status.has_set_pin
-                        ? <Check size={14} className="text-green-400" title="PIN ingesteld" />
-                        : <AlertCircle size={14} className="text-orange-400" title="PIN nog niet ingesteld" />
-                  )}
+                {/* PIN status */}
+                {status && (
+                  isLocked
+                    ? <Lock size={14} className="text-red-400 flex-shrink-0" title="Account geblokkeerd" />
+                    : status.has_set_pin
+                      ? <Check size={14} className="text-green-400 flex-shrink-0" title="PIN ingesteld" />
+                      : <AlertCircle size={14} className="text-orange-400 flex-shrink-0" title="PIN nog niet ingesteld" />
+                )}
 
-                  {/* Rol badge */}
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={roleBadgeStyle(membership.role)}>
-                    {roleLabel(membership.role)}
-                  </span>
-
-                  {/* Rol toggle — alleen club_admin */}
-                  {canManage && (
+                {/* Acties-menu — alleen club_admin */}
+                {canManage && (
+                  <div className="relative flex-shrink-0">
                     <button
-                      onClick={() => handleToggleRole(membership)}
-                      disabled={changingRole === membership.player_id}
-                      title={membership.role === 'team_admin' ? 'Terug naar speler' : 'Maak aanvoerder'}
-                      className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity disabled:opacity-20"
+                      onClick={() => setOpenMenuFor(menuOpen ? null : membership.player_id)}
+                      className="p-1.5 rounded-lg opacity-60 hover:opacity-100 hover:bg-surface-2 transition-all"
+                      title="Acties"
                     >
-                      {changingRole === membership.player_id
-                        ? <RotateCcw size={13} className="animate-spin" />
-                        : membership.role === 'team_admin'
-                          ? <Shield size={13} />
-                          : <ShieldCheck size={13} />
-                      }
+                      <MoreVertical size={16} />
                     </button>
-                  )}
 
-                  {/* PIN reset — alleen club_admin */}
-                  {canManage && (
-                    <button
-                      onClick={() => handleResetPin(membership.player_id)}
-                      disabled={resettingPin === membership.player_id}
-                      title="PIN resetten"
-                      className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity disabled:opacity-20"
-                    >
-                      <RotateCcw size={13} className={resettingPin === membership.player_id ? 'animate-spin' : ''} />
-                    </button>
-                  )}
-
-                  {/* Inloggen als — alleen club_admin, voor support/testen */}
-                  {canManage && (
-                    <button
-                      onClick={() => handleImpersonate(membership)}
-                      disabled={impersonating === membership.player_id}
-                      title="Inloggen als deze speler"
-                      className="p-1.5 rounded-lg opacity-40 hover:opacity-100 transition-opacity disabled:opacity-20"
-                    >
-                      <LogIn size={13} className={impersonating === membership.player_id ? 'animate-pulse' : ''} />
-                    </button>
-                  )}
-                </div>
+                    {menuOpen && (
+                      <>
+                        {/* Klik buiten het menu om te sluiten */}
+                        <div className="fixed inset-0 z-40" onClick={() => setOpenMenuFor(null)} />
+                        <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-xl border shadow-lg overflow-hidden bg-surface border-border">
+                          <button
+                            onClick={() => { setOpenMenuFor(null); handleToggleCaptain(membership) }}
+                            disabled={changingCaptain === membership.player_id}
+                            className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 hover:bg-surface-2 text-text disabled:opacity-40"
+                          >
+                            <Shield size={15} className="text-blue-400 flex-shrink-0" />
+                            {changingCaptain === membership.player_id
+                              ? 'Bezig...'
+                              : membership.is_captain ? 'Aanvoerder verwijderen' : 'Maak aanvoerder'}
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuFor(null); handleToggleRole(membership) }}
+                            disabled={changingRole === membership.player_id}
+                            className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 hover:bg-surface-2 text-text border-t border-border disabled:opacity-40"
+                          >
+                            <KeyRound size={15} className="text-amber-400 flex-shrink-0" />
+                            {changingRole === membership.player_id
+                              ? 'Bezig...'
+                              : membership.role === 'team_admin' ? 'Beheerder verwijderen' : 'Maak beheerder'}
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuFor(null); handleResetPin(membership.player_id) }}
+                            disabled={resettingPin === membership.player_id}
+                            className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 hover:bg-surface-2 text-text border-t border-border disabled:opacity-40"
+                          >
+                            <RotateCcw size={15} className="text-text-muted flex-shrink-0" />
+                            {resettingPin === membership.player_id ? 'Bezig...' : 'PIN resetten'}
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuFor(null); handleImpersonate(membership) }}
+                            disabled={impersonating === membership.player_id}
+                            className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 hover:bg-surface-2 text-text border-t border-border disabled:opacity-40"
+                          >
+                            <LogIn size={15} className="text-text-muted flex-shrink-0" />
+                            {impersonating === membership.player_id ? 'Bezig...' : `Inloggen als ${name}`}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}

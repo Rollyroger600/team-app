@@ -341,6 +341,33 @@ async function resetPin(body: Record<string, unknown>, authHeader: string | null
 }
 
 /**
+ * set_captain — toggle a player's team-captain flag
+ * Purely informational (roster label) — no permission implications.
+ * Same threshold as reset_pin/impersonate (team_admin, club_admin, or platform_admin).
+ */
+async function setCaptain(body: Record<string, unknown>, authHeader: string | null) {
+  const caller = await resolveCaller(authHeader)
+  if (!caller) return json({ error: 'Niet geauthenticeerd' }, 401)
+
+  const { player_id, team_id, is_captain } = body
+  if (!player_id || !team_id || typeof is_captain !== 'boolean') {
+    return json({ error: 'player_id, team_id en is_captain zijn verplicht' }, 400)
+  }
+
+  const isAdmin = await isAdminForTeam(caller.user.id, team_id as string)
+  if (!isAdmin) return json({ error: 'Geen toestemming' }, 403)
+
+  const svc = adminClient()
+  const { error } = await svc.from('team_memberships')
+    .update({ is_captain })
+    .eq('team_id', team_id)
+    .eq('player_id', player_id)
+
+  if (error) return json({ error: error.message }, 500)
+  return json({ ok: true })
+}
+
+/**
  * impersonate — admin logs in as a player, for support/testing
  * Never needs the player's PIN — the admin's own authority is the check.
  * Same team_admin+ threshold as reset_pin/create_player.
@@ -493,6 +520,7 @@ Deno.serve(async (req) => {
       case 'change_pin':            return changePin(body, authHeader)
       case 'change_role':           return changeRole(body, authHeader)
       case 'impersonate':           return impersonate(body, authHeader)
+      case 'set_captain':           return setCaptain(body, authHeader)
       default:
         return json({ error: `Onbekende actie: ${action}` }, 400)
     }
