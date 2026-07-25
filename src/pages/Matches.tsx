@@ -769,9 +769,6 @@ function MiniStandings({ matches, teams }: MiniStandingsProps) {
     <div className="rounded-xl border overflow-hidden bg-surface border-border">
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <h3 className="font-semibold text-sm">Stand</h3>
-        <Link to="/standings" className="text-xs text-amber-400 flex items-center gap-0.5">
-          Volledig <ChevronRight size={12} />
-        </Link>
       </div>
       <table className="w-full text-xs">
         <thead>

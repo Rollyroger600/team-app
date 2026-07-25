@@ -39,17 +39,40 @@ function PodiumRow({ title, entries, statLabel }: PodiumRowProps) {
   )
 }
 
+export interface PodiumSection {
+  title: string
+  statLabel: string
+  entries: PodiumEntry[]
+}
+
+interface PodiumCardProps {
+  sections: PodiumSection[]
+}
+
+export function PodiumCard({ sections }: PodiumCardProps) {
+  const visible = sections.filter(s => s.entries.length > 0)
+  if (visible.length === 0) return null
+  return (
+    <div className="rounded-xl border px-3 divide-y bg-surface border-border divide-border">
+      {visible.map(section => (
+        <PodiumRow key={section.title} title={section.title} entries={section.entries} statLabel={section.statLabel} />
+      ))}
+    </div>
+  )
+}
+
 interface StatsPodiumsProps {
   topscorers: PodiumEntry[]
   mvps: PodiumEntry[]
 }
 
 export default function StatsPodiums({ topscorers, mvps }: StatsPodiumsProps) {
-  if (topscorers.length === 0 && mvps.length === 0) return null
   return (
-    <div className="rounded-xl border px-3 divide-y bg-surface border-border divide-border">
-      <PodiumRow title="🏑 Topscorer" entries={topscorers} statLabel="doelpunten" />
-      <PodiumRow title="⭐ MVP" entries={mvps} statLabel="goals + assists" />
-    </div>
+    <PodiumCard
+      sections={[
+        { title: '🏑 Topscorer', statLabel: 'doelpunten', entries: topscorers },
+        { title: '⭐ MVP', statLabel: 'goals + assists', entries: mvps },
+      ]}
+    />
   )
 }

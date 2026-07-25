@@ -778,6 +778,81 @@ export type Database = {
           },
         ]
       }
+      potjescup_scores: {
+        Row: {
+          id: string
+          player_id: string
+          points: number
+          session_id: string
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          points?: number
+          session_id: string
+        }
+        Update: {
+          id?: string
+          player_id?: string
+          points?: number
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "potjescup_scores_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "potjescup_scores_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "v_player_stats"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "potjescup_scores_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "potjescup_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      potjescup_sessions: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          session_date: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          session_date: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          session_date?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "potjescup_sessions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

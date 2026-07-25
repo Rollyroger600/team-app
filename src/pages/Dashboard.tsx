@@ -4,6 +4,7 @@ import { Calendar, CheckCircle, XCircle, HelpCircle, Users, ChevronDown, Chevron
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import StatsPodiums from '../components/ui/MiniPodium'
+import { PodiumCard } from '../components/ui/MiniPodium'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
@@ -11,6 +12,7 @@ import { formatDate, formatTime } from '../lib/utils'
 import { formatGatheringDisplay } from '../lib/gathering'
 import { groupDuties } from '../components/ui/UmpireCard'
 import { useTeamStats, topByGoals, topByGoalsPlusAssists } from '../lib/stats'
+import { usePotjescupStats, topByPoints } from '../lib/potjescup'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { Match, AvailabilityStatus, UmpireDutyWithJoins } from '../types/app'
@@ -148,6 +150,10 @@ export default function Dashboard() {
   const { data: teamStats } = useTeamStats(activeTeam?.id)
   const topscorers = topByGoals(teamStats?.players || [])
   const mvps = topByGoalsPlusAssists(teamStats?.players || [])
+
+  // Potjescup podium — shares the same query/cache as the Potjescup page
+  const { data: potjescupPlayers } = usePotjescupStats(activeTeam?.id)
+  const potjescupTop3 = topByPoints(potjescupPlayers || [])
 
   // Mutation: set availability
   const availMutation = useMutation<void, Error, AvailabilityStatus>({
@@ -335,6 +341,17 @@ export default function Dashboard() {
             <Link to="/stats" className="text-xs text-amber-400">Alle statistieken</Link>
           </div>
           <StatsPodiums topscorers={topscorers} mvps={mvps} />
+        </div>
+      )}
+
+      {/* Potjescup podium */}
+      {potjescupTop3.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="font-semibold text-sm">Potjescup</h3>
+            <Link to="/potjescup" className="text-xs text-amber-400">Volledige stand</Link>
+          </div>
+          <PodiumCard sections={[{ title: '🏆 Potjescup', statLabel: 'punten', entries: potjescupTop3 }]} />
         </div>
       )}
     </div>

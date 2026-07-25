@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Users, Calendar, Trophy, Flag, MessageSquare, Settings, BarChart2, PlusCircle, LogOut, Target, ShieldCheck } from 'lucide-react'
+import { Users, Calendar, Trophy, Flag, MessageSquare, Settings, BarChart2, PlusCircle, LogOut, Target, ShieldCheck, Medal } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
@@ -64,6 +64,13 @@ const adminSections: AdminSection[] = [
     icon: Flag,
     to: '/admin/umpire',
     color: 'bg-orange-500/20 text-orange-400',
+  },
+  {
+    title: 'Potjescup',
+    description: 'Trainingspotjes en punten bijhouden',
+    icon: Medal,
+    to: '/admin/potjescup',
+    color: 'bg-yellow-500/20 text-yellow-400',
   },
   {
     title: 'Bericht plaatsen',

@@ -11,7 +11,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/matches', icon: Calendar, label: 'Wedstrijden' },
-  { to: '/standings', icon: Trophy, label: 'Stand' },
+  { to: '/potjescup', icon: Trophy, label: 'Potjescup' },
   { to: '/stats', icon: BarChart2, label: 'Stats' },
 ]
 

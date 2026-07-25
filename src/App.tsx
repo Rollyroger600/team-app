@@ -14,7 +14,7 @@ import Dashboard from './pages/Dashboard'
 import Matches from './pages/Matches'
 import MatchDetail from './pages/MatchDetail'
 import MatchLineup from './pages/MatchLineup'
-import Standings from './pages/Standings'
+import Potjescup from './pages/Potjescup'
 import Stats from './pages/Stats'
 import Umpire from './pages/Umpire'
 import Announcements from './pages/Announcements'
@@ -30,6 +30,7 @@ import AdminLeague from './pages/admin/AdminLeague'
 import AdminLeagueMatches from './pages/admin/AdminLeagueMatches'
 import AdminLeagueResults from './pages/admin/AdminLeagueResults'
 import AdminUmpire from './pages/admin/AdminUmpire'
+import AdminPotjescup from './pages/admin/AdminPotjescup'
 import AdminMatchGoals from './pages/admin/AdminMatchGoals'
 import AdminAnnouncements from './pages/admin/AdminAnnouncements'
 import AdminTeamSettings from './pages/admin/AdminTeamSettings'
@@ -72,7 +73,7 @@ export default function App() {
             <Route path="/matches" element={<Matches />} />
             <Route path="/matches/:id" element={<MatchDetail />} />
             <Route path="/matches/:id/lineup" element={<MatchLineup />} />
-            <Route path="/standings" element={<Standings />} />
+            <Route path="/potjescup" element={<Potjescup />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/umpire" element={<Umpire />} />
             <Route path="/announcements" element={<Announcements />} />
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="/admin/league/matches" element={<AdminLeagueMatches />} />
               <Route path="/admin/league/results" element={<AdminLeagueResults />} />
               <Route path="/admin/umpire" element={<AdminUmpire />} />
+              <Route path="/admin/potjescup" element={<AdminPotjescup />} />
               <Route path="/admin/announcements/new" element={<AdminAnnouncements />} />
               <Route path="/admin/settings" element={<AdminTeamSettings />} />
               <Route path="/admin/roles" element={<AdminRoles />} />
