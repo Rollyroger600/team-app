@@ -1,97 +1,85 @@
 # Hockey Team App — Project Status
 
 ## Overzicht
-PWA voor HC Leiden Heren 30-1. Multi-tenant architectuur (club → team). Pilot project.
-Gebaseerd op: `HOCKEY_TEAM_APP_PLAN_v3.md`
+PWA voor HC Leiden Heren 30-1. Multi-tenant architectuur (club → team). Pre-season pilot,
+nieuw seizoen start medio augustus 2026. Live in productie, nog geen echte gebruikers
+buiten Rogier (platform_admin) tijdens de testfase.
+
+- **Productie:** https://team-app-zeta.vercel.app (auto-deploy vanaf `main` via Vercel ↔ GitHub)
+- **Supabase project:** `Team_APP_Pilot` (`fwsjcjyovqikxrzcbovw`)
 
 ---
 
 ## Tech Stack
 | Laag | Keuze |
 |---|---|
-| Frontend | React 19 + Vite + Tailwind CSS v4 |
+| Frontend | React 19 + Vite + TypeScript + Tailwind CSS v4 |
 | Routing | React Router v7 |
 | State | Zustand |
-| Database + Auth | Supabase (Project: Team_APP_Pilot) |
-| Hosting | Vercel (nog te koppelen) |
+| Data fetching | TanStack Query |
+| Database + Auth | Supabase (Postgres, GoTrue, Edge Functions, RLS) |
+| Hosting | Vercel (gekoppeld aan GitHub, auto-deploy op push naar `main`) |
 | Drag & drop | @dnd-kit/core + @dnd-kit/sortable |
 | Charts | Recharts |
-| Reistijd | OpenRouteService API |
+| E2E tests | Playwright |
 
 ---
 
 ## Implementatie Voortgang
 
-### ✅ Stap 1: Foundation (DONE)
-- Vite + React 19 + Tailwind v4 + PWA plugin
-- Supabase client + .env geconfigureerd
-- CSS theming systeem (CSS custom properties, club-kleuren)
-- `lib/supabase.js` `lib/auth.js` `lib/travel.js` `lib/gathering.js` `lib/utils.js` `lib/theme.js`
-- Zustand stores: `useAuthStore` `useTeamStore`
-- Layout: AppShell, BottomNav, GatheringBanner, ProtectedRoute, AdminRoute
-- Alle routing (App.jsx)
-- Dashboard pagina (volledig functioneel)
-- Login pagina (volledig functioneel met email-check flow)
-- Alle overige pagina's als werkende stubs
-- `supabase/schema.sql` — 15 tabellen, 2 views, RLS policies, auto-profiel trigger
+### ✅ Gereed
+- Volledige PIN-login + 4-niveau RBAC (platform_admin / club_admin / team_admin / player),
+  incl. "aanvoerder" (`is_captain`) als los, puur informatief label onafhankelijk van admin-rechten
+- Admin: spelers toevoegen, PIN resetten, rol wijzigen, aanvoerder aan/uit, "inloggen als speler"
+  (mint sessie zonder PIN nodig te hebben)
+- Club/team-picker met auto-skip bij één keuze
+- Wedstrijden, beschikbaarheid, uitroostering/opstelling (drag & drop), fluitbeurten, announcements
+- Goals/assists invoer incl. strafcorner + strafbal onderscheid
+- Statistieken-pagina: totaaloverzicht (totaal doelpunten + uit corner), Topscorer- en MVP-podium,
+  sorteerbare/uitklapbare spelerslijst met Gesp./VD/SC/SB/Goals/Ass. kolommen
+- Dashboard toont dezelfde Topscorer/MVP podiums (compacte variant), met link naar volledige Stats
+- Vercel deploy + CI (GitHub Actions, Playwright)
 
-### 🔲 Stap 2: Auth & User Management
-- Admin: spelers uitnodigen (naam + email)
-- Rollenbeheer (team_admin / player)
-- Profiel/instellingen pagina
+### Bekende openstaande punten
+- [ ] Competitie/poule-stand (league table) nog niet gebouwd
+- [ ] Echte spelers/team nog toe te voegen zodra seizoen start (medio augustus 2026)
+- [ ] PWA icons/manifest polish
 
-### 🔲 Stap 3: Competitie / Poule Systeem
-- League setup (teams toevoegen + geocoding)
-- Wedstrijden aanmaken via dropdowns
-- NTB (nog niet bekend) support
+---
 
-### 🔲 Stap 4: Wedstrijden & Seizoenskalender
-- Wedstrijdoverzicht pagina
-- Wedstrijd detail pagina
-- GatheringBanner actief met echte data
-- Admin: wedstrijd formulier
+## Auth & RBAC architectuur (kern)
+- Elke speler krijgt een "schaduw" Supabase Auth account (`{uuid}@team.internal` + willekeurig
+  wachtwoord, opgeslagen in `player_credentials`); login gebeurt via een 4-6 cijferige PIN
+  (bcrypt-hash in `player_credentials.pin_hash`, nooit plaintext, nooit herstelbaar)
+- Alle auth-mutaties lopen via de edge function **`auth-handler`**
+  (`supabase/functions/auth-handler/index.ts`): create_player, get_players_for_login, login,
+  set_pin, reset_pin, change_pin, change_role, impersonate, set_captain, get_players_status
+- RBAC hiërarchie: `platform_admin` > `club_admin` (`club_memberships.role`) >
+  `team_admin` (`team_memberships.role`) > `player`, plus onafhankelijk `is_captain` boolean
+- DB trigger `prevent_unauthorized_role_change` voorkomt dat een team_admin zichzelf via directe
+  REST-calls promoveert (RLS alleen kan dat niet afdwingen op kolomniveau)
+- Frontend haalt altijd een verse access token op (`getFreshAccessToken()` in `src/lib/auth.ts`)
+  vóór elke admin-actie, om "niet geauthenticeerd" door verlopen tokens op achtergrond-tabs te voorkomen
 
-### 🔲 Stap 5: Beschikbaarheid
-- AvailabilityButtons (✓/✗/?)
-- AvailabilityGrid (admin matrix view)
-- Nudge indicator
-
-### 🔲 Stap 6: Uitroostering & Opstelling
-- RosterManager + FairnessMeter
-- HockeyField SVG + PlayerMagnet drag-and-drop (@dnd-kit)
-
-### 🔲 Stap 7: Goals, Assists & Stats + Stand
-- GoalForm, LeagueResultInput
-- LeagueTable (automatische stand)
-- Stats pagina (topscorers, charts)
-
-### 🔲 Stap 8: Fluitbeurten & Berichten
-- Umpire duties CRUD
-- Announcements / weekberichten
-- WhatsApp share button
-
-### 🔲 Stap 9: Polish & Deploy
-- PWA icons + manifest
-- Vercel deploy
-- Performance optimalisatie
+## Statistieken-logica
+- Gedeelde hook `useTeamStats()` in `src/lib/stats.ts` (gebruikt door zowel Dashboard als Stats
+  pagina, één cache) berekent per speler: `matches_played`, `fieldGoals` (VD), `cornerGoals` (SC),
+  `penaltyGoals` (SB), `goals` (= som van de drie), `assists`
+  - VD = doelpunt, strafcorner/strafbal niet aangevinkt bij uitslag
+  - SC = doelpunt + strafcorner aangevinkt
+  - SB = doelpunt + strafbal aangevinkt
+- `topByGoals()` / `topByGoalsPlusAssists()` leveren top-3 voor de podiums
+- `StatsPodiums` component (`src/components/ui/MiniPodium.tsx`) toont Topscorer + MVP podium
+  compact in één kaart
 
 ---
 
 ## Supabase Setup
 - **Project:** Team_APP_Pilot
 - **URL:** https://fwsjcjyovqikxrzcbovw.supabase.co
-- **Schema:** `supabase/schema.sql` — nog te draaien in SQL Editor!
+- **Schema:** `supabase/schema.sql` + migraties in `supabase/migrations/`
 
 ## Pilot Data (HC Leiden — Heren 30-1)
 - Club: "HC Leiden", Hofbrouckerlaan 51a, 2341 LM Oegstgeest
-- Team: "Heren 30-1", seizoen 2025-2026
-- Rogier: team_admin + is_platform_admin = true
-- Squad size: 16 | Gathering lead: 30 min | Travel buffer: 10 min
-
----
-
-## Openstaande acties
-- [ ] Schema draaien in Supabase SQL Editor
-- [ ] Club + team aanmaken in Supabase (handmatig of via seed script)
-- [ ] Rogier account aanmaken + is_platform_admin instellen
-- [ ] Vercel project koppelen
+- Team: "Heren 30-1", seizoen 2025-2026 (enige actieve club/team; test-fixtures verwijderd)
+- Rogier: platform_admin

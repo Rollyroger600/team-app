@@ -66,20 +66,15 @@ async function isAdminForTeam(callerUserId: string, teamId: string): Promise<boo
   return isClubAdminForTeam(callerUserId, teamId)
 }
 
-/** Check if caller is club_admin for the club that owns this team, or platform_admin */
-async function isClubAdminForTeam(callerUserId: string, teamId: string): Promise<boolean> {
+/**
+ * Check if caller is platform_admin. The separate club_admin tier has been collapsed
+ * into platform_admin — this app now manages a single team, so a club-scoped admin
+ * role added no real distinction. Kept as its own function (rather than inlining
+ * isPlatformAdmin everywhere) so every caller (isAdminForTeam, changeRole, ...)
+ * automatically follows if a club_admin tier is ever reintroduced.
+ */
+async function isClubAdminForTeam(callerUserId: string, _teamId: string): Promise<boolean> {
   const svc = adminClient()
-  const { data: team } = await svc.from('teams').select('club_id').eq('id', teamId).single()
-  if (!team?.club_id) return false
-
-  const { data: cm } = await svc
-    .from('club_memberships')
-    .select('role')
-    .eq('club_id', team.club_id)
-    .eq('player_id', callerUserId)
-    .single()
-  if (cm?.role === 'club_admin') return true
-
   const { data: profile } = await svc
     .from('profiles')
     .select('is_platform_admin')
@@ -487,7 +482,7 @@ async function changeRole(body: Record<string, unknown>, authHeader: string | nu
 
   const isClubAdmin = await isClubAdminForTeam(caller.user.id, team_id as string)
   if (!isClubAdmin) {
-    return json({ error: 'Alleen club_admin of platform_admin kan rollen wijzigen' }, 403)
+    return json({ error: 'Alleen de platform-admin kan rollen wijzigen' }, 403)
   }
 
   const svc = adminClient()

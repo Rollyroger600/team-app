@@ -96,11 +96,12 @@ const useAuthStore = create<AuthState>((set, get) => ({
     return memberships.some(m => m.role === 'team_admin')
   },
 
-  isClubAdmin: (clubId?: string | null) => {
-    const { profile, clubAdminClubIds } = get()
-    if (profile?.is_platform_admin) return true
-    if (clubId) return clubAdminClubIds.includes(clubId)
-    return clubAdminClubIds.length > 0
+  // The separate club_admin tier has been collapsed into platform_admin — this app
+  // now manages a single team, so a club-scoped admin role added no real distinction.
+  // Kept as its own method (rather than inlining isPlatformAdmin at every call site)
+  // so every caller automatically follows if a club_admin tier is ever reintroduced.
+  isClubAdmin: (_clubId?: string | null) => {
+    return get().isPlatformAdmin()
   },
 
   getActiveTeam: () => {

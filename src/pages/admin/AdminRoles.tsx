@@ -73,7 +73,7 @@ export default function AdminRoles(): React.JSX.Element {
 
       {!canChangeRoles && (
         <div className="text-sm text-text-muted px-1">
-          Je kunt beheerders bekijken maar niet wijzigen. Alleen club-admins kunnen dit aanpassen.
+          Je kunt beheerders bekijken maar niet wijzigen. Alleen de platform-admin kan dit aanpassen.
         </div>
       )}
 
