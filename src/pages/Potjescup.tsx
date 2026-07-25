@@ -1,8 +1,10 @@
-import { Trophy } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Trophy, Plus } from 'lucide-react'
 import PageLoader from '../components/ui/PageLoader'
 import EmptyState from '../components/ui/EmptyState'
 import { PodiumCard } from '../components/ui/MiniPodium'
 import useTeamStore from '../stores/useTeamStore'
+import useAuthStore from '../stores/useAuthStore'
 import { usePotjescupStats, topByPoints } from '../lib/potjescup'
 
 function formatPoints(points: number): string {
@@ -11,13 +13,26 @@ function formatPoints(points: number): string {
 
 export default function Potjescup() {
   const { activeTeam } = useTeamStore()
+  const { isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
+  const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
   const { data: players = [], isLoading } = usePotjescupStats(activeTeam?.id)
 
   const top3 = topByPoints(players)
 
   return (
     <div className="p-4 space-y-4">
-      <h1 className="text-2xl font-bold pt-2">Potjescup</h1>
+      <div className="flex items-center justify-between pt-2">
+        <h1 className="text-2xl font-bold">Potjescup</h1>
+        {isAdmin && (
+          <Link
+            to="/admin/potjescup"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary text-secondary-text"
+          >
+            <Plus size={14} />
+            Score toevoegen
+          </Link>
+        )}
+      </div>
 
       {isLoading ? (
         <PageLoader />

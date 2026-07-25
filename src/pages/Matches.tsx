@@ -1105,16 +1105,6 @@ export default function Matches() {
         </>
       )}
 
-      {/* Admin floating button */}
-      {isAdmin && league && (
-        <Link
-          to="/admin/league/matches"
-          className="fixed bottom-20 right-4 flex items-center gap-2 px-4 py-3 rounded-full shadow-lg text-sm font-semibold z-10 bg-secondary text-secondary-text"
-        >
-          <PlusCircle size={18} />
-          Wedstrijd
-        </Link>
-      )}
     </div>
   )
 }

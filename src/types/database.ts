@@ -1010,6 +1010,7 @@ export type Database = {
       umpire_duties: {
         Row: {
           created_at: string | null
+          duty_date: string | null
           id: string
           match_id: string | null
           notes: string | null
@@ -1021,6 +1022,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          duty_date?: string | null
           id?: string
           match_id?: string | null
           notes?: string | null
@@ -1032,6 +1034,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          duty_date?: string | null
           id?: string
           match_id?: string | null
           notes?: string | null

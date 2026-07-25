@@ -1,25 +1,16 @@
 import React from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Flag, Wand2, Trash2 } from 'lucide-react'
+import { ArrowLeft, Flag, Wand2, Trash2, Plus } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import { formatDate } from '../../lib/utils'
+import { groupDuties } from '../../components/ui/UmpireCard'
 import { parseISO, subDays, format } from 'date-fns'
 import { nl } from 'date-fns/locale'
-import type { Profile } from '../../types/app'
-
-interface UmpireDutyItem {
-  id: string
-  match_id: string | null
-  player_id: string | null
-  umpire_match_desc: string | null
-  notes: string | null
-  status: string | null
-  profiles: Pick<Profile, 'full_name' | 'nickname'> | null
-}
+import type { Profile, UmpireDutyWithJoins } from '../../types/app'
 
 interface MatchItem {
   id: string
@@ -35,7 +26,7 @@ interface PlayerItem {
 }
 
 interface UmpireQueryData {
-  duties: UmpireDutyItem[]
+  duties: UmpireDutyWithJoins[]
   matches: MatchItem[]
   players: PlayerItem[]
 }
@@ -52,6 +43,14 @@ export default function AdminUmpire(): React.JSX.Element {
   const [generating, setGenerating] = useState(false)
   const [genResult, setGenResult] = useState('')
 
+  const [showManualForm, setShowManualForm] = useState(false)
+  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0])
+  const [manualDesc, setManualDesc] = useState('')
+  const [manualPlayer1, setManualPlayer1] = useState('')
+  const [manualPlayer2, setManualPlayer2] = useState('')
+  const [manualSaving, setManualSaving] = useState(false)
+  const [manualError, setManualError] = useState('')
+
   const { data, isLoading } = useQuery<UmpireQueryData>({
     queryKey: ['adminUmpire', activeTeam?.id],
     queryFn: async (): Promise<UmpireQueryData> => {
@@ -59,7 +58,7 @@ export default function AdminUmpire(): React.JSX.Element {
 
       const [dutiesRes, matchesRes, playersRes] = await Promise.all([
         supabase.from('umpire_duties')
-          .select('id, match_id, player_id, umpire_match_desc, notes, status, profiles(full_name, nickname)')
+          .select('id, match_id, player_id, umpire_match_desc, duty_date, notes, status, profiles(full_name, nickname), matches(id, match_date, opponent, is_home)')
           .eq('team_id', activeTeam!.id)
           .order('created_at', { ascending: true }),
         supabase.from('matches')
@@ -74,7 +73,7 @@ export default function AdminUmpire(): React.JSX.Element {
       ])
 
       return {
-        duties: (dutiesRes.data as unknown as UmpireDutyItem[]) || [],
+        duties: (dutiesRes.data as unknown as UmpireDutyWithJoins[]) || [],
         matches: (matchesRes.data as MatchItem[]) || [],
         players: (playersRes.data as unknown as PlayerItem[]) || [],
       }
@@ -145,6 +144,29 @@ export default function AdminUmpire(): React.JSX.Element {
     invalidateAll()
   }
 
+  async function createManualDuty(): Promise<void> {
+    if (!manualDate || !manualDesc.trim() || !activeTeam) return
+    setManualSaving(true)
+    setManualError('')
+
+    const inserts = [
+      { team_id: activeTeam.id, match_id: null, duty_date: manualDate, umpire_match_desc: manualDesc.trim(), player_id: manualPlayer1 || null, status: 'assigned' },
+      { team_id: activeTeam.id, match_id: null, duty_date: manualDate, umpire_match_desc: manualDesc.trim(), player_id: manualPlayer2 || null, status: 'assigned' },
+    ]
+    const { error } = await supabase.from('umpire_duties').insert(inserts)
+
+    setManualSaving(false)
+    if (error) {
+      setManualError(error.message)
+      return
+    }
+    setManualDesc('')
+    setManualPlayer1('')
+    setManualPlayer2('')
+    setShowManualForm(false)
+    invalidateAll()
+  }
+
   async function assignPlayer(dutyId: string, playerId: string): Promise<void> {
     await assignMutation.mutateAsync({ dutyId, playerId })
   }
@@ -153,16 +175,11 @@ export default function AdminUmpire(): React.JSX.Element {
     await deleteMutation.mutateAsync(dutyId)
   }
 
-  // Groepeer duties per match
-  const grouped = matches.map(match => ({
-    match,
-    duties: duties.filter(d => d.match_id === match.id),
-  })).filter(g => g.duties.length > 0)
+  const today = new Date().toISOString().split('T')[0]
+  const { upcoming, past } = groupDuties(duties, today)
+  const allGroups = [...upcoming, ...past]
 
-  // Duties zonder match_id (handmatig aangemaakt)
-  const orphans = duties.filter(d => !d.match_id)
-
-  const playerName = (p: PlayerItem): string =>
+  const playerName = (p: { profiles: Pick<Profile, 'full_name' | 'nickname'> | null }): string =>
     p?.profiles?.nickname || p?.profiles?.full_name?.split(' ')[0] || '?'
 
   return (
@@ -179,50 +196,124 @@ export default function AdminUmpire(): React.JSX.Element {
         <p className="text-sm text-slate-400">
           Genereert 2 open slots voor elke aankomende thuiswedstrijd (zaterdag ervoor).
         </p>
-        <button
-          onClick={generateDuties}
-          disabled={generating}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors bg-secondary text-secondary-text"
-        >
-          <Wand2 size={16} />
-          {generating ? 'Genereren...' : 'Genereer fluitbeurten'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={generateDuties}
+            disabled={generating}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors bg-secondary text-secondary-text"
+          >
+            <Wand2 size={16} />
+            {generating ? 'Genereren...' : 'Genereer fluitbeurten'}
+          </button>
+          <button
+            onClick={() => setShowManualForm(v => !v)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-border text-text hover:border-slate-500"
+          >
+            <Plus size={16} />
+            Losse fluitbeurt toevoegen
+          </button>
+        </div>
         {genResult && <p className="text-xs text-green-400">{genResult}</p>}
       </div>
 
-      {/* Per match: open slots + toewijzing */}
+      {/* Losse fluitbeurt formulier */}
+      {showManualForm && (
+        <div className="rounded-xl p-4 border space-y-3 bg-surface border-border">
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Datum</label>
+            <input
+              type="date"
+              value={manualDate}
+              onChange={e => setManualDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none bg-surface-2 text-text"
+              style={{ border: '1px solid var(--color-border)' }}
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Omschrijving</label>
+            <input
+              type="text"
+              value={manualDesc}
+              onChange={e => setManualDesc(e.target.value)}
+              placeholder="Bijv. Fluitbeurt bekerwedstrijd"
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none bg-surface-2 text-text"
+              style={{ border: '1px solid var(--color-border)' }}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[[manualPlayer1, setManualPlayer1], [manualPlayer2, setManualPlayer2]].map(([value, setValue], i) => (
+              <div key={i}>
+                <label className="block text-xs text-slate-400 mb-1">Speler {i + 1}</label>
+                <select
+                  value={value as string}
+                  onChange={e => (setValue as (v: string) => void)(e.target.value)}
+                  className="w-full px-2 py-2 rounded-lg text-sm outline-none bg-surface-2 text-text"
+                  style={{ border: '1px solid var(--color-border)' }}
+                >
+                  <option value="">— open slot —</option>
+                  {players.map(p => (
+                    <option key={p.player_id} value={p.player_id}>{playerName(p)}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+          {manualError && <p className="text-xs text-red-400">{manualError}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={createManualDuty}
+              disabled={manualSaving || !manualDate || !manualDesc.trim()}
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors bg-secondary text-secondary-text"
+            >
+              {manualSaving ? 'Bezig...' : 'Toevoegen'}
+            </button>
+            <button
+              onClick={() => setShowManualForm(false)}
+              className="px-4 py-2.5 rounded-xl text-sm text-text-muted"
+            >
+              Annuleren
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Fluitbeurten, gegroepeerd per wedstrijd of losse datum */}
       {isLoading ? (
         <div className="flex items-center justify-center h-20">
           <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin"
                style={{ borderColor: 'var(--color-secondary)' }} />
         </div>
-      ) : grouped.length === 0 && orphans.length === 0 ? (
-        <EmptyState icon={Flag}>Nog geen fluitbeurten. Klik op "Genereer" hierboven.</EmptyState>
+      ) : allGroups.length === 0 ? (
+        <EmptyState icon={Flag}>Nog geen fluitbeurten. Klik op "Genereer" of "Losse fluitbeurt toevoegen" hierboven.</EmptyState>
       ) : (
         <div className="space-y-3">
-          {grouped.map(({ match, duties: matchDuties }) => {
-            const sat = saturdayBefore(match.match_date)
+          {allGroups.map((group, gi) => {
+            const { match, duties: slotDuties, umpireDate } = group
             return (
-              <div key={match.id} className="rounded-xl border overflow-hidden bg-surface border-border">
-                {/* Match header */}
+              <div key={match?.id || `manual-${gi}`} className="rounded-xl border overflow-hidden bg-surface border-border">
+                {/* Groepsheader */}
                 <div className="px-4 py-3 border-b border-border flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-sm">Thuis vs {match.opponent}</p>
+                    <p className="font-semibold text-sm">
+                      {match ? `Thuis vs ${match.opponent}` : slotDuties[0]?.umpire_match_desc}
+                    </p>
                     <p className="text-xs text-slate-400">
-                      {formatDate(match.match_date)} · fluiten zaterdag {format(sat, 'd MMM', { locale: nl })}
+                      {match
+                        ? `${formatDate(match.match_date)} · fluiten ${umpireDate ? format(umpireDate, 'EEEE d MMM', { locale: nl }) : '?'}`
+                        : umpireDate ? format(umpireDate, 'EEEE d MMM', { locale: nl }) : ''}
                     </p>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    matchDuties.every(d => d.player_id)
+                    slotDuties.every(d => d.player_id)
                       ? 'bg-green-500/20 text-green-400'
                       : 'bg-amber-500/20 text-amber-400'
                   }`}>
-                    {matchDuties.filter(d => d.player_id).length}/{matchDuties.length} toegewezen
+                    {slotDuties.filter(d => d.player_id).length}/{slotDuties.length} toegewezen
                   </span>
                 </div>
 
                 {/* Duty slots */}
-                {matchDuties.map((duty, i) => (
+                {slotDuties.map((duty, i) => (
                   <div key={duty.id}
                        className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 bg-surface-2 text-text-muted">

@@ -306,16 +306,16 @@ export default function AdminPlayers(): React.JSX.Element {
                   )}
                 </div>
 
-                {/* PIN status */}
+                {/* PIN status — title lives on a wrapper span; lucide icons don't take it */}
                 {status && (
                   isLocked
-                    ? <Lock size={14} className="text-red-400 flex-shrink-0" title="Account geblokkeerd" />
+                    ? <span className="flex-shrink-0" title="Account geblokkeerd"><Lock size={14} className="text-red-400" /></span>
                     : status.has_set_pin
-                      ? <Check size={14} className="text-green-400 flex-shrink-0" title="PIN ingesteld" />
-                      : <AlertCircle size={14} className="text-orange-400 flex-shrink-0" title="PIN nog niet ingesteld" />
+                      ? <span className="flex-shrink-0" title="PIN ingesteld"><Check size={14} className="text-green-400" /></span>
+                      : <span className="flex-shrink-0" title="PIN nog niet ingesteld"><AlertCircle size={14} className="text-orange-400" /></span>
                 )}
 
-                {/* Acties-menu — alleen club_admin */}
+                {/* Acties-menu — alleen de platform-admin */}
                 {canManage && (
                   <div className="relative flex-shrink-0">
                     <button

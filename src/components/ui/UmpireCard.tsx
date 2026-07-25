@@ -22,18 +22,18 @@ export function UmpireCard({ group, userId, past }: UmpireCardProps) {
     ? format(umpireDate, 'EEEE d MMM', { locale: nl })
     : duties[0]?.umpire_match_desc || '?'
 
-  const names = duties.map(d => {
-    const n = dutyName(d)
-    return n || <span className="italic text-slate-600">open</span>
-  })
-
   const isOwn = duties.some(d => d.player_id === userId)
 
   // Build display: "Kevin & Wouter" or "Kevin & open"
-  const nameDisplay = names.reduce<React.ReactNode[]>((acc, n, i) => {
-    if (i === 0) return [n]
-    return [...acc, <span key={`sep-${i}`} className="text-slate-500"> & </span>, n]
-  }, [])
+  const nameDisplay = duties.map((d, i) => {
+    const n = dutyName(d)
+    return (
+      <span key={d.id}>
+        {i > 0 && <span className="text-slate-500"> &amp; </span>}
+        {n || <span className="italic text-slate-600">open</span>}
+      </span>
+    )
+  })
 
   return (
     <div
@@ -73,16 +73,19 @@ export function UmpireCard({ group, userId, past }: UmpireCardProps) {
   )
 }
 
-// Helper: convert flat duties array → grouped by match_id, sorted by umpire date
+// Helper: convert flat duties array → grouped by match_id (or, for standalone
+// "losse" duties with no match, by duty_date + description), sorted by umpire date
 export function groupDuties(duties: UmpireDutyWithJoins[], today: string): { upcoming: UmpireGroup[]; past: UmpireGroup[] } {
   const groups: Record<string, UmpireGroup> = {}
 
   for (const d of duties) {
-    const key = d.match_id || `orphan-${d.id}`
+    const key = d.match_id || `orphan-${d.duty_date || 'nodate'}-${d.umpire_match_desc}`
     if (!groups[key]) {
       const umpireDate = d.matches?.match_date
         ? subDays(parseISO(d.matches.match_date), 1)
-        : null
+        : d.duty_date
+          ? parseISO(d.duty_date)
+          : null
       groups[key] = { match: d.matches || null, duties: [], umpireDate }
     }
     groups[key].duties.push(d)

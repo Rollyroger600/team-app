@@ -30,11 +30,11 @@ import AdminLeague from './pages/admin/AdminLeague'
 import AdminLeagueMatches from './pages/admin/AdminLeagueMatches'
 import AdminLeagueResults from './pages/admin/AdminLeagueResults'
 import AdminUmpire from './pages/admin/AdminUmpire'
+import AdminAttendance from './pages/admin/AdminAttendance'
 import AdminPotjescup from './pages/admin/AdminPotjescup'
 import AdminMatchGoals from './pages/admin/AdminMatchGoals'
 import AdminAnnouncements from './pages/admin/AdminAnnouncements'
 import AdminTeamSettings from './pages/admin/AdminTeamSettings'
-import AdminRoles from './pages/admin/AdminRoles'
 import Debug from './pages/Debug'
 
 export default function App() {
@@ -91,10 +91,10 @@ export default function App() {
               <Route path="/admin/league/matches" element={<AdminLeagueMatches />} />
               <Route path="/admin/league/results" element={<AdminLeagueResults />} />
               <Route path="/admin/umpire" element={<AdminUmpire />} />
+              <Route path="/admin/attendance" element={<AdminAttendance />} />
               <Route path="/admin/potjescup" element={<AdminPotjescup />} />
               <Route path="/admin/announcements/new" element={<AdminAnnouncements />} />
               <Route path="/admin/settings" element={<AdminTeamSettings />} />
-              <Route path="/admin/roles" element={<AdminRoles />} />
             </Route>
           </Route>
         </Route>

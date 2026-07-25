@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Users, Calendar, Trophy, Flag, MessageSquare, Settings, BarChart2, PlusCircle, LogOut, Target, ShieldCheck, Medal } from 'lucide-react'
+import { Users, Calendar, Trophy, Flag, MessageSquare, Settings, BarChart2, PlusCircle, LogOut, Medal, CalendarClock } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
@@ -11,10 +11,37 @@ interface AdminSection {
   icon: LucideIcon
   to: string
   color: string
-  note?: string
 }
 
 const adminSections: AdminSection[] = [
+  {
+    title: 'Uitslagen invoeren',
+    description: 'Competitie scores',
+    icon: BarChart2,
+    to: '/admin/league/results',
+    color: 'bg-pink-500/20 text-pink-400',
+  },
+  {
+    title: 'Potjescup',
+    description: 'Trainingspotjes en punten bijhouden',
+    icon: Medal,
+    to: '/admin/potjescup',
+    color: 'bg-yellow-500/20 text-yellow-400',
+  },
+  {
+    title: 'Aanwezigheid',
+    description: 'Overzicht per speler, per wedstrijd',
+    icon: CalendarClock,
+    to: '/admin/attendance',
+    color: 'bg-cyan-500/20 text-cyan-400',
+  },
+  {
+    title: 'Bericht plaatsen',
+    description: 'Aankondigingen versturen',
+    icon: MessageSquare,
+    to: '/admin/announcements/new',
+    color: 'bg-teal-500/20 text-teal-400',
+  },
   {
     title: 'Spelers',
     description: 'Beheer spelerslijst en rollen',
@@ -44,47 +71,11 @@ const adminSections: AdminSection[] = [
     color: 'bg-purple-500/20 text-purple-400',
   },
   {
-    title: 'Uitslagen invoeren',
-    description: 'Competitie scores',
-    icon: BarChart2,
-    to: '/admin/league/results',
-    color: 'bg-pink-500/20 text-pink-400',
-  },
-  {
-    title: 'Doelpunten & kaarten',
-    description: 'Goals en kaarten per match',
-    icon: Target,
-    to: '/matches',
-    color: 'bg-red-500/20 text-red-400',
-    note: 'via wedstrijd',
-  },
-  {
     title: 'Fluitbeurten',
     description: 'Umpire schema beheren',
     icon: Flag,
     to: '/admin/umpire',
     color: 'bg-orange-500/20 text-orange-400',
-  },
-  {
-    title: 'Potjescup',
-    description: 'Trainingspotjes en punten bijhouden',
-    icon: Medal,
-    to: '/admin/potjescup',
-    color: 'bg-yellow-500/20 text-yellow-400',
-  },
-  {
-    title: 'Bericht plaatsen',
-    description: 'Aankondigingen versturen',
-    icon: MessageSquare,
-    to: '/admin/announcements/new',
-    color: 'bg-teal-500/20 text-teal-400',
-  },
-  {
-    title: 'Beheerders',
-    description: 'Admin-toegang toewijzen',
-    icon: ShieldCheck,
-    to: '/admin/roles',
-    color: 'bg-indigo-500/20 text-indigo-400',
   },
   {
     title: 'Team instellingen',
