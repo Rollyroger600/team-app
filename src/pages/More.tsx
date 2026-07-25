@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import EmptyState from '../components/ui/EmptyState'
 import { UmpireCard, groupDuties } from '../components/ui/UmpireCard'
+import TeamAvailabilityList from '../components/ui/TeamAvailabilityList'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
@@ -24,22 +25,6 @@ const STATUS_OPTIONS: StatusOption[] = [
   { status: 'unavailable', icon: XCircle,     label: 'Nee',       active: 'bg-red-500/25 border-red-500/60 text-red-400' },
   { status: 'maybe',       icon: HelpCircle,  label: 'Misschien', active: 'bg-amber-500/25 border-amber-500/60 text-amber-400' },
 ]
-
-const STATUS_DOT: Record<string, string> = {
-  available:   'bg-green-400',
-  unavailable: 'bg-red-400',
-  maybe:       'bg-amber-400',
-}
-
-interface AvailabilityDotProps {
-  status: string | null | undefined
-}
-
-function AvailabilityDot({ status }: AvailabilityDotProps) {
-  return (
-    <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[status || ''] || 'bg-slate-600'}`} />
-  )
-}
 
 interface MatchItem {
   id: string
@@ -333,18 +318,15 @@ export default function More() {
 
                 {/* Uitgeklaptelijst */}
                 {isExpanded && (
-                  <div className="border-t mx-4 mb-3 pt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-border">
-                    {members.map(member => {
-                      const status = memberAvailMap[member.id]
-                      return (
-                        <div key={member.id} className="flex items-center gap-2 text-xs py-0.5">
-                          <AvailabilityDot status={status} />
-                          <span className={`truncate ${member.id === user!.id ? 'text-amber-400' : 'text-slate-300'}`}>
-                            {member.name}
-                          </span>
-                        </div>
-                      )
-                    })}
+                  <div className="border-t mx-4 mb-3 pt-2 border-border">
+                    <TeamAvailabilityList
+                      matchId={match.id}
+                      members={members}
+                      statusMap={memberAvailMap}
+                      onChanged={() => {
+                        queryClient.invalidateQueries({ queryKey: ['moreAvailability', activeTeam?.id] })
+                      }}
+                    />
                   </div>
                 )}
               </div>

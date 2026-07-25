@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import StatsPodiums from '../components/ui/MiniPodium'
 import { PodiumCard } from '../components/ui/MiniPodium'
+import TeamAvailabilityList from '../components/ui/TeamAvailabilityList'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
@@ -82,8 +83,12 @@ export default function Dashboard() {
           .eq('match_id', nextMatch!.id)
           .eq('player_id', user!.id)
           .maybeSingle(),
+        // No profiles embed here: match_availability has two FKs to profiles
+        // (player_id and set_by), so an unqualified profiles(...) embed is
+        // ambiguous and makes PostgREST reject the whole query. Names come from
+        // team_memberships below anyway.
         supabase.from('match_availability')
-          .select('player_id, status, profiles(full_name)')
+          .select('player_id, status')
           .eq('match_id', nextMatch!.id),
         supabase.from('team_memberships')
           .select('player_id, profiles(full_name, nickname)')
@@ -93,12 +98,12 @@ export default function Dashboard() {
       const allAv = allAvRes.data || []
       const available = allAv.filter(a => a.status === 'available').length
       const members = membersRes.data || []
-      const avMap: Record<string, { status: string; name: string | null | undefined }> = {}
-      for (const a of allAv) avMap[a.player_id] = { status: a.status, name: (a as { player_id: string; status: string; profiles: { full_name?: string | null } | null }).profiles?.full_name }
+      const avMap: Record<string, string> = {}
+      for (const a of allAv) avMap[a.player_id] = a.status
       const teamAvailability: TeamAvailabilityMember[] = members.map(m => ({
         player_id: m.player_id,
         full_name: (m.profiles as { full_name?: string | null; nickname?: string | null } | null)?.nickname || (m.profiles as { full_name?: string | null } | null)?.full_name?.split(' ')[0] || '?',
-        status: (avMap[m.player_id]?.status as AvailabilityStatus | null) || null,
+        status: (avMap[m.player_id] as AvailabilityStatus | undefined) ?? null,
       }))
       return {
         myAvailability: (myAvRes.data?.status as AvailabilityStatus | null) || null,
@@ -262,19 +267,15 @@ export default function Dashboard() {
           </button>
 
           {showTeam && teamAvailability.length > 0 && (
-            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-              {teamAvailability.map(m => (
-                <div key={m.player_id} className="flex items-center gap-2 text-xs py-0.5">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                    m.status === 'available' ? 'bg-green-400' :
-                    m.status === 'unavailable' ? 'bg-red-400' :
-                    m.status === 'maybe' ? 'bg-amber-400' : 'bg-slate-600'
-                  }`} />
-                  <span className={`truncate ${m.player_id === user?.id ? 'text-amber-400' : 'text-slate-300'}`}>
-                    {m.full_name}
-                  </span>
-                </div>
-              ))}
+            <div className="mt-2">
+              <TeamAvailabilityList
+                matchId={nextMatch.id}
+                members={teamAvailability.map(m => ({ id: m.player_id, name: m.full_name }))}
+                statusMap={Object.fromEntries(teamAvailability.map(m => [m.player_id, m.status]))}
+                onChanged={() => {
+                  queryClient.invalidateQueries({ queryKey: ['matchAvailability', nextMatch.id, user?.id] })
+                }}
+              />
             </div>
           )}
         </div>
@@ -329,7 +330,10 @@ export default function Dashboard() {
             <p className="font-medium mb-1">{latestAnnouncement.title}</p>
           )}
           <p className="text-slate-400 text-sm line-clamp-3">{latestAnnouncement.body}</p>
-          <p className="text-xs text-slate-500 mt-2">Door {latestAnnouncement.profiles?.full_name}</p>
+          <p className="text-xs text-slate-500 mt-2">
+            Door {latestAnnouncement.profiles?.full_name}
+            {latestAnnouncement.created_at && ` · ${formatDate(latestAnnouncement.created_at)}`}
+          </p>
         </div>
       )}
 

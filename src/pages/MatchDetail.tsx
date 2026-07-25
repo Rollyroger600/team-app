@@ -14,7 +14,7 @@ interface MatchDetailData {
   match: Match | null
   myAvailability: AvailabilityStatus | null
   myOverridden: boolean
-  availability: { status: string; profiles: { full_name: string | null } | null }[]
+  availability: { status: string }[]
 }
 
 export default function MatchDetail() {
@@ -31,7 +31,11 @@ export default function MatchDetail() {
       const [matchRes, myAvRes, allAvRes] = await Promise.all([
         supabase.from('matches').select('*').eq('id', id!).single(),
         supabase.from('match_availability').select('status, overridden').eq('match_id', id!).eq('player_id', user!.id).maybeSingle(),
-        supabase.from('match_availability').select('status, profiles(full_name)').eq('match_id', id!)
+        // No profiles embed: match_availability has two FKs to profiles
+        // (player_id and set_by), which makes an unqualified profiles(...) embed
+        // ambiguous and makes PostgREST reject the whole query — the counts below
+        // silently read 0 until this was fixed.
+        supabase.from('match_availability').select('status').eq('match_id', id!)
       ])
       return {
         match: matchRes.data || null,
