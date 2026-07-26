@@ -1,16 +1,19 @@
-# React + Vite
+# Team App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Hockey team management PWA for HC Leiden Heren 30-1. React 19 + Vite + TypeScript + Tailwind v4,
+Supabase (Postgres/Auth/Edge Functions/Realtime) backend, deployed on Vercel.
 
-Currently, two official plugins are available:
+- **Production:** https://team-app-zeta.vercel.app
+- **Project context / architecture notes:** [CLAUDE.md](CLAUDE.md)
+- **Feature progress:** [PROJECT_STATUS.md](PROJECT_STATUS.md)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Development
 
-## React Compiler
+```bash
+npm install
+npm run dev      # Vite dev server
+npm run build    # production build
+npm test         # Playwright E2E tests
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Requires a `.env` with `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (see `.env.example`).
