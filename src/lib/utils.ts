@@ -32,19 +32,41 @@ export function buildWhatsAppUrl(text: string): string {
   return `https://wa.me/?text=${encodeURIComponent(text)}`
 }
 
-export function buildShareText(match: Match, gatheringInfo: GatheringInfo | null): string {
-  const dateStr = formatDate(match.match_date)
-  const timeStr = formatTime(match.match_time)
-  const location = match.is_home ? 'Thuis' : `Uit bij ${match.opponent}`
-  const gatherText = gatheringInfo?.time
-    ? `Verzamelen: ${gatheringInfo.time} (${gatheringInfo.label})`
-    : 'Tijd nog niet bekend'
+export interface ShareAvailability {
+  available: string[]
+  unavailable: string[]
+  unknownOrMaybe: string[]
+}
 
-  return `*Hockey ${dateStr}*\n${location} vs ${match.opponent}\nAanvang: ${timeStr}\n${gatherText}\n\nGeef je beschikbaarheid op in de app!`
+function namesWithTotal(names: string[]): string {
+  if (names.length === 0) return 'niemand (0)'
+  return `${names.join(', ')} (${names.length})`
+}
+
+export function buildShareText(match: Match, gatheringInfo: GatheringInfo | null, availability: ShareAvailability): string {
+  const dayDate = capitalizeFirst(format(parseISO(match.match_date), 'EEEE d MMMM', { locale: nl }))
+  const timeStr = formatTime(match.match_time)
+  const gatherStr = gatheringInfo?.time || 'nog niet bekend'
+
+  return `${dayDate} spelen we tegen ${match.opponent}. We spelen om ${timeStr} en verzamelen om ${gatherStr} op de club.\n\n`
+    + `De volgende spelers staan op aanwezig: ${namesWithTotal(availability.available)}\n`
+    + `Afwezig: ${namesWithTotal(availability.unavailable)}\n`
+    + `Onbekend of misschien: ${namesWithTotal(availability.unknownOrMaybe)}\n\n`
+    + `Mocht bovenstaande aanwezigheid niet kloppen, graag aanpassen in de app én Marlof een bericht sturen.`
+}
+
+function capitalizeFirst(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ')
+}
+
+/** Prefer a league team's admin-set short_name over its (often long, registry-imported) team_name. */
+export function leagueTeamDisplayName(team: { team_name: string; short_name?: string | null } | null | undefined): string {
+  if (!team) return '?'
+  return team.short_name || team.team_name
 }
 
 export function getAvailabilityColor(status: string | null | undefined): string {

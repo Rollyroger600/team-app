@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Clock, MapPin, CheckCircle, XCircle, HelpCircle, Users, Share2, Target, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Clock, MapPin, CheckCircle, XCircle, HelpCircle, Share2, Target, ShieldCheck } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
-import { formatDateLong, formatTime, buildWhatsAppUrl, buildShareText, getAvailabilityBg, getAvailabilityColor } from '../lib/utils'
+import { formatDateLong, formatTime, buildWhatsAppUrl, buildShareText } from '../lib/utils'
 import { formatGatheringDisplay } from '../lib/gathering'
 import type { Match, AvailabilityStatus } from '../types/app'
 
@@ -15,36 +15,54 @@ interface MatchDetailData {
   myAvailability: AvailabilityStatus | null
   myOverridden: boolean
   availability: { status: string }[]
+  names: { available: string[]; unavailable: string[]; unknownOrMaybe: string[] }
 }
 
 export default function MatchDetail() {
   const { id } = useParams<{ id: string }>()
   const { user, isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
-  const { teamSettings } = useTeamStore()
+  const { teamSettings, activeTeam } = useTeamStore()
   const queryClient = useQueryClient()
   const [myAvailability, setMyAvailability] = useState<AvailabilityStatus | null>(null)
 
   const { data, isLoading } = useQuery<MatchDetailData>({
     queryKey: ['matchDetail', id, user?.id],
     queryFn: async (): Promise<MatchDetailData> => {
-      const [matchRes, myAvRes, allAvRes] = await Promise.all([
+      const [matchRes, myAvRes, allAvRes, membersRes] = await Promise.all([
         supabase.from('matches').select('*').eq('id', id!).single(),
         supabase.from('match_availability').select('status, overridden').eq('match_id', id!).eq('player_id', user!.id).maybeSingle(),
         // No profiles embed: match_availability has two FKs to profiles
         // (player_id and set_by), which makes an unqualified profiles(...) embed
         // ambiguous and makes PostgREST reject the whole query — the counts below
         // silently read 0 until this was fixed.
-        supabase.from('match_availability').select('status').eq('match_id', id!)
+        supabase.from('match_availability').select('player_id, status').eq('match_id', id!),
+        supabase.from('team_memberships').select('player_id, profiles(full_name, nickname)').eq('team_id', activeTeam!.id).eq('active', true),
       ])
+
+      const avMap: Record<string, string> = {}
+      for (const a of (allAvRes.data || []) as { player_id: string; status: string }[]) avMap[a.player_id] = a.status
+
+      const members = (membersRes.data || []) as { player_id: string; profiles: { full_name: string | null; nickname: string | null } | null }[]
+      const nameOf = (m: (typeof members)[number]) => m.profiles?.nickname || m.profiles?.full_name?.split(' ')[0] || '?'
+
+      const names: MatchDetailData['names'] = { available: [], unavailable: [], unknownOrMaybe: [] }
+      for (const m of members) {
+        const status = avMap[m.player_id]
+        if (status === 'available') names.available.push(nameOf(m))
+        else if (status === 'unavailable') names.unavailable.push(nameOf(m))
+        else names.unknownOrMaybe.push(nameOf(m))
+      }
+
       return {
         match: matchRes.data || null,
         myAvailability: (myAvRes.data?.status as AvailabilityStatus | null) || null,
         myOverridden: (myAvRes.data as { overridden?: boolean } | null)?.overridden === true,
         availability: (allAvRes.data || []) as MatchDetailData['availability'],
+        names,
       }
     },
-    enabled: !!id && !!user?.id,
+    enabled: !!id && !!user?.id && !!activeTeam?.id,
   })
 
   // Sync server myAvailability to local optimistic state
@@ -99,7 +117,7 @@ export default function MatchDetail() {
   const maybe = availability.filter(a => a.status === 'maybe').length
 
   function handleShare() {
-    const text = buildShareText(match!, gatheringInfo)
+    const text = buildShareText(match!, gatheringInfo, data!.names)
     const url = buildWhatsAppUrl(text)
     window.open(url, '_blank')
   }
@@ -199,18 +217,6 @@ export default function MatchDetail() {
           </div>
         </div>
       </div>
-
-      {/* Lineup link */}
-      <Link
-        to={`/matches/${id}/lineup`}
-        className="flex items-center justify-between p-4 rounded-xl border transition-colors hover:border-slate-500 bg-surface border-border"
-      >
-        <div className="flex items-center gap-3">
-          <Users size={20} className="text-slate-400" />
-          <span className="font-medium">Bekijk opstelling</span>
-        </div>
-        <ArrowLeft size={18} className="text-slate-500 rotate-180" />
-      </Link>
 
       {/* Admin links */}
       {isAdmin && (
