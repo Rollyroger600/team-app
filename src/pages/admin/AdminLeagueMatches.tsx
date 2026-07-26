@@ -5,6 +5,7 @@ import { ArrowLeft, Plus, Save, Trash2, ChevronDown, Check, AlertCircle, Calenda
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
+import { leagueTeamDisplayName } from '../../lib/utils'
 import type { League, LeagueMatch } from '../../types/app'
 
 interface LeagueTeamDisplay {
@@ -152,9 +153,9 @@ export default function AdminLeagueMatches(): React.JSX.Element {
         .order('created_at', { ascending: false }).limit(1).maybeSingle()
       if (!lg) return { league: null, leagueTeams: [], ownTeamId: null, existingMatches: [] }
 
-      const { data: lt } = await supabase.from('league_teams').select('id, team_name, is_own_team')
+      const { data: lt } = await supabase.from('league_teams').select('id, team_name, short_name, is_own_team')
         .eq('league_id', lg.id).order('team_name')
-      const teams: LeagueTeamDisplay[] = ((lt || []) as { id: string; team_name: string; is_own_team: boolean }[]).map((t) => ({ id: t.id, display_name: t.team_name, is_own_team: t.is_own_team }))
+      const teams: LeagueTeamDisplay[] = ((lt || []) as { id: string; team_name: string; short_name: string | null; is_own_team: boolean }[]).map((t) => ({ id: t.id, display_name: leagueTeamDisplayName(t), is_own_team: t.is_own_team }))
       const own = teams.find((t) => t.is_own_team)
 
       const { data: em } = await supabase.from('league_matches').select('*').eq('league_id', lg.id)

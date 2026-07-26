@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
+import { leagueTeamDisplayName } from '../lib/utils'
 import type { AvailabilityStatus } from '../types/app'
 import React from 'react'
 
@@ -43,6 +44,7 @@ function capitalize(str: string | null | undefined): string {
 interface LeagueTeamRef {
   id: string
   team_name: string
+  short_name: string | null
   is_own_team: boolean
 }
 
@@ -86,6 +88,7 @@ interface AvailPlayer {
 interface LeagueTeamFull {
   id: string
   team_name: string
+  short_name: string | null
   is_own_team: boolean
   registry_id: string | null
   clubs_registry: { logo_url: string | null } | null
@@ -119,10 +122,11 @@ interface TeamNameProps {
 
 function TeamName({ team }: TeamNameProps) {
   if (!team) return <span className="text-text-muted">?</span>
+  const name = leagueTeamDisplayName(team)
   if (team.is_own_team) {
-    return <span className="text-amber-400 font-semibold">{team.team_name}</span>
+    return <span className="text-amber-400 font-semibold">{name}</span>
   }
-  return <span>{team.team_name}</span>
+  return <span>{name}</span>
 }
 
 interface TeamLogoProps {
@@ -472,7 +476,7 @@ function MatchCard({ match, logoMap = {}, matchId, availability, userId }: Match
       <div className="flex items-center gap-2">
         <div className="flex-1 flex items-center justify-end gap-1.5 text-sm" style={homeIsOwn ? {} : homeStyle}>
           <TeamName team={match.home_team} />
-          <TeamLogo url={logoMap[match.home_team?.id || '']} name={match.home_team?.team_name} />
+          <TeamLogo url={logoMap[match.home_team?.id || '']} name={leagueTeamDisplayName(match.home_team)} />
         </div>
         <div className="flex-shrink-0 w-16 text-center">
           {isPlayed ? (
@@ -486,7 +490,7 @@ function MatchCard({ match, logoMap = {}, matchId, availability, userId }: Match
           )}
         </div>
         <div className="flex-1 flex items-center gap-1.5 text-sm" style={awayIsOwn ? {} : awayStyle}>
-          <TeamLogo url={logoMap[match.away_team?.id || '']} name={match.away_team?.team_name} />
+          <TeamLogo url={logoMap[match.away_team?.id || '']} name={leagueTeamDisplayName(match.away_team)} />
           <TeamName team={match.away_team} />
         </div>
       </div>
@@ -541,7 +545,7 @@ function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {}, ava
       <div className="flex items-center gap-2 px-3 py-3">
         <div className="flex-1 flex items-center justify-end gap-1.5 text-sm">
           <TeamName team={match.home_team} />
-          <TeamLogo url={logoMap[match.home_team?.id || '']} name={match.home_team?.team_name} />
+          <TeamLogo url={logoMap[match.home_team?.id || '']} name={leagueTeamDisplayName(match.home_team)} />
         </div>
         <div className="flex-shrink-0 w-16 text-center">
           <span className="font-bold text-base text-text">
@@ -549,7 +553,7 @@ function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {}, ava
           </span>
         </div>
         <div className="flex-1 flex items-center gap-1.5 text-sm">
-          <TeamLogo url={logoMap[match.away_team?.id || '']} name={match.away_team?.team_name} />
+          <TeamLogo url={logoMap[match.away_team?.id || '']} name={leagueTeamDisplayName(match.away_team)} />
           <TeamName team={match.away_team} />
         </div>
       </div>
@@ -716,7 +720,7 @@ function MiniStandings({ matches, teams }: MiniStandingsProps) {
     teams.forEach((t) => {
       table[t.id] = {
         id: t.id,
-        name: t.team_name,
+        name: leagueTeamDisplayName(t),
         is_own_team: t.is_own_team,
         played: 0,
         won: 0,
@@ -834,10 +838,10 @@ export default function Matches() {
       }
 
       const [teamsRes, matchesRes, ownMatchesRes, membersRes] = await Promise.all([
-        supabase.from('league_teams').select('id, team_name, is_own_team, registry_id, clubs_registry(logo_url)').eq('league_id', leagueData.id),
+        supabase.from('league_teams').select('id, team_name, short_name, is_own_team, registry_id, clubs_registry(logo_url)').eq('league_id', leagueData.id),
         supabase
           .from('league_matches')
-          .select('*, home_team:home_team_id(id,team_name,is_own_team), away_team:away_team_id(id,team_name,is_own_team)')
+          .select('*, home_team:home_team_id(id,team_name,short_name,is_own_team), away_team:away_team_id(id,team_name,short_name,is_own_team)')
           .eq('league_id', leagueData.id)
           .order('match_date', { ascending: true })
           .order('match_time', { ascending: true, nullsFirst: false }),

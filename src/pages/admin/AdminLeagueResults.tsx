@@ -5,6 +5,7 @@ import { ArrowLeft, Trophy, Check, ChevronDown, ChevronUp } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
+import { leagueTeamDisplayName } from '../../lib/utils'
 import type { League, LeagueMatch } from '../../types/app'
 
 interface LeagueResultsQueryData {
@@ -177,14 +178,14 @@ export default function AdminLeagueResults(): React.JSX.Element {
       if (!lg) return { league: null, matches: [], teamNames: {}, ownTeamId: null }
 
       const [{ data: lt }, { data: lm }] = await Promise.all([
-        supabase.from('league_teams').select('id, team_name, is_own_team').eq('league_id', lg.id),
+        supabase.from('league_teams').select('id, team_name, short_name, is_own_team').eq('league_id', lg.id),
         supabase.from('league_matches').select('*').eq('league_id', lg.id).order('matchday').order('match_date'),
       ])
 
       const names: Record<string, string> = {}
       let own: string | null = null
-      for (const t of (lt as { id: string; team_name: string; is_own_team: boolean }[] | null) || []) {
-        names[t.id] = t.team_name
+      for (const t of (lt as { id: string; team_name: string; short_name: string | null; is_own_team: boolean }[] | null) || []) {
+        names[t.id] = leagueTeamDisplayName(t)
         if (t.is_own_team) own = t.id
       }
 

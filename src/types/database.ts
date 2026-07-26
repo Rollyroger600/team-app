@@ -383,6 +383,7 @@ export type Database = {
           is_own_team: boolean | null
           league_id: string
           registry_id: string | null
+          short_name: string | null
           team_id: string | null
           team_name: string
         }
@@ -392,6 +393,7 @@ export type Database = {
           is_own_team?: boolean | null
           league_id: string
           registry_id?: string | null
+          short_name?: string | null
           team_id?: string | null
           team_name: string
         }
@@ -401,6 +403,7 @@ export type Database = {
           is_own_team?: boolean | null
           league_id?: string
           registry_id?: string | null
+          short_name?: string | null
           team_id?: string | null
           team_name?: string
         }

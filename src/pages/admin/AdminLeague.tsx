@@ -1,12 +1,13 @@
 import React from 'react'
 import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Trophy, Search, X, Check, Trash2, ChevronRight, PlusCircle, MapPin, Car } from 'lucide-react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, Trophy, Search, X, Check, Trash2, ChevronRight, PlusCircle, MapPin, Car, Pencil } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import { geocodeAddress, getTravelDuration } from '../../lib/travel'
+import { leagueTeamDisplayName } from '../../lib/utils'
 import type { League, LeagueTeam } from '../../types/app'
 
 interface ClubRegistryRow {
@@ -402,16 +403,50 @@ function AddTeamForm({ leagueId, onAdded }: AddTeamFormProps): React.JSX.Element
 interface TeamsListProps {
   teams: LeagueTeam[]
   totalSlots: number | null
-  onDelete: (teamId: string) => Promise<void>
+  onDelete: (teamId: string) => Promise<string | null>
+  onSaveShortName: (teamId: string, shortName: string) => Promise<string | null>
 }
 
-function TeamsList({ teams, totalSlots, onDelete }: TeamsListProps): React.JSX.Element {
+function TeamsList({ teams, totalSlots, onDelete, onSaveShortName }: TeamsListProps): React.JSX.Element {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
   if (teams.length === 0) {
     return (
       <div className="rounded-xl border p-6 text-center bg-surface border-border">
         <p className="text-sm text-text-muted">Nog geen teams toegevoegd</p>
       </div>
     )
+  }
+
+  function startEdit(team: LeagueTeam): void {
+    setEditingId(team.id)
+    setEditValue(team.short_name || '')
+    setErrors(prev => { const n = { ...prev }; delete n[team.id]; return n })
+  }
+
+  async function saveShortName(teamId: string): Promise<void> {
+    setSavingId(teamId)
+    const err = await onSaveShortName(teamId, editValue.trim())
+    setSavingId(null)
+    if (err) {
+      setErrors(prev => ({ ...prev, [teamId]: err }))
+      return
+    }
+    setEditingId(null)
+  }
+
+  async function handleDelete(team: LeagueTeam): Promise<void> {
+    if (!window.confirm(`"${leagueTeamDisplayName(team)}" verwijderen uit deze poule?`)) return
+    setDeletingId(team.id)
+    const err = await onDelete(team.id)
+    setDeletingId(null)
+    if (err) {
+      setErrors(prev => ({ ...prev, [team.id]: err }))
+    }
   }
 
   return (
@@ -422,25 +457,76 @@ function TeamsList({ teams, totalSlots, onDelete }: TeamsListProps): React.JSX.E
           {teams.length}{totalSlots ? ` van ${totalSlots}` : ''} teams
         </span>
       </div>
+      <p className="px-4 pt-3 text-xs text-text-muted">
+        Tik op een team om er een korte naam aan te geven — die wordt overal in de app gebruikt
+        in plaats van de (vaak lange) volledige naam.
+      </p>
 
       <div className="divide-y divide-border">
-        {teams.map((team) => (
-          <div key={team.id} className="flex items-center gap-3 px-4 py-3">
-            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${team.is_own_team ? 'bg-amber-400' : 'bg-slate-600'}`} />
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm font-medium truncate ${team.is_own_team ? 'text-amber-400' : ''}`}>
-                {team.team_name}
-              </p>
-              {team.is_own_team && <p className="text-xs text-text-muted">Eigen team</p>}
+        {teams.map((team) => {
+          const isEditing = editingId === team.id
+          const error = errors[team.id]
+          return (
+            <div key={team.id} className="px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${team.is_own_team ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                {isEditing ? (
+                  <div className="flex-1 flex items-center gap-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveShortName(team.id) }}
+                      placeholder={team.team_name}
+                      className="flex-1 px-2 py-1.5 rounded-lg text-sm outline-none bg-surface-2 text-text"
+                      style={{ border: '1px solid var(--color-border)' }}
+                    />
+                    <button
+                      onClick={() => saveShortName(team.id)}
+                      disabled={savingId === team.id}
+                      className="p-1.5 rounded-lg hover:bg-green-500/10 transition-colors flex-shrink-0 disabled:opacity-50"
+                    >
+                      <Check size={16} className="text-green-400" />
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="p-1.5 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0"
+                    >
+                      <X size={16} className="text-slate-500" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => startEdit(team)}
+                    className="flex-1 min-w-0 text-left flex items-center gap-2 group"
+                  >
+                    <div className="min-w-0">
+                      <p className={`text-sm font-medium truncate ${team.is_own_team ? 'text-amber-400' : ''}`}>
+                        {leagueTeamDisplayName(team)}
+                      </p>
+                      {team.short_name && (
+                        <p className="text-xs truncate text-text-muted">volledig: {team.team_name}</p>
+                      )}
+                      {team.is_own_team && !team.short_name && <p className="text-xs text-text-muted">Eigen team</p>}
+                    </div>
+                    <Pencil size={12} className="text-slate-600 group-hover:text-slate-400 flex-shrink-0" />
+                  </button>
+                )}
+                {!isEditing && (
+                  <button
+                    onClick={() => handleDelete(team)}
+                    disabled={deletingId === team.id}
+                    className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors flex-shrink-0 disabled:opacity-50"
+                  >
+                    <Trash2 size={14} className="text-slate-500 hover:text-red-400" />
+                  </button>
+                )}
+              </div>
+              {error && <p className="text-xs text-red-400 mt-1.5">{error}</p>}
             </div>
-            <button
-              onClick={() => onDelete(team.id)}
-              className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors flex-shrink-0"
-            >
-              <Trash2 size={14} className="text-slate-500 hover:text-red-400" />
-            </button>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -659,17 +745,21 @@ export default function AdminLeague(): React.JSX.Element {
   const league = data?.league || null
   const teams = data?.teams || []
 
-  const deleteTeamMutation = useMutation<void, Error, string>({
-    mutationFn: async (teamId: string): Promise<void> => {
-      await supabase.from('league_teams').delete().eq('id', teamId)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminLeague', activeTeam?.id] })
-    },
-  })
+  async function handleDelete(teamId: string): Promise<string | null> {
+    const { error } = await supabase.from('league_teams').delete().eq('id', teamId)
+    if (error) return error.message
+    queryClient.invalidateQueries({ queryKey: ['adminLeague', activeTeam?.id] })
+    return null
+  }
 
-  async function handleDelete(teamId: string): Promise<void> {
-    await deleteTeamMutation.mutateAsync(teamId)
+  async function handleSaveShortName(teamId: string, shortName: string): Promise<string | null> {
+    const { error } = await supabase
+      .from('league_teams')
+      .update({ short_name: shortName || null })
+      .eq('id', teamId)
+    if (error) return error.message
+    queryClient.invalidateQueries({ queryKey: ['adminLeague', activeTeam?.id] })
+    return null
   }
 
   function handleLeagueCreated(_newLeague: League): void {
@@ -761,7 +851,7 @@ export default function AdminLeague(): React.JSX.Element {
           <AddTeamForm leagueId={league.id} onAdded={handleTeamAdded} />
 
           {/* Teams list */}
-          <TeamsList teams={teams} totalSlots={null} onDelete={handleDelete} />
+          <TeamsList teams={teams} totalSlots={null} onDelete={handleDelete} onSaveShortName={handleSaveShortName} />
         </>
       )}
     </div>
