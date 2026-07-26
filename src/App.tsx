@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
@@ -7,35 +7,37 @@ import useTeamStore from './stores/useTeamStore'
 import AppShell from './components/layout/AppShell'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import AdminRoute from './components/layout/AdminRoute'
+import PageLoader from './components/ui/PageLoader'
 
-// Pages
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Matches from './pages/Matches'
-import MatchDetail from './pages/MatchDetail'
-import MatchLineup from './pages/MatchLineup'
-import Potjescup from './pages/Potjescup'
-import Stats from './pages/Stats'
-import Umpire from './pages/Umpire'
-import Announcements from './pages/Announcements'
-import Settings from './pages/Settings'
-import More from './pages/More'
+// Pages — lazy-loaded so a visit only downloads the page actually opened
+// (the whole app used to ship as one ~650KB bundle; see CLAUDE.md).
+const Login = lazy(() => import('./pages/Login'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Matches = lazy(() => import('./pages/Matches'))
+const MatchDetail = lazy(() => import('./pages/MatchDetail'))
+const MatchLineup = lazy(() => import('./pages/MatchLineup'))
+const Potjescup = lazy(() => import('./pages/Potjescup'))
+const Stats = lazy(() => import('./pages/Stats'))
+const Umpire = lazy(() => import('./pages/Umpire'))
+const Announcements = lazy(() => import('./pages/Announcements'))
+const Settings = lazy(() => import('./pages/Settings'))
+const More = lazy(() => import('./pages/More'))
 
 // Admin pages
-import AdminDashboard from './pages/admin/AdminDashboard'
-import AdminPlayers from './pages/admin/AdminPlayers'
-import AdminMatchEdit from './pages/admin/AdminMatchEdit'
-import AdminRoster from './pages/admin/AdminRoster'
-import AdminLeague from './pages/admin/AdminLeague'
-import AdminLeagueMatches from './pages/admin/AdminLeagueMatches'
-import AdminLeagueResults from './pages/admin/AdminLeagueResults'
-import AdminUmpire from './pages/admin/AdminUmpire'
-import AdminAttendance from './pages/admin/AdminAttendance'
-import AdminPotjescup from './pages/admin/AdminPotjescup'
-import AdminMatchGoals from './pages/admin/AdminMatchGoals'
-import AdminAnnouncements from './pages/admin/AdminAnnouncements'
-import AdminTeamSettings from './pages/admin/AdminTeamSettings'
-import Debug from './pages/Debug'
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const AdminPlayers = lazy(() => import('./pages/admin/AdminPlayers'))
+const AdminMatchEdit = lazy(() => import('./pages/admin/AdminMatchEdit'))
+const AdminRoster = lazy(() => import('./pages/admin/AdminRoster'))
+const AdminLeague = lazy(() => import('./pages/admin/AdminLeague'))
+const AdminLeagueMatches = lazy(() => import('./pages/admin/AdminLeagueMatches'))
+const AdminLeagueResults = lazy(() => import('./pages/admin/AdminLeagueResults'))
+const AdminUmpire = lazy(() => import('./pages/admin/AdminUmpire'))
+const AdminAttendance = lazy(() => import('./pages/admin/AdminAttendance'))
+const AdminPotjescup = lazy(() => import('./pages/admin/AdminPotjescup'))
+const AdminMatchGoals = lazy(() => import('./pages/admin/AdminMatchGoals'))
+const AdminAnnouncements = lazy(() => import('./pages/admin/AdminAnnouncements'))
+const AdminTeamSettings = lazy(() => import('./pages/admin/AdminTeamSettings'))
+const Debug = lazy(() => import('./pages/Debug'))
 
 export default function App() {
   const { initialize, loading, initialized, memberships } = useAuthStore()
@@ -63,6 +65,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
     <BrowserRouter>
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/debug" element={<Debug />} />
@@ -101,6 +104,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
     </QueryClientProvider>
   )
