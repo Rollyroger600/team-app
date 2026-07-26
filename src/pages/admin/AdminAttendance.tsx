@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
+import { useRealtimeInvalidate } from '../../lib/realtime'
 import { format, parseISO } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { Profile } from '../../types/app'
@@ -42,6 +43,8 @@ const CELL: Record<string, { label: string; classes: string }> = {
 
 export default function AdminAttendance(): React.JSX.Element {
   const { activeTeam } = useTeamStore()
+
+  useRealtimeInvalidate('match_availability', ['adminAttendance', activeTeam?.id], !!activeTeam?.id)
 
   const { data, isLoading } = useQuery<AttendanceData>({
     queryKey: ['adminAttendance', activeTeam?.id],

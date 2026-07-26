@@ -9,6 +9,7 @@ import TeamAvailabilityList from '../components/ui/TeamAvailabilityList'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
+import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDate, formatTime } from '../lib/utils'
 import { formatGatheringDisplay } from '../lib/gathering'
 import { groupDuties } from '../components/ui/UmpireCard'
@@ -72,6 +73,8 @@ export default function Dashboard() {
 
   const nextMatch = phase1?.match || null
   const latestAnnouncement = phase1?.announcement || null
+
+  useRealtimeInvalidate('match_availability', ['matchAvailability', nextMatch?.id, user?.id], !!nextMatch?.id)
 
   // Query 2: availability for the next match
   const { data: availData } = useQuery<AvailData>({

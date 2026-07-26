@@ -9,6 +9,7 @@ import TeamAvailabilityList from '../components/ui/TeamAvailabilityList'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
+import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDate, formatTime } from '../lib/utils'
 import type { AvailabilityStatus, UmpireDutyWithJoins, UmpireGroup } from '../types/app'
 import type { LucideIcon } from 'lucide-react'
@@ -68,6 +69,8 @@ export default function More() {
   const [saving, setSaving] = useState<string | null>(null)
   const [myAvail, setMyAvail] = useState<Record<string, string | null>>({})
   const [allAvail, setAllAvail] = useState<Record<string, AvailPlayer[]>>({})
+
+  useRealtimeInvalidate('match_availability', ['moreAvailability', activeTeam?.id], !!activeTeam?.id)
 
   const { data, isLoading } = useQuery<MoreData>({
     queryKey: ['moreAvailability', activeTeam?.id],

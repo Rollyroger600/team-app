@@ -6,6 +6,7 @@ import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
+import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDateLong, formatTime, buildWhatsAppUrl, buildShareText } from '../lib/utils'
 import { formatGatheringDisplay } from '../lib/gathering'
 import type { Match, AvailabilityStatus } from '../types/app'
@@ -25,6 +26,8 @@ export default function MatchDetail() {
   const { teamSettings, activeTeam } = useTeamStore()
   const queryClient = useQueryClient()
   const [myAvailability, setMyAvailability] = useState<AvailabilityStatus | null>(null)
+
+  useRealtimeInvalidate('match_availability', ['matchDetail', id, user?.id], !!id)
 
   const { data, isLoading } = useQuery<MatchDetailData>({
     queryKey: ['matchDetail', id, user?.id],
