@@ -31,6 +31,10 @@ dist-ssr
 .env.test.local
 .env.production.local
 
+# Local tooling artifacts — machine-specific, never shared
+.claude/settings.local.json
+supabase/.temp/
+
 # Playwright
 /test-results/
 /playwright-report/
