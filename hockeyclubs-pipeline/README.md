@@ -147,6 +147,12 @@ De pipeline is ontworpen om herhaald te draaien:
 - **Handmatige overrides behouden**: Zet `kleur_bron` op `"handmatig"` in de database of het Excel. De pipeline overschrijft deze niet (tenzij `--force`)
 - **Clubs laten zelf kleuren kiezen**: In je app kunnen clubs `kleur_1` en `kleur_2` overschrijven. Zet `kleur_bron` dan op `"handmatig"` zodat de pipeline ze met rust laat
 
+> **Let op — de Team App gebruikt deze kleuren op dit moment niet.** De kolommen
+> `clubs_registry.primary_color` / `secondary_color` worden nog wel gevuld, maar sinds de speler
+> zelf een thema kiest (Instellingen → Weergave) stuurt de app zijn kleuren uit vaste paletten in
+> `src/index.css`, niet uit de database. Zie de sectie "Theming (clubkleuren)" in
+> [CLAUDE.md](../CLAUDE.md) voordat je die koppeling weer aanzet.
+
 ## Integratie in je project
 
 Deze map kun je als subdirectory in je bestaande project plaatsen:

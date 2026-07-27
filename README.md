@@ -1,6 +1,6 @@
 # Team App
 
-Hockey team management PWA for HC Leiden Heren 30-1. React 19 + Vite + TypeScript + Tailwind v4,
+Hockey team management PWA for LOHC Heren 30-1. React 19 + Vite + TypeScript + Tailwind v4,
 Supabase (Postgres/Auth/Edge Functions/Realtime) backend, deployed on Vercel.
 
 - **Production:** https://team-app-zeta.vercel.app

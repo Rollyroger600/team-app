@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository. See [PROJECT_STATUS.md
 for feature progress and pilot data.
 
 ## What this is
-Hockey team management PWA for HC Leiden Heren 30-1 (React 19 + Vite + TS + Zustand +
+Hockey team management PWA for LOHC Heren 30-1 (React 19 + Vite + TS + Zustand +
 React Router v7 + TanStack Query + Tailwind v4 + Supabase). Deployed via GitHub → Vercel
 (auto-deploy on push to `main`). Pre-season pilot — no real users yet besides the admin (Rogier),
 new season starts mid-August 2026. Installed by players as a homescreen PWA on their phones.

@@ -1,7 +1,7 @@
 # Hockey Team App — Project Status
 
 ## Overzicht
-PWA voor HC Leiden Heren 30-1. Multi-tenant architectuur (club → team), maar in de praktijk
+PWA voor LOHC Heren 30-1. Multi-tenant architectuur (club → team), maar in de praktijk
 draait dit voor precies één club/team. Pre-season pilot, nieuw seizoen start medio augustus 2026.
 Live in productie, nog geen echte gebruikers buiten Rogier (platform_admin) tijdens de testfase.
 Draait bij spelers als homescreen-PWA op hun telefoon.
@@ -61,8 +61,18 @@ Draait bij spelers als homescreen-PWA op hun telefoon.
   sorteerbare/uitklapbare spelerslijst met Gesp./VD/SC/SB/Goals/Ass. kolommen
 - Dashboard toont dezelfde Topscorer/MVP podiums plus het Potjescup-podium (compacte variant)
 - **Competitie-teams**: admins kunnen elk team in de poule een korte weergavenaam geven (i.p.v. de
-  lange, uit het register geïmporteerde naam) — wordt overal in de app gebruikt waar die poule-
-  teams getoond worden (Stand, wedstrijdkaarten, admin-dropdowns).
+  lange, uit het register geïmporteerde naam). Die naam wordt nu **overal** gebruikt: naast Stand,
+  wedstrijdkaarten en admin-dropdowns ook op Dashboard, wedstrijddetail, Statistieken,
+  Beschikbaarheid, de fluitbeurtkaarten en in het WhatsApp-deelbericht. Oefen-/bekerwedstrijden
+  houden hun eigen tekst; teams zonder korte naam verliezen alleen het " Heren 30-1"-achtervoegsel.
+- **Thema's (clubkleuren)**: drie paletten in de LOHC-kleuren — Clubshirt (licht, standaard),
+  Clubhuis (donker) en Bordeaux — te kiezen per speler onder Instellingen → Weergave. Keuze staat
+  in `localStorage` en wordt vóór de eerste paint toegepast, dus geen kleurflits bij het openen van
+  de PWA. Alle kleuren lopen via `--color-*` tokens; contrast is in alle drie de thema's ≥4.5:1.
+- **Performance**: alle routes zijn code-split (`React.lazy`), zodat een bezoek alleen de geopende
+  pagina downloadt in plaats van de hele app inclusief admin-paneel. Daarnaast zijn de RLS-policies
+  opgeschoond (overlappende policies samengevoegd, auth-functies in `(select ...)`) en ontbrekende
+  foreign-key indexen toegevoegd.
 - Announcements (aankondigingen) met datum zichtbaar op het Dashboard
 - Vercel deploy + CI (GitHub Actions, Playwright)
 
@@ -123,8 +133,9 @@ Draait bij spelers als homescreen-PWA op hun telefoon.
 - **Schema:** `supabase/schema.sql` + migraties in `supabase/migrations/`
 - **Realtime:** ingeschakeld voor `match_availability` (via `supabase_realtime` publicatie)
 
-## Pilot Data (HC Leiden — Heren 30-1)
-- Club: "HC Leiden", Hofbrouckerlaan 51a, 2341 LM Oegstgeest
+## Pilot Data (LOHC — Heren 30-1)
+- Club: "LOHC - Leiden" (registry: "LOHC Leiden"), Hofbrouckerlaan 51a, 2341 LM Oegstgeest.
+  Clubkleuren: bordeauxrood `#721727`, wit, zwart — de basis voor de drie thema's.
 - Team: "Heren 30-1", seizoen 2025-2026 (enige actieve club/team; test-fixtures verwijderd)
 - Rogier: platform_admin (enige beheerder tot seizoensstart; Marlof heeft ook Beheerder-rol +
   is aanvoerder)
