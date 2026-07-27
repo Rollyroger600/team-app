@@ -57,7 +57,7 @@ export default function Umpire() {
 
           {past.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-1 pt-2">
+              <p className="text-xs font-semibold text-text-subtle uppercase tracking-wide px-1 pt-2">
                 Gefloten
               </p>
               {past.map((group, i) => (

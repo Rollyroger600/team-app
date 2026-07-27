@@ -13,8 +13,10 @@ export default defineConfig({
         name: 'Hockey Team App',
         short_name: 'HockeyApp',
         description: 'Team management app voor hockeyteams',
-        theme_color: '#1e3a5f',
-        background_color: '#0f172a',
+        // The manifest can't follow the player's theme choice, so these track
+        // the default (Clubshirt) — they only affect the PWA install splash.
+        theme_color: '#721727',
+        background_color: '#f7f5f5',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',

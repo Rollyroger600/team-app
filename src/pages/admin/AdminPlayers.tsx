@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
+import { tint } from '../../lib/utils'
 import { createPlayer, resetPlayerPin, changePlayerRole, setPlayerCaptain, getPlayersStatus, impersonatePlayer, type PlayerStatus } from '../../lib/auth'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
@@ -166,14 +167,14 @@ export default function AdminPlayers(): React.JSX.Element {
     navigate('/')
   }
 
-  const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none focus:border-amber-400'
+  const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none focus:border-secondary-soft'
   const inputStyle = { backgroundColor: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
 
   return (
     <div className="p-4 space-y-4 pb-8">
       <div className="flex items-center justify-between pt-2">
         <div className="flex items-center gap-3">
-          <Link to="/admin" className="text-slate-400 hover:text-slate-200">
+          <Link to="/admin" className="text-text-muted hover:text-text">
             <ArrowLeft size={20} />
           </Link>
           <h1 className="text-2xl font-bold">Spelers</h1>
@@ -191,18 +192,18 @@ export default function AdminPlayers(): React.JSX.Element {
 
       {/* Legenda */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-text-muted px-1">
-        <span className="flex items-center gap-1"><Shield size={12} className="text-blue-400" /> Aanvoerder (op het veld)</span>
-        <span className="flex items-center gap-1"><KeyRound size={12} className="text-amber-400" /> Beheerder (app-toegang)</span>
-        <span className="flex items-center gap-1"><Check size={12} className="text-green-400" /> PIN ingesteld</span>
+        <span className="flex items-center gap-1"><Shield size={12} className="text-info" /> Aanvoerder (op het veld)</span>
+        <span className="flex items-center gap-1"><KeyRound size={12} className="text-secondary-soft" /> Beheerder (app-toegang)</span>
+        <span className="flex items-center gap-1"><Check size={12} className="text-success" /> PIN ingesteld</span>
         <span className="flex items-center gap-1"><AlertCircle size={12} className="text-orange-400" /> PIN niet ingesteld</span>
-        <span className="flex items-center gap-1"><Lock size={12} className="text-red-400" /> Geblokkeerd</span>
+        <span className="flex items-center gap-1"><Lock size={12} className="text-danger" /> Geblokkeerd</span>
       </div>
 
       {/* Speler toevoegen */}
       {showAdd && (
         <div className="rounded-xl border p-4 space-y-3 bg-surface border-border">
           <h2 className="font-semibold text-sm flex items-center gap-2">
-            <UserPlus size={16} className="text-amber-400" /> Nieuwe speler aanmaken
+            <UserPlus size={16} className="text-secondary-soft" /> Nieuwe speler aanmaken
           </h2>
           <p className="text-xs text-text-muted">
             De speler kiest zelf een pincode bij de eerste keer inloggen. Aanvoerder- en beheerderstatus stel je daarna in via het menu bij de speler.
@@ -230,7 +231,7 @@ export default function AdminPlayers(): React.JSX.Element {
               className={inputClass} style={inputStyle}
             />
             {addResult && (
-              <div className={`flex items-start gap-2 text-xs px-3 py-2 rounded-lg ${addResult.ok ? 'text-green-400 bg-green-500/10' : 'text-red-400 bg-red-500/10'}`}>
+              <div className={`flex items-start gap-2 text-xs px-3 py-2 rounded-lg ${addResult.ok ? 'text-success bg-available/10' : 'text-danger bg-unavailable/10'}`}>
                 {addResult.ok ? <Check size={13} className="mt-0.5 flex-shrink-0" /> : <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />}
                 {addResult.message}
               </div>
@@ -267,7 +268,7 @@ export default function AdminPlayers(): React.JSX.Element {
               <div key={membership.id}
                    className="flex items-center gap-3 p-3 rounded-xl border bg-surface border-border">
                 {/* Avatar */}
-                <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-primary">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-primary text-primary-text">
                   {p?.jersey_number != null
                     ? p.jersey_number
                     : (p?.display_name?.[0] ?? p?.full_name?.[0] ?? '?').toUpperCase()}
@@ -279,39 +280,39 @@ export default function AdminPlayers(): React.JSX.Element {
                     <p className="font-medium text-sm truncate">{name}</p>
                     {membership.is_captain && (
                       <span className="text-[11px] px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
-                            style={{ backgroundColor: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+                            style={{ backgroundColor: tint('--color-info', 15), color: 'var(--color-info)' }}>
                         <Shield size={10} /> Aanvoerder
                       </span>
                     )}
                     {membership.role === 'team_admin' && (
                       <span className="text-[11px] px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
-                            style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
+                            style={{ backgroundColor: tint('--color-secondary', 15), color: 'var(--color-secondary)' }}>
                         <KeyRound size={10} /> Beheerder
                       </span>
                     )}
                   </div>
                   {p?.full_name && p.display_name && p.display_name !== p.full_name && (
-                    <p className="text-xs text-slate-400 truncate">{p.full_name}</p>
+                    <p className="text-xs text-text-muted truncate">{p.full_name}</p>
                   )}
                   {/* Feedback berichten */}
                   {pinResult && (
-                    <p className={`text-xs mt-0.5 ${pinResult.ok ? 'text-green-400' : 'text-red-400'}`}>
+                    <p className={`text-xs mt-0.5 ${pinResult.ok ? 'text-success' : 'text-danger'}`}>
                       {pinResult.message}
                     </p>
                   )}
-                  {roleErr && <p className="text-xs mt-0.5 text-red-400">{roleErr}</p>}
-                  {captainErr && <p className="text-xs mt-0.5 text-red-400">{captainErr}</p>}
+                  {roleErr && <p className="text-xs mt-0.5 text-danger">{roleErr}</p>}
+                  {captainErr && <p className="text-xs mt-0.5 text-danger">{captainErr}</p>}
                   {impersonateErrors[membership.player_id] && (
-                    <p className="text-xs mt-0.5 text-red-400">{impersonateErrors[membership.player_id]}</p>
+                    <p className="text-xs mt-0.5 text-danger">{impersonateErrors[membership.player_id]}</p>
                   )}
                 </div>
 
                 {/* PIN status — title lives on a wrapper span; lucide icons don't take it */}
                 {status && (
                   isLocked
-                    ? <span className="flex-shrink-0" title="Account geblokkeerd"><Lock size={14} className="text-red-400" /></span>
+                    ? <span className="flex-shrink-0" title="Account geblokkeerd"><Lock size={14} className="text-danger" /></span>
                     : status.has_set_pin
-                      ? <span className="flex-shrink-0" title="PIN ingesteld"><Check size={14} className="text-green-400" /></span>
+                      ? <span className="flex-shrink-0" title="PIN ingesteld"><Check size={14} className="text-success" /></span>
                       : <span className="flex-shrink-0" title="PIN nog niet ingesteld"><AlertCircle size={14} className="text-orange-400" /></span>
                 )}
 
@@ -336,7 +337,7 @@ export default function AdminPlayers(): React.JSX.Element {
                             disabled={changingCaptain === membership.player_id}
                             className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 hover:bg-surface-2 text-text disabled:opacity-40"
                           >
-                            <Shield size={15} className="text-blue-400 flex-shrink-0" />
+                            <Shield size={15} className="text-info flex-shrink-0" />
                             {changingCaptain === membership.player_id
                               ? 'Bezig...'
                               : membership.is_captain ? 'Aanvoerder verwijderen' : 'Maak aanvoerder'}
@@ -346,7 +347,7 @@ export default function AdminPlayers(): React.JSX.Element {
                             disabled={changingRole === membership.player_id}
                             className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 hover:bg-surface-2 text-text border-t border-border disabled:opacity-40"
                           >
-                            <KeyRound size={15} className="text-amber-400 flex-shrink-0" />
+                            <KeyRound size={15} className="text-secondary-soft flex-shrink-0" />
                             {changingRole === membership.player_id
                               ? 'Bezig...'
                               : membership.role === 'team_admin' ? 'Beheerder verwijderen' : 'Maak beheerder'}

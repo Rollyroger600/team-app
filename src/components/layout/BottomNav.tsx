@@ -30,8 +30,8 @@ export default function BottomNav() {
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center gap-0.5 text-xs transition-colors ${
                 isActive
-                  ? 'text-amber-400'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'text-secondary-soft'
+                  : 'text-text-muted hover:text-text'
               }`
             }
           >
@@ -44,8 +44,8 @@ export default function BottomNav() {
           className={({ isActive }) =>
             `flex-1 flex flex-col items-center justify-center gap-0.5 text-xs transition-colors ${
               isActive
-                ? 'text-amber-400'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'text-secondary-soft'
+                : 'text-text-muted hover:text-text'
             }`
           }
         >

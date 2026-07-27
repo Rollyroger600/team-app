@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
+import { useOpponentName } from '../../lib/opponents'
 import useTeamStore from '../../stores/useTeamStore'
 import type { Match, Profile } from '../../types/app'
 
@@ -22,6 +23,7 @@ interface RosterQueryData {
 }
 
 export default function AdminRoster(): React.JSX.Element {
+  const opponentName = useOpponentName()
   const { id } = useParams<{ id: string }>()
   const { activeTeam } = useTeamStore()
   const queryClient = useQueryClient()
@@ -100,17 +102,17 @@ export default function AdminRoster(): React.JSX.Element {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin" className="text-slate-400 hover:text-slate-200">
+        <Link to="/admin" className="text-text-muted hover:text-text">
           <ArrowLeft size={20} />
         </Link>
         <div>
           <h1 className="text-2xl font-bold">Opstelling</h1>
-          {match && <p className="text-slate-400 text-sm">vs {match.opponent}</p>}
+          {match && <p className="text-text-muted text-sm">vs {opponentName(match.opponent)}</p>}
         </div>
       </div>
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-400">{roster.length} spelers geselecteerd</p>
+        <p className="text-sm text-text-muted">{roster.length} spelers geselecteerd</p>
         <button
           onClick={saveRoster}
           disabled={saving}
@@ -137,7 +139,7 @@ export default function AdminRoster(): React.JSX.Element {
                 }}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  isSelected ? 'bg-green-500 text-white' : 'border border-slate-600 text-slate-500'
+                  isSelected ? 'bg-available text-white' : 'border border-border-strong text-text-subtle'
                 }`}>
                   {isSelected ? <Check size={14} /> : <X size={14} />}
                 </div>
@@ -145,19 +147,19 @@ export default function AdminRoster(): React.JSX.Element {
                   <p className="font-medium">
                     {item.profiles?.nickname || item.profiles?.full_name?.split(' ')[0]}
                     {item.profiles?.nickname && (
-                      <span className="text-slate-500 font-normal text-sm ml-1">
+                      <span className="text-text-subtle font-normal text-sm ml-1">
                         {item.profiles.full_name}
                       </span>
                     )}
                   </p>
                   {item.profiles?.position && (
-                    <p className="text-xs text-slate-500 capitalize">{
+                    <p className="text-xs text-text-subtle capitalize">{
                       ({ goalkeeper: 'Keeper', defender: 'Verdediger', midfielder: 'Middenvelder', forward: 'Aanvaller' } as Record<string, string>)[item.profiles.position] || item.profiles.position
                     }</p>
                   )}
                 </div>
                 {item.profiles?.jersey_number && (
-                  <span className="text-slate-400 text-sm">#{item.profiles.jersey_number}</span>
+                  <span className="text-text-muted text-sm">#{item.profiles.jersey_number}</span>
                 )}
               </button>
             )

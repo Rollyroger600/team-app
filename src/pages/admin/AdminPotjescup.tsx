@@ -118,7 +118,7 @@ export default function AdminPotjescup(): React.JSX.Element {
   return (
     <div className="p-4 space-y-4 pb-8">
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin" className="text-slate-400 hover:text-slate-200">
+        <Link to="/admin" className="text-text-muted hover:text-text">
           <ArrowLeft size={20} />
         </Link>
         <h1 className="text-2xl font-bold">Potjescup</h1>
@@ -126,7 +126,7 @@ export default function AdminPotjescup(): React.JSX.Element {
 
       {/* Nieuwe training toevoegen */}
       <div className="rounded-xl p-4 border space-y-2 bg-surface border-border">
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-text-muted">
           Voeg een training toe om na de eindpartij punten toe te kennen aan alle spelers.
         </p>
         <div className="flex gap-2">
@@ -163,7 +163,7 @@ export default function AdminPotjescup(): React.JSX.Element {
               <div className="px-4 py-3 border-b border-border flex items-center justify-between">
                 <p className="font-semibold text-sm">{formatDate(session.session_date)}</p>
                 <button onClick={() => deleteSession(session.id)}
-                        className="text-slate-600 hover:text-red-400 transition-colors p-1 flex-shrink-0">
+                        className="text-text-faint hover:text-danger transition-colors p-1 flex-shrink-0">
                   <Trash2 size={14} />
                 </button>
               </div>

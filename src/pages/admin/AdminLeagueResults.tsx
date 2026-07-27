@@ -5,7 +5,7 @@ import { ArrowLeft, Trophy, Check, ChevronDown, ChevronUp } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
-import { leagueTeamDisplayName } from '../../lib/utils'
+import { leagueTeamDisplayName, tint } from '../../lib/utils'
 import type { League, LeagueMatch } from '../../types/app'
 
 interface LeagueResultsQueryData {
@@ -66,7 +66,7 @@ function ScoreRow({ match, teamNames, ownTeamId, onSave }: ScoreRowProps): React
   return (
     <div className="grid items-center gap-2 py-2.5 px-3" style={{ gridTemplateColumns: '1fr auto auto auto 1fr auto' }}>
       <span
-        className={`text-sm truncate text-right ${isOwnHome ? 'font-semibold text-amber-400' : ''}`}
+        className={`text-sm truncate text-right ${isOwnHome ? 'font-semibold text-secondary-soft' : ''}`}
         style={!isOwnHome ? { color: 'var(--color-text)' } : {}}
       >
         {homeName}
@@ -78,10 +78,10 @@ function ScoreRow({ match, teamNames, ownTeamId, onSave }: ScoreRowProps): React
         max="99"
         value={home}
         onChange={(e) => { setHome(e.target.value); setSaved(false) }}
-        className="w-10 text-center rounded-lg border py-1.5 text-sm font-bold outline-none focus:border-amber-400 bg-surface-2 border-border text-text"
+        className="w-10 text-center rounded-lg border py-1.5 text-sm font-bold outline-none focus:border-secondary-soft bg-surface-2 border-border text-text"
       />
 
-      <span className="text-slate-500 text-sm font-bold">–</span>
+      <span className="text-text-subtle text-sm font-bold">–</span>
 
       <input
         type="number"
@@ -89,11 +89,11 @@ function ScoreRow({ match, teamNames, ownTeamId, onSave }: ScoreRowProps): React
         max="99"
         value={away}
         onChange={(e) => { setAway(e.target.value); setSaved(false) }}
-        className="w-10 text-center rounded-lg border py-1.5 text-sm font-bold outline-none focus:border-amber-400 bg-surface-2 border-border text-text"
+        className="w-10 text-center rounded-lg border py-1.5 text-sm font-bold outline-none focus:border-secondary-soft bg-surface-2 border-border text-text"
       />
 
       <span
-        className={`text-sm truncate ${isOwnAway ? 'font-semibold text-amber-400' : ''}`}
+        className={`text-sm truncate ${isOwnAway ? 'font-semibold text-secondary-soft' : ''}`}
         style={!isOwnAway ? { color: 'var(--color-text)' } : {}}
       >
         {awayName}
@@ -104,10 +104,10 @@ function ScoreRow({ match, teamNames, ownTeamId, onSave }: ScoreRowProps): React
         disabled={!hasScore || !isDirty || saving}
         className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-20"
         style={{
-          backgroundColor: saved ? 'rgb(34 197 94 / 0.2)' : isDirty && hasScore ? 'var(--color-secondary)' : 'transparent',
+          backgroundColor: saved ? tint('--color-available', 20) : isDirty && hasScore ? 'var(--color-secondary)' : 'transparent',
         }}
       >
-        <Check size={13} color={saved ? '#22c55e' : '#0f172a'} strokeWidth={3} />
+        <Check size={13} color={saved ? 'var(--color-available)' : 'var(--color-secondary-text)'} strokeWidth={3} />
       </button>
     </div>
   )
@@ -134,11 +134,11 @@ function MatchdayGroup({ matchday, matches, teamNames, ownTeamId, onSave }: Matc
       >
         <div className="flex items-center gap-3">
           <span className="font-semibold text-sm">Speelronde {matchday}</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${completed === matches.length ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${completed === matches.length ? 'bg-available/20 text-success' : 'bg-surface-3 text-text-muted'}`}>
             {completed}/{matches.length}
           </span>
         </div>
-        {open ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+        {open ? <ChevronUp size={16} className="text-text-subtle" /> : <ChevronDown size={16} className="text-text-subtle" />}
       </button>
 
       {open && (
@@ -230,9 +230,9 @@ export default function AdminLeagueResults(): React.JSX.Element {
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-3 pt-2">
           <Link to="/admin/league" className="opacity-50"><ArrowLeft size={20} /></Link>
-          <div className="h-7 w-48 rounded-lg bg-slate-700 animate-pulse" />
+          <div className="h-7 w-48 rounded-lg bg-surface-3 animate-pulse" />
         </div>
-        {[1, 2, 3].map((i) => <div key={i} className="h-32 rounded-xl bg-slate-800 animate-pulse" />)}
+        {[1, 2, 3].map((i) => <div key={i} className="h-32 rounded-xl bg-surface animate-pulse" />)}
       </div>
     )
   }
@@ -241,12 +241,12 @@ export default function AdminLeagueResults(): React.JSX.Element {
     return (
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-3 pt-2">
-          <Link to="/admin/league" className="text-slate-400 hover:text-slate-200"><ArrowLeft size={20} /></Link>
+          <Link to="/admin/league" className="text-text-muted hover:text-text"><ArrowLeft size={20} /></Link>
           <h1 className="text-2xl font-bold">Uitslagen invoeren</h1>
         </div>
         <div className="rounded-xl p-8 border text-center bg-surface border-border">
-          <p className="text-slate-400">Geen competitie gevonden. Maak eerst een competitie aan.</p>
-          <Link to="/admin/league" className="mt-3 inline-block text-sm text-amber-400 underline">Naar competitie</Link>
+          <p className="text-text-muted">Geen competitie gevonden. Maak eerst een competitie aan.</p>
+          <Link to="/admin/league" className="mt-3 inline-block text-sm text-secondary-soft underline">Naar competitie</Link>
         </div>
       </div>
     )
@@ -256,13 +256,13 @@ export default function AdminLeagueResults(): React.JSX.Element {
     return (
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-3 pt-2">
-          <Link to="/admin/league" className="text-slate-400 hover:text-slate-200"><ArrowLeft size={20} /></Link>
+          <Link to="/admin/league" className="text-text-muted hover:text-text"><ArrowLeft size={20} /></Link>
           <h1 className="text-2xl font-bold">Uitslagen invoeren</h1>
         </div>
         <div className="rounded-xl p-8 border text-center bg-surface border-border">
-          <Trophy size={40} className="mx-auto mb-3 text-slate-600" />
+          <Trophy size={40} className="mx-auto mb-3 text-text-faint" />
           <p className="font-medium mb-1">Nog geen wedstrijden</p>
-          <p className="text-sm text-slate-400 mb-4">Voer eerst het wedstrijdprogramma in.</p>
+          <p className="text-sm text-text-muted mb-4">Voer eerst het wedstrijdprogramma in.</p>
           <Link to="/admin/league/matches" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-secondary text-secondary-text">
             Wedstrijden invoeren
           </Link>
@@ -277,10 +277,10 @@ export default function AdminLeagueResults(): React.JSX.Element {
     <div className="p-4 pb-8 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin/league" className="text-slate-400 hover:text-slate-200"><ArrowLeft size={20} /></Link>
+        <Link to="/admin/league" className="text-text-muted hover:text-text"><ArrowLeft size={20} /></Link>
         <div>
           <h1 className="text-xl font-bold leading-tight">Uitslagen invoeren</h1>
-          <p className="text-xs text-slate-400">{league.name} · {league.season}</p>
+          <p className="text-xs text-text-muted">{league.name} · {league.season}</p>
         </div>
       </div>
 
@@ -290,9 +290,9 @@ export default function AdminLeagueResults(): React.JSX.Element {
           <span className="text-text-muted">Ingevoerd</span>
           <span className="font-medium">{totalCompleted} / {matches.length}</span>
         </div>
-        <div className="h-1.5 rounded-full bg-slate-700">
+        <div className="h-1.5 rounded-full bg-surface-3">
           <div
-            className="h-1.5 rounded-full bg-amber-400 transition-all"
+            className="h-1.5 rounded-full bg-secondary-soft transition-all"
             style={{ width: `${matches.length ? (totalCompleted / matches.length) * 100 : 0}%` }}
           />
         </div>
@@ -310,7 +310,7 @@ export default function AdminLeagueResults(): React.JSX.Element {
         />
       ))}
 
-      <p className="text-xs text-center text-slate-500 pt-2">
+      <p className="text-xs text-center text-text-subtle pt-2">
         Klik op ✓ na het invullen van een score om op te slaan
       </p>
     </div>

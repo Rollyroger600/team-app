@@ -43,12 +43,13 @@ function namesWithTotal(names: string[]): string {
   return `${names.join(', ')} (${names.length})`
 }
 
-export function buildShareText(match: Match, gatheringInfo: GatheringInfo | null, availability: ShareAvailability): string {
+/** `opponentLabel` lets the caller pass the short display name (see useOpponentName). */
+export function buildShareText(match: Match, gatheringInfo: GatheringInfo | null, availability: ShareAvailability, opponentLabel?: string): string {
   const dayDate = capitalizeFirst(format(parseISO(match.match_date), 'EEEE d MMMM', { locale: nl }))
   const timeStr = formatTime(match.match_time)
   const gatherStr = gatheringInfo?.time || 'nog niet bekend'
 
-  return `${dayDate} spelen we tegen ${match.opponent}. We spelen om ${timeStr} en verzamelen om ${gatherStr} op de club.\n\n`
+  return `${dayDate} spelen we tegen ${opponentLabel || match.opponent}. We spelen om ${timeStr} en verzamelen om ${gatherStr} op de club.\n\n`
     + `De volgende spelers staan op aanwezig: ${namesWithTotal(availability.available)}\n`
     + `Afwezig: ${namesWithTotal(availability.unavailable)}\n`
     + `Onbekend of misschien: ${namesWithTotal(availability.unknownOrMaybe)}\n\n`
@@ -63,6 +64,14 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ')
 }
 
+/**
+ * A theme colour at partial opacity, for inline `style` props where Tailwind's
+ * `/20` opacity modifier isn't available. Pass a `--color-*` variable name.
+ */
+export function tint(cssVar: string, percent: number): string {
+  return `color-mix(in srgb, var(${cssVar}) ${percent}%, transparent)`
+}
+
 /** Prefer a league team's admin-set short_name over its (often long, registry-imported) team_name. */
 export function leagueTeamDisplayName(team: { team_name: string; short_name?: string | null } | null | undefined): string {
   if (!team) return '?'
@@ -71,18 +80,18 @@ export function leagueTeamDisplayName(team: { team_name: string; short_name?: st
 
 export function getAvailabilityColor(status: string | null | undefined): string {
   switch (status) {
-    case 'available': return 'text-green-400'
-    case 'unavailable': return 'text-red-400'
-    case 'maybe': return 'text-amber-400'
-    default: return 'text-slate-400'
+    case 'available': return 'text-success'
+    case 'unavailable': return 'text-danger'
+    case 'maybe': return 'text-secondary-soft'
+    default: return 'text-text-muted'
   }
 }
 
 export function getAvailabilityBg(status: string | null | undefined): string {
   switch (status) {
-    case 'available': return 'bg-green-500/20 border-green-500/40'
-    case 'unavailable': return 'bg-red-500/20 border-red-500/40'
-    case 'maybe': return 'bg-amber-500/20 border-amber-500/40'
-    default: return 'bg-slate-500/20 border-slate-500/40'
+    case 'available': return 'bg-available/20 border-available/40'
+    case 'unavailable': return 'bg-unavailable/20 border-unavailable/40'
+    case 'maybe': return 'bg-secondary/20 border-secondary/40'
+    default: return 'bg-text-subtle/20 border-border-hover/40'
   }
 }

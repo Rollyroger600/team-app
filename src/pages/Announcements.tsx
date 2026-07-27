@@ -46,8 +46,8 @@ export default function Announcements() {
               {item.title && (
                 <h2 className="font-semibold mb-1">{item.title}</h2>
               )}
-              <p className="text-slate-300 text-sm whitespace-pre-wrap">{item.body}</p>
-              <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
+              <p className="text-text-soft text-sm whitespace-pre-wrap">{item.body}</p>
+              <div className="flex items-center justify-between mt-3 text-xs text-text-subtle">
                 <span>Door {item.profiles?.full_name || 'Onbekend'}</span>
                 <span>{formatDateLong(item.created_at?.split('T')[0])}</span>
               </div>

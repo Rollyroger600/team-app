@@ -91,7 +91,7 @@ export default function Potjescup() {
           <PodiumCard sections={[{ title: '🏆 Potjescup', statLabel: 'punten', entries: top3 }]} />
 
           <div className="rounded-xl border overflow-hidden bg-surface border-border">
-            <div className="px-4 py-3 border-b flex text-xs font-medium text-slate-400 uppercase tracking-wide border-border">
+            <div className="px-4 py-3 border-b flex text-xs font-medium text-text-muted uppercase tracking-wide border-border">
               <span className="flex-1">Speler</span>
               <span className="w-16 text-center" title="Trainingspotjes met punten">Potjes</span>
               <span className="w-14 text-center" title="Totaal punten">Punten</span>
@@ -102,7 +102,7 @@ export default function Potjescup() {
                    className="flex items-center px-4 py-3 text-sm border-b last:border-0 border-border">
                 <span className="w-5 flex-shrink-0 text-text-muted">{i + 1}</span>
                 <span className="flex-1 font-medium truncate">{player.full_name}</span>
-                <span className="w-16 text-center text-slate-300">{player.sessionsPlayed}</span>
+                <span className="w-16 text-center text-text-soft">{player.sessionsPlayed}</span>
                 <span className="w-14 text-center font-semibold"
                       style={{ color: player.totalPoints > 0 ? 'var(--color-secondary)' : 'var(--color-text-muted)' }}>
                   {formatPoints(player.totalPoints)}

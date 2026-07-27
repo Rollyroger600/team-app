@@ -36,9 +36,9 @@ interface AttendanceData {
 }
 
 const CELL: Record<string, { label: string; classes: string }> = {
-  available:   { label: '1', classes: 'bg-green-500/20 text-green-400' },
-  unavailable: { label: '0', classes: 'bg-red-500/20 text-red-400' },
-  maybe:       { label: '?', classes: 'bg-amber-500/20 text-amber-400' },
+  available:   { label: '1', classes: 'bg-available/20 text-success' },
+  unavailable: { label: '0', classes: 'bg-unavailable/20 text-danger' },
+  maybe:       { label: '?', classes: 'bg-secondary/20 text-secondary-soft' },
 }
 
 export default function AdminAttendance(): React.JSX.Element {
@@ -102,7 +102,7 @@ export default function AdminAttendance(): React.JSX.Element {
   return (
     <div className="p-4 space-y-4 pb-8">
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin" className="text-slate-400 hover:text-slate-200">
+        <Link to="/admin" className="text-text-muted hover:text-text">
           <ArrowLeft size={20} />
         </Link>
         <h1 className="text-2xl font-bold">Aanwezigheid</h1>
@@ -154,13 +154,13 @@ export default function AdminAttendance(): React.JSX.Element {
                       const cell = status ? CELL[status] : null
                       return (
                         <td key={m.id} className="px-1.5 py-1.5 text-center">
-                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded ${cell?.classes || 'text-slate-600'}`}>
+                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded ${cell?.classes || 'text-text-faint'}`}>
                             {cell?.label ?? '–'}
                           </span>
                         </td>
                       )
                     })}
-                    <td className="px-2 py-1.5 text-center font-semibold text-secondary">
+                    <td className="px-2 py-1.5 text-center font-semibold text-secondary-soft">
                       {playerTotals[p.player_id]}
                     </td>
                   </tr>

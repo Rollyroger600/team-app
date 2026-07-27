@@ -11,6 +11,7 @@ import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDate, formatTime } from '../lib/utils'
+import { useOpponentName } from '../lib/opponents'
 import type { AvailabilityStatus, UmpireDutyWithJoins, UmpireGroup } from '../types/app'
 import type { LucideIcon } from 'lucide-react'
 
@@ -22,9 +23,9 @@ interface StatusOption {
 }
 
 const STATUS_OPTIONS: StatusOption[] = [
-  { status: 'available',   icon: CheckCircle, label: 'Ja',        active: 'bg-green-500/25 border-green-500/60 text-green-400' },
-  { status: 'unavailable', icon: XCircle,     label: 'Nee',       active: 'bg-red-500/25 border-red-500/60 text-red-400' },
-  { status: 'maybe',       icon: HelpCircle,  label: 'Misschien', active: 'bg-amber-500/25 border-amber-500/60 text-amber-400' },
+  { status: 'available',   icon: CheckCircle, label: 'Ja',        active: 'bg-available/25 border-available/60 text-success' },
+  { status: 'unavailable', icon: XCircle,     label: 'Nee',       active: 'bg-unavailable/25 border-unavailable/60 text-danger' },
+  { status: 'maybe',       icon: HelpCircle,  label: 'Misschien', active: 'bg-secondary/25 border-secondary/60 text-secondary-soft' },
 ]
 
 interface MatchItem {
@@ -63,6 +64,7 @@ export default function More() {
   const { user, isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
   const { activeTeam } = useTeamStore()
+  const opponentName = useOpponentName()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('beschikbaarheid')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -228,12 +230,12 @@ export default function More() {
         {/* Hoofdrij */}
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-slate-400">{formatDate(match.match_date)} • {formatTime(match.match_time)}</p>
+            <p className="text-xs text-text-muted">{formatDate(match.match_date)} • {formatTime(match.match_time)}</p>
             <p className="font-medium text-sm truncate">
-              {match.is_home ? 'Thuis' : 'Uit'} vs {match.opponent}
+              {match.is_home ? 'Thuis' : 'Uit'} vs {opponentName(match.opponent)}
             </p>
             {myOverridden && (
-              <p className="text-xs text-amber-400 mt-0.5">Aangepast door admin</p>
+              <p className="text-xs text-secondary-soft mt-0.5">Aangepast door admin</p>
             )}
           </div>
 
@@ -248,7 +250,7 @@ export default function More() {
                   disabled={!!saving}
                   title={label}
                   className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${
-                    isActive ? active : 'border-slate-700 text-slate-500 hover:border-slate-500'
+                    isActive ? active : 'border-border text-text-subtle hover:border-border-hover'
                   }`}
                 >
                   <Icon size={15} />
@@ -261,10 +263,10 @@ export default function More() {
         {/* Uitklap-balk */}
         <button
           onClick={() => toggleExpand(match.id)}
-          className="w-full flex items-center justify-between px-4 pb-2.5 text-xs transition-colors hover:text-slate-300 text-text-muted"
+          className="w-full flex items-center justify-between px-4 pb-2.5 text-xs transition-colors hover:text-text-soft text-text-muted"
         >
           <span>
-            <span className={availCount >= 11 ? 'text-green-400 font-semibold' : availCount >= 8 ? 'text-amber-400 font-semibold' : 'text-red-400 font-semibold'}>
+            <span className={availCount >= 11 ? 'text-success font-semibold' : availCount >= 8 ? 'text-secondary-soft font-semibold' : 'text-danger font-semibold'}>
               {availCount}
             </span>
             /{totalMembers} beschikbaar
@@ -296,14 +298,14 @@ export default function More() {
         <div className="flex items-center gap-2">
           {isAdmin && (
             <Link to="/admin"
-              className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-amber-500/40 hover:text-amber-400 border-border text-text-muted"
+              className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-secondary/40 hover:text-secondary-soft border-border text-text-muted"
               title="Admin"
             >
               <ShieldCheck size={16} />
             </Link>
           )}
           <Link to="/settings"
-            className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-slate-500 border-border text-text-muted"
+            className="w-9 h-9 rounded-xl border flex items-center justify-center transition-colors hover:border-border-hover border-border text-text-muted"
             title="Instellingen"
           >
             <Settings size={16} />
@@ -321,7 +323,7 @@ export default function More() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === t.key ? 'bg-primary text-text' : 'text-text-muted hover:text-text'
+              tab === t.key ? 'bg-primary text-primary-text' : 'text-text-muted hover:text-text'
             }`}
           >
             {t.label}
@@ -334,13 +336,13 @@ export default function More() {
         <PageLoader />
       ) : matches.length === 0 ? (
         <div className="rounded-xl p-8 border text-center bg-surface border-border">
-          <p className="text-slate-400">Geen wedstrijden gevonden</p>
+          <p className="text-text-muted">Geen wedstrijden gevonden</p>
         </div>
       ) : (
         <div className="space-y-2">
           {upcomingMatches.length === 0 ? (
             <div className="rounded-xl p-8 border text-center bg-surface border-border">
-              <p className="text-slate-400">Geen aankomende wedstrijden</p>
+              <p className="text-text-muted">Geen aankomende wedstrijden</p>
             </div>
           ) : (
             <div className="rounded-xl border overflow-hidden bg-surface border-border">
@@ -350,7 +352,7 @@ export default function More() {
 
           {pastMatches.length > 0 && (
             <>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-1 pt-2">Al geweest</p>
+              <p className="text-xs font-semibold text-text-subtle uppercase tracking-wide px-1 pt-2">Al geweest</p>
               <div className="rounded-xl border overflow-hidden bg-surface border-border">
                 {pastMatches.map((match, i) => renderMatchRow(match, i === pastMatches.length - 1))}
               </div>
@@ -371,7 +373,7 @@ export default function More() {
           ))}
           {umpirePast.length > 0 && (
             <>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-1 pt-2">Gefloten</p>
+              <p className="text-xs font-semibold text-text-subtle uppercase tracking-wide px-1 pt-2">Gefloten</p>
               {umpirePast.map((group, i) => (
                 <UmpireCard key={group.match?.id || i} group={group} userId={user!.id} past={true} />
               ))}

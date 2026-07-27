@@ -2,38 +2,168 @@
 
 /* Map CSS custom properties to Tailwind utilities.
    @theme inline generates utilities that reference the vars at runtime,
-   enabling dynamic club theming via applyClubTheme(). */
+   so swapping the :root block below reskins the whole app. */
 @theme inline {
-  --color-bg:             var(--color-bg);
-  --color-surface:        var(--color-surface);
-  --color-surface-2:      var(--color-surface-2);
-  --color-primary:        var(--color-primary);
-  --color-secondary:      var(--color-secondary);
-  --color-secondary-text: var(--color-secondary-text);
-  --color-text:           var(--color-text);
-  --color-text-muted:     var(--color-text-muted);
-  --color-border:         var(--color-border);
-  --color-available:      var(--color-available);
-  --color-unavailable:    var(--color-unavailable);
-  --color-maybe:          var(--color-maybe);
-  --color-rostered-off:   var(--color-rostered-off);
+  /* Brand — the only tokens a club would ever own. Everything below is the
+     app's, identical in meaning for every club. */
+  --color-primary:         var(--color-primary);
+  --color-primary-text:    var(--color-primary-text);
+  --color-primary-accent:  var(--color-primary-accent);
+  --color-secondary:       var(--color-secondary);
+  --color-secondary-soft:  var(--color-secondary-soft);
+  --color-secondary-text:  var(--color-secondary-text);
+
+  --color-bg:              var(--color-bg);
+  --color-surface:         var(--color-surface);
+  --color-surface-2:       var(--color-surface-2);
+  --color-surface-3:       var(--color-surface-3);
+  --color-surface-4:       var(--color-surface-4);
+
+  --color-text:            var(--color-text);
+  --color-text-soft:       var(--color-text-soft);
+  --color-text-muted:      var(--color-text-muted);
+  --color-text-subtle:     var(--color-text-subtle);
+  --color-text-faint:      var(--color-text-faint);
+
+  --color-border:          var(--color-border);
+  --color-border-strong:   var(--color-border-strong);
+  --color-border-hover:    var(--color-border-hover);
+
+  /* Status — never club-specific: green always means "beschikbaar". */
+  --color-danger:          var(--color-danger);
+  --color-success:         var(--color-success);
+  --color-info:            var(--color-info);
+  --color-warning:         var(--color-warning);
+  --color-available:       var(--color-available);
+  --color-unavailable:     var(--color-unavailable);
+  --color-maybe:           var(--color-maybe);
+  --color-rostered-off:    var(--color-rostered-off);
 }
 
-:root {
-  --color-primary: #1e3a5f;
-  --color-secondary: #f59e0b;
-  --color-accent: #10b981;
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-surface-2: #273448;
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
-  --color-border: #334155;
-  --color-available: #22c55e;
-  --color-unavailable: #ef4444;
-  --color-maybe: #f59e0b;
-  --color-rostered-off: #6366f1;
-  --color-secondary-text: #0f172a;
+/* --- Themes -----------------------------------------------------------------
+   Three palettes in the LOHC club colours (bordeaux #721727, white, black).
+   The player picks one in Instellingen; setTheme() writes data-theme on <html>
+   and an inline script in index.html applies it before first paint.
+
+   Bordeaux itself is too dark to read as accent text on a dark background
+   (~1.4:1), so the dark themes use a lightened bordeaux for accents and keep
+   the true colour for large fills. "Niet beschikbaar" is deliberately a
+   brighter, cooler red than bordeaux so status never reads as branding.
+   -------------------------------------------------------------------------- */
+
+/* Clubshirt — light, the default. White shirt, bordeaux blocks, black shorts. */
+:root,
+:root[data-theme="clubshirt"] {
+  /* Brand — the only tokens a club would ever own. Everything below is the
+     app's, identical in meaning for every club. */
+  --color-primary:         #721727;
+  --color-primary-text:    #ffffff;
+  --color-primary-accent:  #f3c6ce;
+  --color-secondary:       #721727;
+  --color-secondary-soft:  #8f2033;
+  --color-secondary-text:  #ffffff;
+
+  --color-bg:              #f7f5f5;
+  --color-surface:         #ffffff;
+  --color-surface-2:       #f0eded;
+  --color-surface-3:       #e7e2e2;
+  --color-surface-4:       #d8d1d1;
+
+  --color-text:            #14100f;
+  --color-text-soft:       #3d3435;
+  --color-text-muted:      #6b5f60;
+  --color-text-subtle:     #756768;
+  --color-text-faint:      #938687;
+
+  --color-border:          #e2dcdc;
+  --color-border-strong:   #cdc4c4;
+  --color-border-hover:    #b3a8a9;
+
+  /* Status — never club-specific: green always means "beschikbaar". */
+  --color-danger:          #c62828;
+  --color-success:         #15803d;
+  --color-info:            #1d4ed8;
+  --color-warning:         #b45309;
+  --color-available:       #15803d;
+  --color-unavailable:     #dc2626;
+  --color-maybe:           #b45309;
+  --color-rostered-off:    #4f46e5;
+}
+
+/* Clubhuis — dark, warm near-black with a lightened bordeaux accent. */
+:root[data-theme="clubhuis"] {
+  /* Brand — the only tokens a club would ever own. Everything below is the
+     app's, identical in meaning for every club. */
+  --color-primary:         #721727;
+  --color-primary-text:    #ffffff;
+  --color-primary-accent:  #f3c6ce;
+  --color-secondary:       #c43d55;
+  --color-secondary-soft:  #e06079;
+  --color-secondary-text:  #ffffff;
+
+  --color-bg:              #14100f;
+  --color-surface:         #1f1a19;
+  --color-surface-2:       #2a2322;
+  --color-surface-3:       #362d2c;
+  --color-surface-4:       #453a39;
+
+  --color-text:            #f5f0f0;
+  --color-text-soft:       #d9cfd0;
+  --color-text-muted:      #a89b9c;
+  --color-text-subtle:     #9a8c8d;
+  --color-text-faint:      #7a6d6e;
+
+  --color-border:          #3a2f30;
+  --color-border-strong:   #4d4041;
+  --color-border-hover:    #6b5c5d;
+
+  /* Status — never club-specific: green always means "beschikbaar". */
+  --color-danger:          #f87171;
+  --color-success:         #4ade80;
+  --color-info:            #7dd3fc;
+  --color-warning:         #fbbf24;
+  --color-available:       #22c55e;
+  --color-unavailable:     #ef4444;
+  --color-maybe:           #f59e0b;
+  --color-rostered-off:    #818cf8;
+}
+
+/* Bordeaux — deep club red throughout, white as the accent. */
+:root[data-theme="bordeaux"] {
+  /* Brand — the only tokens a club would ever own. Everything below is the
+     app's, identical in meaning for every club. */
+  --color-primary:         #721727;
+  --color-primary-text:    #ffffff;
+  --color-primary-accent:  #f3c6ce;
+  --color-secondary:       #ffffff;
+  --color-secondary-soft:  #f5d9de;
+  --color-secondary-text:  #721727;
+
+  --color-bg:              #2a0d14;
+  --color-surface:         #3d1520;
+  --color-surface-2:       #4e1c29;
+  --color-surface-3:       #5c2532;
+  --color-surface-4:       #6d303e;
+
+  --color-text:            #f7edef;
+  --color-text-soft:       #e2c8cd;
+  --color-text-muted:      #c4a0a8;
+  --color-text-subtle:     #b08c95;
+  --color-text-faint:      #8f6f78;
+
+  --color-border:          #5c2532;
+  --color-border-strong:   #713444;
+  --color-border-hover:    #91505f;
+
+  /* Status — never club-specific: green always means "beschikbaar". */
+  --color-danger:          #fca5a5;
+  --color-success:         #86efac;
+  --color-info:            #a5d8ff;
+  --color-warning:         #fcd34d;
+  --color-available:       #4ade80;
+  --color-unavailable:     #fb7185;
+  --color-maybe:           #fbbf24;
+  --color-rostered-off:    #a5b4fc;
 }
 
 * {

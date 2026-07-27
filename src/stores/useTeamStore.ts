@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
-import { applyClubTheme } from '../lib/theme'
 import type { Team, Club, TeamSettings } from '../types/app'
 
 type ClubWithRegistry = Club & {
@@ -42,7 +41,8 @@ const useTeamStore = create<TeamState>((set, get) => ({
         match_squad_size: team?.match_squad_size ?? 16,
       }
     })
-    if (club) applyClubTheme(club)
+    // Colours no longer come from the club record — the player picks a theme in
+    // Instellingen. See src/lib/theme.ts for why applyClubTheme() was removed.
   },
 
   refreshTeam: async (teamId: string) => {

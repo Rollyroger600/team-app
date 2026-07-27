@@ -181,7 +181,7 @@ export default function Login() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl bg-primary">
+          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl bg-primary text-primary-text">
             🏑
           </div>
           <h1 className="text-2xl font-bold text-text">Hockey Team App</h1>
@@ -204,7 +204,7 @@ export default function Login() {
                       <button
                         key={c.id}
                         onClick={() => handleClubSelect(c.id)}
-                        className="w-full py-3 px-4 rounded-xl border text-sm font-medium text-left transition-colors bg-surface-2 border-border text-text hover:border-amber-400 hover:bg-amber-400/10"
+                        className="w-full py-3 px-4 rounded-xl border text-sm font-medium text-left transition-colors bg-surface-2 border-border text-text hover:border-secondary-soft hover:bg-secondary-soft/10"
                       >
                         {c.name}
                       </button>
@@ -228,7 +228,7 @@ export default function Login() {
                       <button
                         key={t.id}
                         onClick={() => handleTeamSelect(t.id)}
-                        className="w-full py-3 px-4 rounded-xl border text-sm font-medium text-left transition-colors bg-surface-2 border-border text-text hover:border-amber-400 hover:bg-amber-400/10"
+                        className="w-full py-3 px-4 rounded-xl border text-sm font-medium text-left transition-colors bg-surface-2 border-border text-text hover:border-secondary-soft hover:bg-secondary-soft/10"
                       >
                         {t.name}
                       </button>
@@ -261,7 +261,7 @@ export default function Login() {
                   <button
                     key={p.player_id}
                     onClick={() => handleSelectPlayer(p)}
-                    className="flex flex-col items-center justify-center gap-1 py-4 px-2 rounded-xl border text-sm font-medium transition-colors bg-surface-2 border-border text-text hover:border-amber-400 hover:bg-amber-400/10"
+                    className="flex flex-col items-center justify-center gap-1 py-4 px-2 rounded-xl border text-sm font-medium transition-colors bg-surface-2 border-border text-text hover:border-secondary-soft hover:bg-secondary-soft/10"
                   >
                     {p.jersey_number != null && (
                       <span className="text-xs font-bold text-text-muted">#{p.jersey_number}</span>
@@ -404,7 +404,7 @@ function PinInput({ value, onChange, onComplete, loading }: PinInputProps) {
             key={i}
             className={`w-3 h-3 rounded-full border-2 transition-all ${
               i < value.length
-                ? 'bg-amber-400 border-amber-400'
+                ? 'bg-secondary-soft border-secondary-soft'
                 : 'border-border bg-transparent'
             }`}
           />
@@ -447,7 +447,7 @@ interface ErrorBoxProps {
 
 function ErrorBox({ children }: ErrorBoxProps) {
   return (
-    <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+    <div className="flex items-center gap-2 text-sm text-danger bg-unavailable/10 border border-unavailable/20 rounded-lg px-3 py-2">
       <AlertCircle size={14} className="flex-shrink-0" />
       {children}
     </div>

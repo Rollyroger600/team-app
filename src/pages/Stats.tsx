@@ -5,10 +5,12 @@ import EmptyState from '../components/ui/EmptyState'
 import StatsPodiums from '../components/ui/MiniPodium'
 import useTeamStore from '../stores/useTeamStore'
 import { formatDate } from '../lib/utils'
+import { useOpponentName } from '../lib/opponents'
 import { useTeamStats, topByGoals, topByGoalsPlusAssists } from '../lib/stats'
 
 export default function Stats() {
   const { activeTeam } = useTeamStore()
+  const opponentName = useOpponentName()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   const { data, isLoading } = useTeamStats(activeTeam?.id)
@@ -52,7 +54,7 @@ export default function Stats() {
           {/* Spelerslijst */}
           <div className="rounded-xl border overflow-hidden bg-surface border-border">
             {/* Header */}
-            <div className="px-4 py-3 border-b flex text-xs font-medium text-slate-400 uppercase tracking-wide border-border">
+            <div className="px-4 py-3 border-b flex text-xs font-medium text-text-muted uppercase tracking-wide border-border">
               <span className="flex-1">Speler</span>
               <span className="w-9 text-center" title="Gespeeld">Gesp.</span>
               <span className="w-9 text-center" title="Velddoelpunt">VD</span>
@@ -74,21 +76,21 @@ export default function Stats() {
                     onClick={hasDetail ? () => toggle(player.player_id) : undefined}
                   >
                     {/* Expand icon */}
-                    <span className="w-4 mr-2 flex-shrink-0 text-slate-500">
+                    <span className="w-4 mr-2 flex-shrink-0 text-text-subtle">
                       {hasDetail
                         ? (isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />)
                         : null}
                     </span>
                     <span className="flex-1 font-medium truncate">{player.full_name}</span>
-                    <span className="w-9 text-center text-slate-300">{player.matches_played}</span>
-                    <span className="w-9 text-center text-slate-300">{player.fieldGoals}</span>
-                    <span className="w-9 text-center text-slate-300">{player.cornerGoals}</span>
-                    <span className="w-9 text-center text-slate-300">{player.penaltyGoals}</span>
+                    <span className="w-9 text-center text-text-soft">{player.matches_played}</span>
+                    <span className="w-9 text-center text-text-soft">{player.fieldGoals}</span>
+                    <span className="w-9 text-center text-text-soft">{player.cornerGoals}</span>
+                    <span className="w-9 text-center text-text-soft">{player.penaltyGoals}</span>
                     <span className="w-11 text-center font-semibold"
                           style={{ color: player.goals > 0 ? 'var(--color-secondary)' : 'var(--color-text-muted)' }}>
                       {player.goals}
                     </span>
-                    <span className="w-9 text-center text-slate-300">{player.assists}</span>
+                    <span className="w-9 text-center text-text-soft">{player.assists}</span>
                   </div>
 
                   {/* Expandable goal/assist breakdown, incl. VD/SC/SB */}
@@ -108,17 +110,17 @@ export default function Stats() {
                                className="flex items-center gap-2 px-6 py-1.5 text-xs text-text-muted">
                             <span className="w-20 flex-shrink-0">{formatDate(match.match_date)}</span>
                             <span className="flex-1 truncate">
-                              {match.is_home ? 'Thuis' : 'Uit'} vs {match.opponent.replace(/ Heren.*/, '')}
+                              {match.is_home ? 'Thuis' : 'Uit'} vs {opponentName(match.opponent)}
                               {goalTypeParts.length > 0 && (
                                 <span className="opacity-70"> ({goalTypeParts.join(', ')})</span>
                               )}
                             </span>
                             {hasScore && (
-                              <span className="flex-shrink-0 text-slate-400">
+                              <span className="flex-shrink-0 text-text-muted">
                                 {ourScore}–{theirScore}
                               </span>
                             )}
-                            <span className="flex-shrink-0 font-semibold text-secondary"
+                            <span className="flex-shrink-0 font-semibold text-secondary-soft"
                                   style={{ minWidth: '3rem', textAlign: 'right' }}>
                               {goals > 0 && `${goals} goal${goals > 1 ? 's' : ''}`}
                               {goals > 0 && assists > 0 && ' · '}

@@ -86,14 +86,14 @@ export default function AdminMatchEdit(): React.JSX.Element {
     return <PageLoader />
   }
 
-  const inputClass = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400"
+  const inputClass = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-secondary-soft"
   const inputStyle = { backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }
-  const labelClass = "block text-sm font-medium mb-1.5 text-slate-400"
+  const labelClass = "block text-sm font-medium mb-1.5 text-text-muted"
 
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin" className="text-slate-400 hover:text-slate-200">
+        <Link to="/admin" className="text-text-muted hover:text-text">
           <ArrowLeft size={20} />
         </Link>
         <h1 className="text-2xl font-bold">{isNew ? 'Wedstrijd toevoegen' : 'Wedstrijd bewerken'}</h1>
@@ -164,8 +164,8 @@ export default function AdminMatchEdit(): React.JSX.Element {
                     onClick={() => handleChange('is_home', value)}
                     className={`flex-1 py-2 rounded-xl border text-sm font-medium transition-all ${
                       form.is_home === value
-                        ? 'border-amber-400 text-amber-400 bg-amber-400/10'
-                        : 'border-slate-700 text-slate-400'
+                        ? 'border-secondary-soft text-secondary-soft bg-secondary-soft/10'
+                        : 'border-border text-text-muted'
                     }`}
                   >
                     {label}
@@ -191,7 +191,7 @@ export default function AdminMatchEdit(): React.JSX.Element {
         </div>
 
         {error && (
-          <p className="text-red-400 text-sm">{error}</p>
+          <p className="text-danger text-sm">{error}</p>
         )}
 
         <button

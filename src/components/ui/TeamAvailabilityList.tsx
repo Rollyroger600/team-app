@@ -6,9 +6,9 @@ import useAuthStore from '../../stores/useAuthStore'
 import type { AvailabilityStatus } from '../../types/app'
 
 const STATUS_DOT: Record<string, string> = {
-  available:   'bg-green-400',
-  unavailable: 'bg-red-400',
-  maybe:       'bg-amber-400',
+  available:   'bg-success',
+  unavailable: 'bg-danger',
+  maybe:       'bg-secondary-soft',
 }
 
 interface PickerOption {
@@ -19,9 +19,9 @@ interface PickerOption {
 }
 
 const PICKER_OPTIONS: PickerOption[] = [
-  { status: 'available',   icon: CheckCircle, label: 'Beschikbaar',     classes: 'bg-green-500/20 border-green-500/50 text-green-400' },
-  { status: 'unavailable', icon: XCircle,     label: 'Niet beschikbaar', classes: 'bg-red-500/20 border-red-500/50 text-red-400' },
-  { status: 'maybe',       icon: HelpCircle,  label: 'Misschien',        classes: 'bg-amber-500/20 border-amber-500/50 text-amber-400' },
+  { status: 'available',   icon: CheckCircle, label: 'Beschikbaar',     classes: 'bg-available/20 border-available/50 text-success' },
+  { status: 'unavailable', icon: XCircle,     label: 'Niet beschikbaar', classes: 'bg-unavailable/20 border-unavailable/50 text-danger' },
+  { status: 'maybe',       icon: HelpCircle,  label: 'Misschien',        classes: 'bg-secondary/20 border-secondary/50 text-secondary-soft' },
 ]
 
 export interface AvailabilityMember {
@@ -90,8 +90,8 @@ export default function TeamAvailabilityList({
           const isMe = member.id === user?.id
           const content = (
             <>
-              <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[status || ''] || 'bg-slate-600'}`} />
-              <span className={`truncate ${isMe ? 'text-amber-400' : 'text-slate-300'}`}>{member.name}</span>
+              <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[status || ''] || 'bg-surface-4'}`} />
+              <span className={`truncate ${isMe ? 'text-secondary-soft' : 'text-text-soft'}`}>{member.name}</span>
             </>
           )
 
@@ -134,7 +134,7 @@ export default function TeamAvailabilityList({
                   onClick={() => apply(status)}
                   disabled={saving}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-sm transition-colors disabled:opacity-50 ${
-                    isActive ? classes : 'border-border text-text-muted hover:border-slate-500'
+                    isActive ? classes : 'border-border text-text-muted hover:border-border-hover'
                   }`}
                 >
                   <Icon size={16} />
@@ -146,13 +146,13 @@ export default function TeamAvailabilityList({
             <button
               onClick={() => apply(null)}
               disabled={saving}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-sm transition-colors disabled:opacity-50 border-border text-text-muted hover:border-slate-500"
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-sm transition-colors disabled:opacity-50 border-border text-text-muted hover:border-border-hover"
             >
               <Trash2 size={16} />
               Wissen (geen antwoord)
             </button>
 
-            {error && <p className="text-xs text-red-400">{error}</p>}
+            {error && <p className="text-xs text-danger">{error}</p>}
 
             <button
               onClick={() => setEditing(null)}

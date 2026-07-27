@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
-import { leagueTeamDisplayName } from '../lib/utils'
+import { leagueTeamDisplayName, tint } from '../lib/utils'
 import type { AvailabilityStatus } from '../types/app'
 import React from 'react'
 
@@ -124,7 +124,7 @@ function TeamName({ team }: TeamNameProps) {
   if (!team) return <span className="text-text-muted">?</span>
   const name = leagueTeamDisplayName(team)
   if (team.is_own_team) {
-    return <span className="text-amber-400 font-semibold">{name}</span>
+    return <span className="text-secondary-soft font-semibold">{name}</span>
   }
   return <span>{name}</span>
 }
@@ -239,11 +239,11 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
                     {g.assist?.full_name && (
                       <span className="ml-1.5 text-text-muted">assist: {displayNameProfile(g.assist)}</span>
                     )}
-                    {g.is_penalty && <span className="text-amber-400 ml-1.5">strafbal</span>}
-                    {g.is_penalty_corner && <span className="text-blue-400 ml-1.5">strafcorner</span>}
+                    {g.is_penalty && <span className="text-secondary-soft ml-1.5">strafbal</span>}
+                    {g.is_penalty_corner && <span className="text-info ml-1.5">strafcorner</span>}
                   </span>
                   {isAdmin && (
-                    <button onClick={() => deleteGoal(g.id)} className="text-slate-600 hover:text-red-400 transition-colors p-0.5 flex-shrink-0">
+                    <button onClick={() => deleteGoal(g.id)} className="text-text-faint hover:text-danger transition-colors p-0.5 flex-shrink-0">
                       <Trash2 size={11} />
                     </button>
                   )}
@@ -330,9 +330,9 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
 
 // --- Availability section (compact, used in both upcoming and past match cards) ---
 const STATUS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  available:   { bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)',  text: '#4ade80' },
-  unavailable: { bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.4)',  text: '#f87171' },
-  maybe:       { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)', text: '#fbbf24' },
+  available:   { bg: tint('--color-available', 15),   border: tint('--color-available', 40),   text: 'var(--color-success)' },
+  unavailable: { bg: tint('--color-unavailable', 15), border: tint('--color-unavailable', 40), text: 'var(--color-danger)' },
+  maybe:       { bg: tint('--color-maybe', 15),       border: tint('--color-maybe', 40),       text: 'var(--color-secondary-soft)' },
 }
 
 interface AvailabilitySectionProps {
@@ -678,7 +678,7 @@ interface EmptyNoLeagueProps {
 function EmptyNoLeague({ isAdmin }: EmptyNoLeagueProps) {
   return (
     <div className="rounded-xl p-8 border text-center mt-4 bg-surface border-border">
-      <Trophy size={40} className="mx-auto mb-3 text-slate-600" />
+      <Trophy size={40} className="mx-auto mb-3 text-text-faint" />
       <p className="font-medium mb-1">Geen competitie ingesteld</p>
       <p className="text-sm mb-4 text-text-muted">
         Er is nog geen poule aangemaakt voor dit team.
@@ -798,7 +798,7 @@ function MiniStandings({ matches, teams }: MiniStandingsProps) {
               <td className="px-3 py-2.5 text-text-muted">
                 {i + 1}
               </td>
-              <td className={`px-3 py-2.5 font-medium ${row.is_own_team ? 'text-amber-400' : ''}`}>
+              <td className={`px-3 py-2.5 font-medium ${row.is_own_team ? 'text-secondary-soft' : ''}`}>
                 {row.name}
               </td>
               <td className="text-center px-2 py-2.5 text-text-muted">{row.played}</td>
@@ -1030,7 +1030,7 @@ export default function Matches() {
                     ))
                 ) : (
                   <div className="rounded-xl p-5 border text-center bg-surface border-border">
-                    <Calendar size={28} className="mx-auto mb-2 text-slate-600" />
+                    <Calendar size={28} className="mx-auto mb-2 text-text-faint" />
                     <p className="text-sm text-text-muted">
                       {ownOnly ? 'Geen aankomende wedstrijden' : 'Geen wedstrijden de komende twee weken'}
                     </p>
@@ -1049,14 +1049,14 @@ export default function Matches() {
 
               {programmaMatchesFiltered.length === 0 ? (
                 <div className="rounded-xl p-6 border text-center bg-surface border-border">
-                  <Calendar size={32} className="mx-auto mb-2 text-slate-600" />
+                  <Calendar size={32} className="mx-auto mb-2 text-text-faint" />
                   <p className="text-sm text-text-muted">
                     Geen aankomende wedstrijden
                   </p>
                   {isAdmin && (
                     <Link
                       to="/admin/league/matches"
-                      className="inline-flex items-center gap-1 mt-3 text-sm text-amber-400"
+                      className="inline-flex items-center gap-1 mt-3 text-sm text-secondary-soft"
                     >
                       <PlusCircle size={14} />
                       Wedstrijden toevoegen
@@ -1080,7 +1080,7 @@ export default function Matches() {
 
               {resultsMatches.length === 0 ? (
                 <div className="rounded-xl p-6 border text-center mt-2 bg-surface border-border">
-                  <Trophy size={32} className="mx-auto mb-2 text-slate-600" />
+                  <Trophy size={32} className="mx-auto mb-2 text-text-faint" />
                   <p className="text-sm text-text-muted">
                     {ownOnly ? 'Geen eigen uitslagen beschikbaar' : 'Nog geen uitslagen beschikbaar'}
                   </p>

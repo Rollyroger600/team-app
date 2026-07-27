@@ -5,7 +5,8 @@ import { ArrowLeft, Plus, Trash2, Target, Square } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
-import { formatDate } from '../../lib/utils'
+import { formatDate, tint } from '../../lib/utils'
+import { useOpponentName } from '../../lib/opponents'
 import type { Match, Profile } from '../../types/app'
 
 interface GoalFormState {
@@ -56,8 +57,8 @@ interface MatchGoalsData {
 }
 
 const CARD_COLORS: Record<string, { label: string; bg: string }> = {
-  yellow: { label: 'Geel', bg: 'bg-yellow-400/20 border-yellow-400/50 text-yellow-300' },
-  red:    { label: 'Rood', bg: 'bg-red-500/20 border-red-500/50 text-red-400' },
+  yellow: { label: 'Geel', bg: 'bg-warning/20 border-warning/50 text-warning' },
+  red:    { label: 'Rood', bg: 'bg-unavailable/20 border-unavailable/50 text-danger' },
 }
 
 function displayName(profile: Pick<Profile, 'full_name' | 'nickname'> | null | undefined): string {
@@ -65,6 +66,7 @@ function displayName(profile: Pick<Profile, 'full_name' | 'nickname'> | null | u
 }
 
 export default function AdminMatchGoals(): React.JSX.Element {
+  const opponentName = useOpponentName()
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
 
@@ -204,20 +206,20 @@ export default function AdminMatchGoals(): React.JSX.Element {
   const gSaving = addGoalMutation.isPending
   const cSaving = addCardMutation.isPending
 
-  const selectClass = "flex-1 px-2.5 py-2 rounded-lg text-sm outline-none focus:border-amber-400"
+  const selectClass = "flex-1 px-2.5 py-2 rounded-lg text-sm outline-none focus:border-secondary-soft"
   const selectStyle = { backgroundColor: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
 
   return (
     <div className="p-4 space-y-5 pb-8">
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin" className="text-slate-400 hover:text-slate-200">
+        <Link to="/admin" className="text-text-muted hover:text-text">
           <ArrowLeft size={20} />
         </Link>
         <div>
           <h1 className="text-2xl font-bold">Doelpunten & kaarten</h1>
           {match && (
-            <p className="text-sm text-slate-400">
-              vs {match.opponent} · {formatDate(match.match_date)}
+            <p className="text-sm text-text-muted">
+              vs {opponentName(match.opponent)} · {formatDate(match.match_date)}
             </p>
           )}
         </div>
@@ -227,17 +229,17 @@ export default function AdminMatchGoals(): React.JSX.Element {
       {match && (
         <div className="rounded-xl p-3 border text-center bg-surface border-border">
           <p className="text-3xl font-bold">
-            {match.score_home ?? '–'} <span className="text-slate-500 text-xl">–</span> {match.score_away ?? '–'}
+            {match.score_home ?? '–'} <span className="text-text-subtle text-xl">–</span> {match.score_away ?? '–'}
           </p>
-          <p className="text-xs text-slate-400 mt-1">
-            {match.is_home ? `Ons team – ${match.opponent}` : `${match.opponent} – Ons team`}
+          <p className="text-xs text-text-muted mt-1">
+            {match.is_home ? `Ons team – ${opponentName(match.opponent)}` : `${opponentName(match.opponent)} – Ons team`}
           </p>
           {(() => {
             const ourScore = match.is_home ? match.score_home : match.score_away
             const registered = goals.length
             const complete = ourScore != null && registered >= ourScore
             return (
-              <p className="text-xs mt-0.5" style={{ color: complete ? '#22c55e' : '#f59e0b' }}>
+              <p className="text-xs mt-0.5" style={{ color: complete ? 'var(--color-available)' : 'var(--color-secondary)' }}>
                 {ourScore != null
                   ? `${registered}/${ourScore} doelpunten ingevoerd${complete ? ' ✓' : ''}`
                   : `${registered} doelpunten geregistreerd`}
@@ -250,7 +252,7 @@ export default function AdminMatchGoals(): React.JSX.Element {
       {/* Doelpunten */}
       <div className="space-y-3">
         <h2 className="font-semibold flex items-center gap-2">
-          <Target size={16} className="text-amber-400" /> Doelpunten
+          <Target size={16} className="text-secondary-soft" /> Doelpunten
         </h2>
 
         {goals.length > 0 && (
@@ -258,7 +260,7 @@ export default function AdminMatchGoals(): React.JSX.Element {
             {goals.map((g, i) => (
               <div key={g.id}
                    className={`flex items-center gap-3 px-4 py-2.5 border-border ${i < goals.length - 1 ? 'border-b' : ''}`}>
-                <span className="w-8 text-xs text-slate-500 text-center flex-shrink-0">
+                <span className="w-8 text-xs text-text-subtle text-center flex-shrink-0">
                   {g.minute ? `${g.minute}'` : '–'}
                 </span>
                 <div className="flex-1 min-w-0">
@@ -266,13 +268,13 @@ export default function AdminMatchGoals(): React.JSX.Element {
                     {g.is_own_goal ? `${displayName(g.scorer)} (eigen)` : displayName(g.scorer)}
                   </span>
                   {g.assist?.full_name && (
-                    <span className="text-xs text-slate-400 ml-2">assist: {displayName(g.assist)}</span>
+                    <span className="text-xs text-text-muted ml-2">assist: {displayName(g.assist)}</span>
                   )}
-                  {g.is_penalty && <span className="text-xs text-amber-400 ml-2">strafbal</span>}
-                  {g.is_penalty_corner && <span className="text-xs text-blue-400 ml-2">strafcorner</span>}
+                  {g.is_penalty && <span className="text-xs text-secondary-soft ml-2">strafbal</span>}
+                  {g.is_penalty_corner && <span className="text-xs text-info ml-2">strafcorner</span>}
                 </div>
                 <button onClick={() => deleteGoal(g.id)}
-                        className="text-slate-600 hover:text-red-400 transition-colors p-1 flex-shrink-0">
+                        className="text-text-faint hover:text-danger transition-colors p-1 flex-shrink-0">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -338,7 +340,7 @@ export default function AdminMatchGoals(): React.JSX.Element {
             const ourScore = match ? (match.is_home ? match.score_home : match.score_away) : null
             const atMax = ourScore != null && goals.length >= ourScore
             if (atMax) return (
-              <p className="text-sm text-center py-1" style={{ color: '#22c55e' }}>
+              <p className="text-sm text-center py-1" style={{ color: 'var(--color-available)' }}>
                 Alle {ourScore} doelpunten ingevoerd ✓
               </p>
             )
@@ -356,7 +358,7 @@ export default function AdminMatchGoals(): React.JSX.Element {
       {/* Kaarten */}
       <div className="space-y-3">
         <h2 className="font-semibold flex items-center gap-2">
-          <Square size={16} className="text-yellow-400" /> Kaarten
+          <Square size={16} className="text-warning" /> Kaarten
         </h2>
 
         {cards.length > 0 && (
@@ -364,7 +366,7 @@ export default function AdminMatchGoals(): React.JSX.Element {
             {cards.map((c, i) => (
               <div key={c.id}
                    className={`flex items-center gap-3 px-4 py-2.5 border-border ${i < cards.length - 1 ? 'border-b' : ''}`}>
-                <span className="w-8 text-xs text-slate-500 text-center flex-shrink-0">
+                <span className="w-8 text-xs text-text-subtle text-center flex-shrink-0">
                   {c.minute ? `${c.minute}'` : '–'}
                 </span>
                 <span className={`px-2 py-0.5 rounded text-xs font-semibold border flex-shrink-0 ${CARD_COLORS[c.card_type]?.bg || ''}`}>
@@ -372,7 +374,7 @@ export default function AdminMatchGoals(): React.JSX.Element {
                 </span>
                 <span className="flex-1 text-sm">{displayName(c.profiles)}</span>
                 <button onClick={() => deleteCard(c.id)}
-                        className="text-slate-600 hover:text-red-400 transition-colors p-1 flex-shrink-0">
+                        className="text-text-faint hover:text-danger transition-colors p-1 flex-shrink-0">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -410,7 +412,7 @@ export default function AdminMatchGoals(): React.JSX.Element {
           </div>
           <button type="submit" disabled={cSaving || !cForm.player_id}
                   className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
-                  style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  style={{ backgroundColor: tint('--color-secondary', 15), color: 'var(--color-secondary)', border: `1px solid ${tint('--color-secondary', 30)}` }}>
             <Plus size={14} />
             {cSaving ? 'Opslaan...' : 'Kaart toevoegen'}
           </button>

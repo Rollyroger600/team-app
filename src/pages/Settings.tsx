@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { LogOut, Save, Lock, Eye, EyeOff } from 'lucide-react'
+import { LogOut, Save, Lock, Eye, EyeOff, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { changePin } from '../lib/auth'
+import { getTheme, setTheme, THEME_OPTIONS, type ThemeName } from '../lib/theme'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 
@@ -26,6 +27,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+
+  const [theme, setThemeState] = useState<ThemeName>(getTheme)
 
   // PIN change
   const [showPinSection, setShowPinSection] = useState(false)
@@ -56,6 +59,11 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2500)
   }
 
+  function handleThemeChange(next: ThemeName) {
+    setTheme(next)
+    setThemeState(next)
+  }
+
   async function handleSignOut() {
     setSigningOut(true)
     await signOut()
@@ -77,29 +85,67 @@ export default function Settings() {
     setTimeout(() => { setPinSaved(false); setShowPinSection(false) }, 2500)
   }
 
-  const inputClass = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400"
+  const inputClass = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-secondary-soft"
   const inputStyle = { backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }
 
   return (
     <div className="p-4 space-y-4">
       <h1 className="text-2xl font-bold pt-2">Instellingen</h1>
 
+      {/* Theme picker */}
+      <div className="rounded-xl border overflow-hidden bg-surface border-border">
+        <div className="px-4 py-3 border-b border-border">
+          <p className="text-xs text-text-muted uppercase tracking-wide">Weergave</p>
+        </div>
+        <div className="p-3 space-y-2">
+          {THEME_OPTIONS.map(option => {
+            const active = theme === option.name
+            return (
+              <button
+                key={option.name}
+                type="button"
+                onClick={() => handleThemeChange(option.name)}
+                aria-pressed={active}
+                className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-colors ${
+                  active ? 'border-secondary bg-secondary/10' : 'border-border hover:border-border-hover'
+                }`}
+              >
+                <span className="flex gap-1 flex-shrink-0" aria-hidden="true">
+                  {option.swatch.map((color, i) => (
+                    <span
+                      key={i}
+                      className="w-4 h-7 rounded-sm border border-border"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </span>
+                <span className="text-left min-w-0">
+                  <span className="block text-sm font-medium">{option.label}</span>
+                  <span className="block text-xs text-text-muted">{option.description}</span>
+                </span>
+                {active && <Check size={16} className="ml-auto flex-shrink-0 text-secondary-soft" />}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Profile card */}
       <div className="rounded-xl p-4 border bg-surface border-border">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0 bg-primary">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0 bg-primary text-primary-text">
             {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
           </div>
           <div>
             <p className="font-semibold">{profile?.full_name || 'Onbekend'}</p>
-            <p className="text-sm text-slate-400">{user?.email}</p>
+            <p className="text-sm text-text-muted">{user?.email}</p>
           </div>
         </div>
 
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              Bijnaam <span className="text-slate-600">(getoond in opstelling en beschikbaarheid)</span>
+            <label className="block text-xs font-medium text-text-muted mb-1.5">
+              Bijnaam <span className="text-text-faint">(getoond in opstelling en beschikbaarheid)</span>
             </label>
             <input
               type="text"
@@ -113,7 +159,7 @@ export default function Settings() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Voorkeurspositie</label>
+            <label className="block text-xs font-medium text-text-muted mb-1.5">Voorkeurspositie</label>
             <div className="grid grid-cols-2 gap-2">
               {POSITIONS.map(({ value, label }) => (
                 <button
@@ -122,8 +168,8 @@ export default function Settings() {
                   onClick={() => setPosition(p => p === value ? '' : value)}
                   className={`py-2 rounded-xl border text-sm transition-all ${
                     position === value
-                      ? 'border-amber-400 text-amber-400 bg-amber-400/10'
-                      : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                      ? 'border-secondary-soft text-secondary-soft bg-secondary-soft/10'
+                      : 'border-border text-text-muted hover:border-border-hover'
                   }`}
                 >
                   {label}
@@ -132,8 +178,8 @@ export default function Settings() {
             </div>
           </div>
 
-          {error && <p className="text-red-400 text-xs">{error}</p>}
-          {saved && <p className="text-green-400 text-xs">Opgeslagen!</p>}
+          {error && <p className="text-danger text-xs">{error}</p>}
+          {saved && <p className="text-success text-xs">Opgeslagen!</p>}
 
           <button
             onClick={handleSave}
@@ -149,11 +195,11 @@ export default function Settings() {
       {/* Team info */}
       <div className="rounded-xl border overflow-hidden bg-surface border-border">
         <div className="px-4 py-3 border-b border-border">
-          <p className="text-xs text-slate-400 uppercase tracking-wide">Team</p>
+          <p className="text-xs text-text-muted uppercase tracking-wide">Team</p>
         </div>
         <div className="px-4 py-3">
           <p className="font-medium">{activeTeam?.name || 'Geen team'}</p>
-          {activeClub && <p className="text-sm text-slate-400">{activeClub.name}</p>}
+          {activeClub && <p className="text-sm text-text-muted">{activeClub.name}</p>}
         </div>
       </div>
 
@@ -163,7 +209,7 @@ export default function Settings() {
           onClick={() => { setShowPinSection(v => !v); setPinError('') }}
           className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-surface-2"
         >
-          <Lock size={18} className="text-amber-400" />
+          <Lock size={18} className="text-secondary-soft" />
           <span className="font-medium">Pincode wijzigen</span>
         </button>
         {showPinSection && (
@@ -173,7 +219,7 @@ export default function Settings() {
               const setters = [setCurrentPin, setNewPin, setConfirmNewPin]
               return (
                 <div key={i}>
-                  <label className="block text-xs text-slate-400 mb-1">{label}</label>
+                  <label className="block text-xs text-text-muted mb-1">{label}</label>
                   <div className="relative">
                     <input
                       type={showPins ? 'text' : 'password'}
@@ -195,8 +241,8 @@ export default function Settings() {
                 </div>
               )
             })}
-            {pinError && <p className="text-red-400 text-xs">{pinError}</p>}
-            {pinSaved && <p className="text-green-400 text-xs">PIN gewijzigd!</p>}
+            {pinError && <p className="text-danger text-xs">{pinError}</p>}
+            {pinSaved && <p className="text-success text-xs">PIN gewijzigd!</p>}
             <button
               onClick={handleChangePin}
               disabled={pinSaving || !currentPin || !newPin || !confirmNewPin}
@@ -214,14 +260,14 @@ export default function Settings() {
         <button
           onClick={handleSignOut}
           disabled={signingOut}
-          className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-red-500/10 disabled:opacity-50"
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-unavailable/10 disabled:opacity-50"
         >
-          <LogOut size={18} className="text-red-400" />
-          <span className="text-red-400 font-medium">{signingOut ? 'Uitloggen...' : 'Uitloggen'}</span>
+          <LogOut size={18} className="text-danger" />
+          <span className="text-danger font-medium">{signingOut ? 'Uitloggen...' : 'Uitloggen'}</span>
         </button>
       </div>
 
-      <p className="text-center text-xs text-slate-600 pt-2">Hockey Team App v1.0.0</p>
+      <p className="text-center text-xs text-text-faint pt-2">Hockey Team App v1.0.0</p>
     </div>
   )
 }

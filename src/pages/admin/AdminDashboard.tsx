@@ -26,7 +26,7 @@ const adminSections: AdminSection[] = [
     description: 'Trainingspotjes en punten bijhouden',
     icon: Medal,
     to: '/admin/potjescup',
-    color: 'bg-yellow-500/20 text-yellow-400',
+    color: 'bg-warning/20 text-warning',
   },
   {
     title: 'Aanwezigheid',
@@ -47,21 +47,21 @@ const adminSections: AdminSection[] = [
     description: 'Beheer spelerslijst en rollen',
     icon: Users,
     to: '/admin/players',
-    color: 'bg-blue-500/20 text-blue-400',
+    color: 'bg-info/20 text-info',
   },
   {
     title: 'Wedstrijd toevoegen',
     description: 'Nieuwe wedstrijd plannen',
     icon: PlusCircle,
     to: '/admin/matches/new',
-    color: 'bg-green-500/20 text-green-400',
+    color: 'bg-available/20 text-success',
   },
   {
     title: 'Competitie',
     description: 'Competitie en teams beheren',
     icon: Trophy,
     to: '/admin/league',
-    color: 'bg-amber-500/20 text-amber-400',
+    color: 'bg-secondary/20 text-secondary-soft',
   },
   {
     title: 'Comp. wedstrijden',
@@ -82,7 +82,7 @@ const adminSections: AdminSection[] = [
     description: 'Team configuratie aanpassen',
     icon: Settings,
     to: '/admin/settings',
-    color: 'bg-slate-500/20 text-slate-400',
+    color: 'bg-text-subtle/20 text-text-muted',
   },
 ]
 
@@ -95,9 +95,9 @@ export default function AdminDashboard(): React.JSX.Element {
       {/* Header met profiel + logout */}
       <div className="flex items-center justify-between pt-2">
         <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Beheer</p>
+          <p className="text-xs text-text-muted uppercase tracking-wide mb-1">Beheer</p>
           <h1 className="text-2xl font-bold">Admin</h1>
-          {activeTeam && <p className="text-slate-400 text-sm">{activeTeam.name}</p>}
+          {activeTeam && <p className="text-text-muted text-sm">{activeTeam.name}</p>}
         </div>
         <div className="flex items-center gap-2">
           <div className="text-right hidden sm:block">
@@ -106,7 +106,7 @@ export default function AdminDashboard(): React.JSX.Element {
           <button
             onClick={signOut}
             title="Uitloggen"
-            className="w-9 h-9 rounded-xl border flex items-center justify-center hover:bg-red-500/10 hover:border-red-500/40 hover:text-red-400 transition-all border-border text-text-muted"
+            className="w-9 h-9 rounded-xl border flex items-center justify-center hover:bg-unavailable/10 hover:border-unavailable/40 hover:text-danger transition-all border-border text-text-muted"
           >
             <LogOut size={16} />
           </button>
@@ -118,14 +118,14 @@ export default function AdminDashboard(): React.JSX.Element {
           <Link
             key={to}
             to={to}
-            className="rounded-xl p-4 border transition-colors hover:border-slate-500 flex flex-col gap-3 bg-surface border-border"
+            className="rounded-xl p-4 border transition-colors hover:border-border-hover flex flex-col gap-3 bg-surface border-border"
           >
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
               <Icon size={20} />
             </div>
             <div>
               <p className="font-semibold text-sm">{title}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{description}</p>
+              <p className="text-xs text-text-muted mt-0.5">{description}</p>
             </div>
           </Link>
         ))}

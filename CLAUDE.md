@@ -131,6 +131,15 @@ new season starts mid-August 2026. Installed by players as a homescreen PWA on t
   invoeren. This does **not** affect `matches.opponent` (a separate free-text snapshot used for
   the team's own match list/Dashboard/share text) — that's a deliberate, un-synced denormalization
   from when the match was created/imported.
+- Because of that split, `matches.opponent` needs its own resolver: **`useOpponentName()` in
+  `src/lib/opponents.ts`**. It loads the league's `league_teams` once (cached under
+  `['opponentShortNames', teamId]`) and maps an opponent string onto the admin's short name.
+  Render every `match.opponent` through it — Dashboard, Wedstrijden, MatchDetail, Stats, More,
+  Opstelling, the umpire cards and the admin screens all do. Two fallbacks are deliberate: a match
+  with no league counterpart (friendly, cup game) keeps its own text, and a league team with no
+  `short_name` yet gets its " Heren 30-1" suffix trimmed so it still fits on a phone.
+  `buildShareText()` takes the resolved name as its 4th argument — the WhatsApp message uses short
+  names too.
 
 ## Umpire duties (fluitbeurten)
 - Two kinds of duty rows in `umpire_duties`: match-linked (via `match_id`, auto-generated 2 per
@@ -143,6 +152,38 @@ new season starts mid-August 2026. Installed by players as a homescreen PWA on t
   `duty_date + umpire_match_desc` (no shared batch id column exists, so two unrelated manual
   entries with identical date+description would incorrectly merge — acceptable edge case for
   this pilot's scale).
+
+## Theming (clubkleuren)
+- Three palettes in the LOHC club colours, each a `:root[data-theme="..."]` block in
+  `src/index.css`: **clubshirt** (light, the default), **clubhuis** (dark), **bordeaux**. The
+  player picks one in Instellingen → Weergave.
+- **Never hardcode a colour.** Every colour goes through a `--color-*` token (`bg-surface`,
+  `text-text-muted`, `border-border`, `text-danger`, …). A `text-slate-400`-style class only looks
+  right in one theme and silently breaks the other two — 433 of them were migrated out for exactly
+  this reason. For inline `style` props that need opacity, use `tint('--color-x', 20)` from
+  `src/lib/utils.ts` rather than an `rgba()` literal.
+- Token roles that are easy to get wrong: `--color-secondary` is the **fill** (solid buttons,
+  active pills) and `--color-secondary-soft` is the **accent text/icon** colour — use the soft one
+  for text, it's the one tuned for contrast. Anything on `bg-primary` must also set
+  `text-primary-text`, because `--color-primary` is dark bordeaux in all three themes while the
+  page text colour flips per theme.
+- The choice lives in `localStorage` (key `theme`), not the database, so it can be applied before
+  the first paint. An inline script in `index.html` does that — if you change `STORAGE_KEY`,
+  `DEFAULT_THEME` or the theme names in `src/lib/theme.ts`, update that script too.
+- `applyClubTheme()` was **removed** (2026-07-27). It pushed `clubs_registry.primary_color` /
+  `secondary_color` onto `documentElement` as inline styles, which beat the attribute selectors and
+  would override whatever the player picked. The DB columns still exist but no longer do anything —
+  don't wire them back up without deliberately redesigning the precedence.
+- The hockey pitch in `MatchLineup.tsx` (green gradient + position colours) is intentionally
+  theme-independent — a pitch is green regardless.
+- Each theme block is grouped into **brand** tokens (the six `primary*`/`secondary*` ones) and
+  everything else. That split is deliberate: if the app ever serves multiple clubs, only the brand
+  six would come from a club record while the rest stays the app's. Keep new tokens on the right
+  side of that line — in particular the status colours (`available`, `unavailable`, `maybe`,
+  `danger`, `success`, …) must never become club-configurable, since green has to keep meaning
+  "beschikbaar" everywhere.
+- After touching any colour, re-run the contrast check: everything should stay ≥4.5:1 against its
+  surface in all three themes, except `--color-text-faint` (~3.5, decorative parentheticals only).
 
 ## Testing pattern for verifying admin/player features as a real user
 To test as an actual player without ever touching, guessing, or resetting their real PIN: mint a

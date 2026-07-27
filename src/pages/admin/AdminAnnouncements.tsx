@@ -42,13 +42,13 @@ export default function AdminAnnouncements(): React.JSX.Element {
     navigate('/announcements')
   }
 
-  const inputClass = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400"
+  const inputClass = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-secondary-soft"
   const inputStyle = { backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }
 
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin" className="text-slate-400 hover:text-slate-200">
+        <Link to="/admin" className="text-text-muted hover:text-text">
           <ArrowLeft size={20} />
         </Link>
         <h1 className="text-2xl font-bold">Bericht plaatsen</h1>
@@ -57,7 +57,7 @@ export default function AdminAnnouncements(): React.JSX.Element {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="rounded-xl p-4 border space-y-4 bg-surface border-border">
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-400">Titel (optioneel)</label>
+            <label className="block text-sm font-medium mb-1.5 text-text-muted">Titel (optioneel)</label>
             <input
               type="text"
               value={form.title}
@@ -69,7 +69,7 @@ export default function AdminAnnouncements(): React.JSX.Element {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-400">Bericht *</label>
+            <label className="block text-sm font-medium mb-1.5 text-text-muted">Bericht *</label>
             <textarea
               value={form.body}
               onChange={(e) => setForm(p => ({ ...p, body: e.target.value }))}
@@ -82,7 +82,7 @@ export default function AdminAnnouncements(): React.JSX.Element {
           </div>
         </div>
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && <p className="text-danger text-sm">{error}</p>}
 
         <button
           type="submit"

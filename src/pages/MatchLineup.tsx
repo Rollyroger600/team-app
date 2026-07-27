@@ -6,6 +6,7 @@ import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import { formatDate, formatTime } from '../lib/utils'
+import { useOpponentName } from '../lib/opponents'
 import type { Match } from '../types/app'
 
 type PositionKey = 'forward' | 'midfielder' | 'defender' | 'goalkeeper'
@@ -17,7 +18,9 @@ interface RowDef {
   color: string
 }
 
-// Volgorde op veld: aanvallers bovenin, keeper onderin
+// Volgorde op veld: aanvallers bovenin, keeper onderin.
+// Deze kleuren (en de veldkleuren verderop) zijn bewust vast: het veld is altijd
+// groen, ongeacht welk thema de speler heeft gekozen.
 const ROWS: RowDef[] = [
   { key: 'forward',    label: 'Aanvallers',   max: 3,  color: '#ef4444' },
   { key: 'midfielder', label: 'Middenvelders', max: 4,  color: '#10b981' },
@@ -108,6 +111,7 @@ interface RosterUpdate {
 }
 
 export default function MatchLineup() {
+  const opponentName = useOpponentName()
   const { id } = useParams<{ id: string }>()
   const { isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
@@ -214,14 +218,14 @@ export default function MatchLineup() {
     <div className="p-4 space-y-4 pb-8">
       {/* Header */}
       <div className="flex items-center gap-3 pt-2">
-        <Link to={`/matches/${id}`} className="text-slate-400 hover:text-slate-200">
+        <Link to={`/matches/${id}`} className="text-text-muted hover:text-text">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold">Opstelling</h1>
           {match && (
-            <p className="text-slate-400 text-sm truncate">
-              vs {match.opponent} · {formatDate(match.match_date)} {formatTime(match.match_time)}
+            <p className="text-text-muted text-sm truncate">
+              vs {opponentName(match.opponent)} · {formatDate(match.match_date)} {formatTime(match.match_time)}
             </p>
           )}
         </div>
@@ -230,7 +234,7 @@ export default function MatchLineup() {
             onClick={handleSave}
             disabled={saving}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-50 transition-colors"
-            style={{ backgroundColor: saved ? '#10b981' : 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
+            style={{ backgroundColor: saved ? 'var(--color-available)' : 'var(--color-secondary)', color: 'var(--color-secondary-text)' }}
           >
             <Save size={14} />
             {saving ? 'Opslaan...' : saved ? 'Opgeslagen' : 'Opslaan'}
@@ -240,7 +244,7 @@ export default function MatchLineup() {
 
       {!hasRoster ? (
         <div className="rounded-xl p-8 border text-center bg-surface border-border">
-          <p className="text-slate-400 text-sm">
+          <p className="text-text-muted text-sm">
             {isAdmin
               ? 'Stel eerst de selectie in via Admin → Wedstrijd → Selectie.'
               : 'De opstelling is nog niet beschikbaar.'}
@@ -295,7 +299,7 @@ export default function MatchLineup() {
           </div>
 
           {isAdmin && (
-            <p className="text-xs text-slate-500 text-center -mt-2">
+            <p className="text-xs text-text-subtle text-center -mt-2">
               Tik op een speler om zijn positierij te wijzigen
             </p>
           )}
@@ -303,7 +307,7 @@ export default function MatchLineup() {
           {/* Bank / beschikbaar maar niet in selectie */}
           {available.length > 0 && (
             <div className="rounded-xl border overflow-hidden bg-surface border-border">
-              <div className="px-4 py-2.5 border-b text-xs font-semibold text-slate-400 uppercase tracking-wide border-border">
+              <div className="px-4 py-2.5 border-b text-xs font-semibold text-text-muted uppercase tracking-wide border-border">
                 Beschikbaar, niet in selectie
               </div>
               <div className="px-4 py-3 flex flex-wrap gap-3">
@@ -312,7 +316,7 @@ export default function MatchLineup() {
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border bg-surface-2 border-border text-text-muted">
                       {a.profiles?.jersey_number || displayName(a)[0]?.toUpperCase()}
                     </div>
-                    <span className="text-xs text-slate-400 truncate" style={{ maxWidth: 44 }}>
+                    <span className="text-xs text-text-muted truncate" style={{ maxWidth: 44 }}>
                       {displayName(a)}
                     </span>
                   </div>
@@ -324,7 +328,7 @@ export default function MatchLineup() {
           {/* Afwezig */}
           {absent.length > 0 && (
             <div className="rounded-xl border overflow-hidden bg-surface border-border">
-              <div className="px-4 py-2.5 border-b text-xs font-semibold text-slate-500 uppercase tracking-wide border-border">
+              <div className="px-4 py-2.5 border-b text-xs font-semibold text-text-subtle uppercase tracking-wide border-border">
                 Afwezig / geen opgave
               </div>
               <div className="px-4 py-3 flex flex-wrap gap-2">

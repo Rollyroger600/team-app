@@ -89,9 +89,9 @@ export default function AdminTeamSettings(): React.JSX.Element {
     setForm(prev => ({ ...prev, [key]: value }))
   }
 
-  const inputClass = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-amber-400"
+  const inputClass = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-secondary-soft"
   const inputStyle = { backgroundColor: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }
-  const labelClass = "block text-sm font-medium mb-1.5 text-slate-400"
+  const labelClass = "block text-sm font-medium mb-1.5 text-text-muted"
 
   if (isLoading) {
     return <PageLoader />
@@ -100,7 +100,7 @@ export default function AdminTeamSettings(): React.JSX.Element {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin" className="text-slate-400 hover:text-slate-200">
+        <Link to="/admin" className="text-text-muted hover:text-text">
           <ArrowLeft size={20} />
         </Link>
         <h1 className="text-2xl font-bold">Team instellingen</h1>
@@ -108,7 +108,7 @@ export default function AdminTeamSettings(): React.JSX.Element {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="rounded-xl p-4 border space-y-4 bg-surface border-border">
-          <h2 className="font-semibold text-sm text-slate-300 uppercase tracking-wide">Algemeen</h2>
+          <h2 className="font-semibold text-sm text-text-soft uppercase tracking-wide">Algemeen</h2>
 
           <div>
             <label className={labelClass}>Teamnaam</label>
@@ -120,14 +120,14 @@ export default function AdminTeamSettings(): React.JSX.Element {
         </div>
 
         <div className="rounded-xl p-4 border space-y-4 bg-surface border-border">
-          <h2 className="font-semibold text-sm text-slate-300 uppercase tracking-wide">Verzameltijden</h2>
+          <h2 className="font-semibold text-sm text-text-soft uppercase tracking-wide">Verzameltijden</h2>
 
           <div>
             <label className={labelClass}>Aanwezig zijn voor aanvang (minuten)</label>
             <input type="number" min="0" max="120" value={form.gathering_lead_time}
                    onChange={(e) => handleChange('gathering_lead_time', e.target.value)}
                    className={inputClass} style={inputStyle} />
-            <p className="text-xs text-slate-500 mt-1">Standaard: 30 minuten voor aanvang</p>
+            <p className="text-xs text-text-subtle mt-1">Standaard: 30 minuten voor aanvang</p>
           </div>
 
           <div>
@@ -135,7 +135,7 @@ export default function AdminTeamSettings(): React.JSX.Element {
             <input type="number" min="0" max="60" value={form.travel_buffer_minutes}
                    onChange={(e) => handleChange('travel_buffer_minutes', e.target.value)}
                    className={inputClass} style={inputStyle} />
-            <p className="text-xs text-slate-500 mt-1">Extra buffer bovenop reistijd voor uitwedstrijden</p>
+            <p className="text-xs text-text-subtle mt-1">Extra buffer bovenop reistijd voor uitwedstrijden</p>
           </div>
 
           <div>
@@ -143,12 +143,12 @@ export default function AdminTeamSettings(): React.JSX.Element {
             <input type="number" min="1" max="30" value={form.match_squad_size}
                    onChange={(e) => handleChange('match_squad_size', e.target.value)}
                    className={inputClass} style={inputStyle} />
-            <p className="text-xs text-slate-500 mt-1">Aantal spelers in de wedstrijdselectie</p>
+            <p className="text-xs text-text-subtle mt-1">Aantal spelers in de wedstrijdselectie</p>
           </div>
         </div>
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
-        {saved && <p className="text-green-400 text-sm">Instellingen opgeslagen!</p>}
+        {error && <p className="text-danger text-sm">{error}</p>}
+        {saved && <p className="text-success text-sm">Instellingen opgeslagen!</p>}
 
         <button
           type="submit"

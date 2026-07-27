@@ -11,6 +11,7 @@ import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDate, formatTime } from '../lib/utils'
+import { useOpponentName } from '../lib/opponents'
 import { formatGatheringDisplay } from '../lib/gathering'
 import { groupDuties } from '../components/ui/UmpireCard'
 import { useTeamStats, topByGoals, topByGoalsPlusAssists } from '../lib/stats'
@@ -38,6 +39,7 @@ interface AvailData {
 }
 
 export default function Dashboard() {
+  const opponentName = useOpponentName()
   const { user, profile } = useAuthStore()
   const { activeTeam, teamSettings } = useTeamStore()
   const queryClient = useQueryClient()
@@ -194,9 +196,9 @@ export default function Dashboard() {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="pt-2">
-        <p className="text-slate-400 text-sm">Welkom terug,</p>
+        <p className="text-text-muted text-sm">Welkom terug,</p>
         <h1 className="text-2xl font-bold">{profile?.full_name?.split(' ')[0] || 'Speler'}</h1>
-        <p className="text-slate-400 text-sm">{activeTeam?.name}</p>
+        <p className="text-text-muted text-sm">{activeTeam?.name}</p>
       </div>
 
       {/* Next match card */}
@@ -204,16 +206,16 @@ export default function Dashboard() {
         <div className="rounded-xl p-4 border bg-surface border-border">
           <div className="flex items-start justify-between mb-3">
             <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+              <p className="text-xs text-text-muted uppercase tracking-wide mb-1">
                 {nextMatch.is_home ? 'Thuiswedstrijd' : 'Uitwedstrijd'}
               </p>
-              <h2 className="text-xl font-bold">vs {nextMatch.opponent}</h2>
-              <p className="text-slate-400 mt-1">
+              <h2 className="text-xl font-bold">vs {opponentName(nextMatch.opponent)}</h2>
+              <p className="text-text-muted mt-1">
                 {formatDate(nextMatch.match_date)} • {formatTime(nextMatch.match_time)}
               </p>
             </div>
             <Link to={`/matches/${nextMatch.id}`}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-primary text-text">
+                  className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-text">
               Details
             </Link>
           </div>
@@ -222,19 +224,19 @@ export default function Dashboard() {
           {gatheringInfo && !gatheringInfo.isNtb && (
             <div className="text-sm py-2 px-3 rounded-lg mb-3"
                  style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', borderLeft: '3px solid var(--color-secondary)' }}>
-              <span className="font-semibold text-amber-400">{gatheringInfo.time}</span>
-              <span className="text-slate-300 ml-2">{gatheringInfo.label}</span>
+              <span className="font-semibold text-secondary-soft">{gatheringInfo.time}</span>
+              <span className="text-text-soft ml-2">{gatheringInfo.label}</span>
             </div>
           )}
 
           {/* Quick availability buttons */}
           <div className="mb-3">
-            <p className="text-xs text-slate-400 mb-2">Jouw beschikbaarheid:</p>
+            <p className="text-xs text-text-muted mb-2">Jouw beschikbaarheid:</p>
             <div className="flex gap-2">
               {([
-                { status: 'available' as const, icon: CheckCircle, label: 'Beschikbaar', color: 'bg-green-500/20 border-green-500/50 text-green-400' },
-                { status: 'unavailable' as const, icon: XCircle, label: 'Niet beschikbaar', color: 'bg-red-500/20 border-red-500/50 text-red-400' },
-                { status: 'maybe' as const, icon: HelpCircle, label: 'Misschien', color: 'bg-amber-500/20 border-amber-500/50 text-amber-400' },
+                { status: 'available' as const, icon: CheckCircle, label: 'Beschikbaar', color: 'bg-available/20 border-available/50 text-success' },
+                { status: 'unavailable' as const, icon: XCircle, label: 'Niet beschikbaar', color: 'bg-unavailable/20 border-unavailable/50 text-danger' },
+                { status: 'maybe' as const, icon: HelpCircle, label: 'Misschien', color: 'bg-secondary/20 border-secondary/50 text-secondary-soft' },
               ]).map(({ status, icon: Icon, label, color }) => (
                 <button
                   key={status}
@@ -242,7 +244,7 @@ export default function Dashboard() {
                   className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-xs transition-all ${
                     myAvailability === status
                       ? color + ' ring-2 ring-offset-1 ring-offset-transparent'
-                      : 'border-slate-700 text-slate-500 hover:border-slate-500'
+                      : 'border-border text-text-subtle hover:border-border-hover'
                   }`}
                 >
                   <Icon size={18} />
@@ -255,12 +257,12 @@ export default function Dashboard() {
           {/* Team beschikbaarheid uitklap */}
           <button
             onClick={() => setShowTeam(v => !v)}
-            className="w-full flex items-center justify-between text-xs pt-2 border-t transition-colors hover:text-slate-300 border-border text-text-muted"
+            className="w-full flex items-center justify-between text-xs pt-2 border-t transition-colors hover:text-text-soft border-border text-text-muted"
           >
             <span className="flex items-center gap-1.5">
               <Users size={13} />
               <span>
-                <span className={availabilityCount.available >= 11 ? 'text-green-400 font-semibold' : availabilityCount.available >= 8 ? 'text-amber-400 font-semibold' : 'text-red-400 font-semibold'}>
+                <span className={availabilityCount.available >= 11 ? 'text-success font-semibold' : availabilityCount.available >= 8 ? 'text-secondary-soft font-semibold' : 'text-danger font-semibold'}>
                   {availabilityCount.available}
                 </span>
                 /{totalMembers} opgegeven beschikbaar
@@ -284,8 +286,8 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="rounded-xl p-6 border text-center bg-surface border-border">
-          <Calendar size={32} className="mx-auto mb-2 text-slate-600" />
-          <p className="text-slate-400">Geen aankomende wedstrijden</p>
+          <Calendar size={32} className="mx-auto mb-2 text-text-faint" />
+          <p className="text-text-muted">Geen aankomende wedstrijden</p>
         </div>
       )}
 
@@ -302,19 +304,19 @@ export default function Dashboard() {
         return (
           <div className="rounded-xl p-4 border bg-surface border-border"
                style={isOwn ? { borderColor: 'rgba(245,158,11,0.4)', backgroundColor: 'rgba(245,158,11,0.06)' } : {}}>
-            <p className="text-xs text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <p className="text-xs text-text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Flag size={12} /> Eerste volgende fluitbeurt
             </p>
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="font-semibold text-sm">{satLabel}</p>
                 {match && (
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Bij thuiswedstrijd vs {match.opponent} ({formatDate(match.match_date)})
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Bij thuiswedstrijd vs {opponentName(match.opponent)} ({formatDate(match.match_date)})
                   </p>
                 )}
               </div>
-              <span className={`text-sm font-medium flex-shrink-0 ${isOwn ? 'text-amber-400' : 'text-slate-300'}`}>
+              <span className={`text-sm font-medium flex-shrink-0 ${isOwn ? 'text-secondary-soft' : 'text-text-soft'}`}>
                 {names}
               </span>
             </div>
@@ -327,13 +329,13 @@ export default function Dashboard() {
         <div className="rounded-xl p-4 border bg-surface border-border">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-sm">Laatste bericht</h3>
-            <Link to="/announcements" className="text-xs text-amber-400">Alle berichten</Link>
+            <Link to="/announcements" className="text-xs text-secondary-soft">Alle berichten</Link>
           </div>
           {latestAnnouncement.title && (
             <p className="font-medium mb-1">{latestAnnouncement.title}</p>
           )}
-          <p className="text-slate-400 text-sm line-clamp-3">{latestAnnouncement.body}</p>
-          <p className="text-xs text-slate-500 mt-2">
+          <p className="text-text-muted text-sm line-clamp-3">{latestAnnouncement.body}</p>
+          <p className="text-xs text-text-subtle mt-2">
             Door {latestAnnouncement.profiles?.full_name}
             {latestAnnouncement.created_at && ` · ${formatDate(latestAnnouncement.created_at)}`}
           </p>
@@ -345,7 +347,7 @@ export default function Dashboard() {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between px-1">
             <h3 className="font-semibold text-sm">Statistieken</h3>
-            <Link to="/stats" className="text-xs text-amber-400">Alle statistieken</Link>
+            <Link to="/stats" className="text-xs text-secondary-soft">Alle statistieken</Link>
           </div>
           <StatsPodiums topscorers={topscorers} mvps={mvps} />
         </div>
@@ -356,7 +358,7 @@ export default function Dashboard() {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between px-1">
             <h3 className="font-semibold text-sm">Potjescup</h3>
-            <Link to="/potjescup" className="text-xs text-amber-400">Volledige stand</Link>
+            <Link to="/potjescup" className="text-xs text-secondary-soft">Volledige stand</Link>
           </div>
           <PodiumCard sections={[{ title: '🏆 Potjescup', statLabel: 'punten', entries: potjescupTop3 }]} />
         </div>

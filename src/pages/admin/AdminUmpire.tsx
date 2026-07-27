@@ -7,6 +7,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import { formatDate } from '../../lib/utils'
+import { useOpponentName } from '../../lib/opponents'
 import { groupDuties } from '../../components/ui/UmpireCard'
 import { parseISO, subDays, format } from 'date-fns'
 import { nl } from 'date-fns/locale'
@@ -38,6 +39,7 @@ function saturdayBefore(matchDate: string | Date): Date {
 }
 
 export default function AdminUmpire(): React.JSX.Element {
+  const opponentName = useOpponentName()
   const { activeTeam } = useTeamStore()
   const queryClient = useQueryClient()
   const [generating, setGenerating] = useState(false)
@@ -185,7 +187,7 @@ export default function AdminUmpire(): React.JSX.Element {
   return (
     <div className="p-4 space-y-4 pb-8">
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin" className="text-slate-400 hover:text-slate-200">
+        <Link to="/admin" className="text-text-muted hover:text-text">
           <ArrowLeft size={20} />
         </Link>
         <h1 className="text-2xl font-bold">Fluitbeurten</h1>
@@ -193,7 +195,7 @@ export default function AdminUmpire(): React.JSX.Element {
 
       {/* Genereer knop */}
       <div className="rounded-xl p-4 border space-y-2 bg-surface border-border">
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-text-muted">
           Genereert 2 open slots voor elke aankomende thuiswedstrijd (zaterdag ervoor).
         </p>
         <div className="flex flex-wrap gap-2">
@@ -207,20 +209,20 @@ export default function AdminUmpire(): React.JSX.Element {
           </button>
           <button
             onClick={() => setShowManualForm(v => !v)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-border text-text hover:border-slate-500"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-border text-text hover:border-border-hover"
           >
             <Plus size={16} />
             Losse fluitbeurt toevoegen
           </button>
         </div>
-        {genResult && <p className="text-xs text-green-400">{genResult}</p>}
+        {genResult && <p className="text-xs text-success">{genResult}</p>}
       </div>
 
       {/* Losse fluitbeurt formulier */}
       {showManualForm && (
         <div className="rounded-xl p-4 border space-y-3 bg-surface border-border">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Datum</label>
+            <label className="block text-xs text-text-muted mb-1">Datum</label>
             <input
               type="date"
               value={manualDate}
@@ -230,7 +232,7 @@ export default function AdminUmpire(): React.JSX.Element {
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Omschrijving</label>
+            <label className="block text-xs text-text-muted mb-1">Omschrijving</label>
             <input
               type="text"
               value={manualDesc}
@@ -243,7 +245,7 @@ export default function AdminUmpire(): React.JSX.Element {
           <div className="grid grid-cols-2 gap-2">
             {[[manualPlayer1, setManualPlayer1], [manualPlayer2, setManualPlayer2]].map(([value, setValue], i) => (
               <div key={i}>
-                <label className="block text-xs text-slate-400 mb-1">Speler {i + 1}</label>
+                <label className="block text-xs text-text-muted mb-1">Speler {i + 1}</label>
                 <select
                   value={value as string}
                   onChange={e => (setValue as (v: string) => void)(e.target.value)}
@@ -258,7 +260,7 @@ export default function AdminUmpire(): React.JSX.Element {
               </div>
             ))}
           </div>
-          {manualError && <p className="text-xs text-red-400">{manualError}</p>}
+          {manualError && <p className="text-xs text-danger">{manualError}</p>}
           <div className="flex gap-2">
             <button
               onClick={createManualDuty}
@@ -295,9 +297,9 @@ export default function AdminUmpire(): React.JSX.Element {
                 <div className="px-4 py-3 border-b border-border flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-sm">
-                      {match ? `Thuis vs ${match.opponent}` : slotDuties[0]?.umpire_match_desc}
+                      {match ? `Thuis vs ${opponentName(match.opponent)}` : slotDuties[0]?.umpire_match_desc}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-text-muted">
                       {match
                         ? `${formatDate(match.match_date)} · fluiten ${umpireDate ? format(umpireDate, 'EEEE d MMM', { locale: nl }) : '?'}`
                         : umpireDate ? format(umpireDate, 'EEEE d MMM', { locale: nl }) : ''}
@@ -305,8 +307,8 @@ export default function AdminUmpire(): React.JSX.Element {
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
                     slotDuties.every(d => d.player_id)
-                      ? 'bg-green-500/20 text-green-400'
-                      : 'bg-amber-500/20 text-amber-400'
+                      ? 'bg-available/20 text-success'
+                      : 'bg-secondary/20 text-secondary-soft'
                   }`}>
                     {slotDuties.filter(d => d.player_id).length}/{slotDuties.length} toegewezen
                   </span>
@@ -333,7 +335,7 @@ export default function AdminUmpire(): React.JSX.Element {
                       ))}
                     </select>
                     <button onClick={() => deleteDuty(duty.id)}
-                            className="text-slate-600 hover:text-red-400 transition-colors p-1 flex-shrink-0">
+                            className="text-text-faint hover:text-danger transition-colors p-1 flex-shrink-0">
                       <Trash2 size={14} />
                     </button>
                   </div>

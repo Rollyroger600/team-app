@@ -90,7 +90,7 @@ function MatchRowComponent({ row, teams, ownTeamId, matchdayDate, onChange, onRe
 
   return (
     <div
-      className={`grid gap-2 items-center rounded-xl p-3 border ${isOwn ? 'border-amber-500/40 bg-amber-500/5' : ''}`}
+      className={`grid gap-2 items-center rounded-xl p-3 border ${isOwn ? 'border-secondary/40 bg-secondary/5' : ''}`}
       style={{ gridTemplateColumns: '1fr 1fr 90px 72px 28px', ...(!isOwn ? { borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-2)' } : {}) }}
     >
       <TeamSelect value={row.home_team_id} onChange={(v) => onChange(row._id, 'home_team_id', v)} teams={teams} placeholder="Thuis" ownTeamId={ownTeamId} />
@@ -109,7 +109,7 @@ function MatchRowComponent({ row, teams, ownTeamId, matchdayDate, onChange, onRe
           }}
         />
         {!dateValue && matchdayDate && (
-          <span className="absolute inset-0 flex items-center px-2 text-xs text-amber-400/70 pointer-events-none">
+          <span className="absolute inset-0 flex items-center px-2 text-xs text-secondary-soft/70 pointer-events-none">
             {new Date(matchdayDate + 'T12:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
           </span>
         )}
@@ -124,7 +124,7 @@ function MatchRowComponent({ row, teams, ownTeamId, matchdayDate, onChange, onRe
       />
 
       <button type="button" onClick={() => onRemove(row._id)}
-        className="flex items-center justify-center w-7 h-7 rounded-lg opacity-40 hover:opacity-80 hover:bg-red-500/10 hover:text-red-400 transition-all">
+        className="flex items-center justify-center w-7 h-7 rounded-lg opacity-40 hover:opacity-80 hover:bg-unavailable/10 hover:text-danger transition-all">
         <Trash2 size={13} />
       </button>
     </div>
@@ -287,9 +287,9 @@ export default function AdminLeagueMatches(): React.JSX.Element {
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-3 pt-2">
           <Link to="/admin/league" className="opacity-50"><ArrowLeft size={20} /></Link>
-          <div className="h-7 w-48 rounded-lg bg-slate-700 animate-pulse" />
+          <div className="h-7 w-48 rounded-lg bg-surface-3 animate-pulse" />
         </div>
-        {[1, 2, 3].map((i) => <div key={i} className="h-14 rounded-xl bg-slate-800 animate-pulse" />)}
+        {[1, 2, 3].map((i) => <div key={i} className="h-14 rounded-xl bg-surface animate-pulse" />)}
       </div>
     )
   }
@@ -298,11 +298,11 @@ export default function AdminLeagueMatches(): React.JSX.Element {
     return (
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-3 pt-2">
-          <Link to="/admin/league" className="text-slate-400 hover:text-slate-200"><ArrowLeft size={20} /></Link>
+          <Link to="/admin/league" className="text-text-muted hover:text-text"><ArrowLeft size={20} /></Link>
           <h1 className="text-2xl font-bold">Comp. wedstrijden</h1>
         </div>
         <div className="rounded-xl p-8 border text-center bg-surface border-border">
-          <Calendar size={40} className="mx-auto mb-3 text-slate-600" />
+          <Calendar size={40} className="mx-auto mb-3 text-text-faint" />
           <p className="font-medium mb-2">Geen competitie aangemaakt</p>
           <Link to="/admin/league" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium mt-4 bg-secondary text-secondary-text">
             Naar competitie-instellingen
@@ -316,10 +316,10 @@ export default function AdminLeagueMatches(): React.JSX.Element {
     <div className="p-4 pb-8 space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin/league" className="text-slate-400 hover:text-slate-200"><ArrowLeft size={20} /></Link>
+        <Link to="/admin/league" className="text-text-muted hover:text-text"><ArrowLeft size={20} /></Link>
         <div>
           <h1 className="text-xl font-bold leading-tight">Wedstrijden invoeren</h1>
-          <p className="text-xs text-slate-400">{league.name} · {league.season}</p>
+          <p className="text-xs text-text-muted">{league.name} · {league.season}</p>
         </div>
       </div>
 
@@ -329,10 +329,10 @@ export default function AdminLeagueMatches(): React.JSX.Element {
           <span className="text-sm font-medium text-text-muted">Speelronde</span>
           <div className="flex items-center gap-2">
             <button onClick={() => setMatchday((d) => Math.max(1, d - 1))} disabled={matchday <= 1}
-              className="w-8 h-8 rounded-lg border text-sm font-bold disabled:opacity-30 hover:bg-slate-700 transition-colors border-border">‹</button>
+              className="w-8 h-8 rounded-lg border text-sm font-bold disabled:opacity-30 hover:bg-surface-3 transition-colors border-border">‹</button>
             <span className="w-8 text-center font-bold text-lg">{matchday}</span>
             <button onClick={() => setMatchday((d) => d + 1)}
-              className="w-8 h-8 rounded-lg border text-sm font-bold hover:bg-slate-700 transition-colors border-border">›</button>
+              className="w-8 h-8 rounded-lg border text-sm font-bold hover:bg-surface-3 transition-colors border-border">›</button>
           </div>
         </div>
 
@@ -345,7 +345,7 @@ export default function AdminLeagueMatches(): React.JSX.Element {
             type="date"
             value={matchdayDate}
             onChange={(e) => handleMatchdayDateChange(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-amber-400"
+            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-secondary-soft"
             style={{ backgroundColor: 'var(--color-surface-2)', borderColor: matchdayDate ? 'rgb(245 158 11 / 0.5)' : 'var(--color-border)', color: 'var(--color-text)' }}
           />
         </div>
@@ -354,12 +354,12 @@ export default function AdminLeagueMatches(): React.JSX.Element {
           <div className="flex gap-1.5 flex-wrap">
             {filledMatchdays.map((d) => (
               <button key={d} onClick={() => setMatchday(d)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${d === matchday ? 'bg-amber-500 text-slate-900' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${d === matchday ? 'bg-secondary text-bg' : 'bg-surface-3 text-text-soft hover:bg-surface-4'}`}>
                 R{d}
               </button>
             ))}
             {!filledMatchdays.includes(matchday) && (
-              <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-slate-500 border border-dashed border-slate-600">R{matchday} (nieuw)</span>
+              <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-surface text-text-subtle border border-dashed border-border-strong">R{matchday} (nieuw)</span>
             )}
           </div>
         )}
@@ -384,13 +384,13 @@ export default function AdminLeagueMatches(): React.JSX.Element {
       </button>
 
       {saveError && (
-        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 text-sm text-danger bg-unavailable/10 border border-unavailable/20 rounded-xl px-4 py-3">
           <AlertCircle size={16} className="flex-shrink-0" />{saveError}
         </div>
       )}
 
       {saved ? (
-        <div className="flex items-center gap-2 text-sm text-green-400 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 text-sm text-success bg-available/10 border border-available/20 rounded-xl px-4 py-3">
           <Check size={16} className="flex-shrink-0" />
           Speelronde {matchday} opgeslagen
           <button className="ml-auto text-xs underline opacity-70 hover:opacity-100"
@@ -408,14 +408,14 @@ export default function AdminLeagueMatches(): React.JSX.Element {
         <div className="rounded-xl border p-4 space-y-3 bg-surface border-border">
           <div>
             <p className="text-sm font-semibold">2e helft genereren</p>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-text-muted mt-0.5">
               Kopieert speelronden 1–{N} met thuis/uit omgedraaid naar ronden {N + 1}–{N * 2}.
               Datums vul je daarna per speelronde in.
             </p>
           </div>
 
           {mirrorDone ? (
-            <div className="flex items-center gap-2 text-sm text-green-400">
+            <div className="flex items-center gap-2 text-sm text-success">
               <Check size={15} />Speelronden {N + 1}–{N * 2} aangemaakt
             </div>
           ) : (
@@ -431,7 +431,7 @@ export default function AdminLeagueMatches(): React.JSX.Element {
 
       {existingMatches.length > 0 && (
         <div className="rounded-xl border p-4 bg-surface border-border">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-text-muted">
             {existingMatches.length} wedstrijden · {filledMatchdays.length} speelronden
             {filledMatchdays.length > 0 && ` (R1–R${filledMatchdays[filledMatchdays.length - 1]})`}
           </p>

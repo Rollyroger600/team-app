@@ -117,7 +117,7 @@ export default function Debug() {
           Force → Home
         </button>
         <button onClick={() => supabase.auth.signOut().then(() => navigate('/login'))}
-          className="py-2 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
+          className="py-2 rounded-xl text-sm font-semibold bg-unavailable/20 text-danger border border-unavailable/30">
           Sign out
         </button>
       </div>

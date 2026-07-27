@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import { geocodeAddress, getTravelDuration } from '../../lib/travel'
 import { leagueTeamDisplayName } from '../../lib/utils'
+import { useOpponentName } from '../../lib/opponents'
 import type { League, LeagueTeam } from '../../types/app'
 
 interface ClubRegistryRow {
@@ -76,8 +77,8 @@ function CreateLeagueForm({ teamId, onCreated }: CreateLeagueFormProps): React.J
   return (
     <div className="rounded-xl border p-6 bg-surface border-border">
       <div className="flex items-center gap-3 mb-5">
-        <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
-          <Trophy size={20} className="text-amber-400" />
+        <div className="w-10 h-10 rounded-xl bg-secondary/20 flex items-center justify-center">
+          <Trophy size={20} className="text-secondary-soft" />
         </div>
         <div>
           <h2 className="font-semibold">Nieuwe poule aanmaken</h2>
@@ -111,7 +112,7 @@ function CreateLeagueForm({ teamId, onCreated }: CreateLeagueFormProps): React.J
           />
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
         <button
           type="submit"
@@ -319,7 +320,7 @@ function AddTeamForm({ leagueId, onAdded }: AddTeamFormProps): React.JSX.Element
                   {selectedClub.address}
                 </p>
               )}
-              {isNewClub && <span className="text-xs text-amber-400">Nieuwe club</span>}
+              {isNewClub && <span className="text-xs text-secondary-soft">Nieuwe club</span>}
             </div>
             <button type="button" onClick={clearSelection}>
               <X size={16} className="text-text-muted" />
@@ -366,7 +367,7 @@ function AddTeamForm({ leagueId, onAdded }: AddTeamFormProps): React.JSX.Element
                 style={{ border: '1px solid var(--color-border)' }}
               />
               {teamSuffix && (
-                <p className="text-xs mt-1 text-amber-400">
+                <p className="text-xs mt-1 text-secondary-soft">
                   Teamnaam: {selectedClub?.name || newClubName || searchQuery} {teamSuffix}
                 </p>
               )}
@@ -378,12 +379,12 @@ function AddTeamForm({ leagueId, onAdded }: AddTeamFormProps): React.JSX.Element
                 className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors border-border ${isOwnTeam ? '' : 'border'}`}
                 style={{ backgroundColor: isOwnTeam ? 'var(--color-secondary)' : 'transparent' }}
               >
-                {isOwnTeam && <Check size={12} color="#0f172a" strokeWidth={3} />}
+                {isOwnTeam && <Check size={12} color="var(--color-secondary-text)" strokeWidth={3} />}
               </div>
               <span className="text-sm">Dit is ons eigen team</span>
             </label>
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-danger">{error}</p>}
 
             <button
               type="submit"
@@ -469,7 +470,7 @@ function TeamsList({ teams, totalSlots, onDelete, onSaveShortName }: TeamsListPr
           return (
             <div key={team.id} className="px-4 py-3">
               <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${team.is_own_team ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${team.is_own_team ? 'bg-secondary-soft' : 'bg-surface-4'}`} />
                 {isEditing ? (
                   <div className="flex-1 flex items-center gap-2">
                     <input
@@ -485,15 +486,15 @@ function TeamsList({ teams, totalSlots, onDelete, onSaveShortName }: TeamsListPr
                     <button
                       onClick={() => saveShortName(team.id)}
                       disabled={savingId === team.id}
-                      className="p-1.5 rounded-lg hover:bg-green-500/10 transition-colors flex-shrink-0 disabled:opacity-50"
+                      className="p-1.5 rounded-lg hover:bg-available/10 transition-colors flex-shrink-0 disabled:opacity-50"
                     >
-                      <Check size={16} className="text-green-400" />
+                      <Check size={16} className="text-success" />
                     </button>
                     <button
                       onClick={() => setEditingId(null)}
                       className="p-1.5 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0"
                     >
-                      <X size={16} className="text-slate-500" />
+                      <X size={16} className="text-text-subtle" />
                     </button>
                   </div>
                 ) : (
@@ -502,7 +503,7 @@ function TeamsList({ teams, totalSlots, onDelete, onSaveShortName }: TeamsListPr
                     className="flex-1 min-w-0 text-left flex items-center gap-2 group"
                   >
                     <div className="min-w-0">
-                      <p className={`text-sm font-medium truncate ${team.is_own_team ? 'text-amber-400' : ''}`}>
+                      <p className={`text-sm font-medium truncate ${team.is_own_team ? 'text-secondary-soft' : ''}`}>
                         {leagueTeamDisplayName(team)}
                       </p>
                       {team.short_name && (
@@ -510,20 +511,20 @@ function TeamsList({ teams, totalSlots, onDelete, onSaveShortName }: TeamsListPr
                       )}
                       {team.is_own_team && !team.short_name && <p className="text-xs text-text-muted">Eigen team</p>}
                     </div>
-                    <Pencil size={12} className="text-slate-600 group-hover:text-slate-400 flex-shrink-0" />
+                    <Pencil size={12} className="text-text-faint group-hover:text-text-muted flex-shrink-0" />
                   </button>
                 )}
                 {!isEditing && (
                   <button
                     onClick={() => handleDelete(team)}
                     disabled={deletingId === team.id}
-                    className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors flex-shrink-0 disabled:opacity-50"
+                    className="p-1.5 rounded-lg hover:bg-unavailable/10 transition-colors flex-shrink-0 disabled:opacity-50"
                   >
-                    <Trash2 size={14} className="text-slate-500 hover:text-red-400" />
+                    <Trash2 size={14} className="text-text-subtle hover:text-danger" />
                   </button>
                 )}
               </div>
-              {error && <p className="text-xs text-red-400 mt-1.5">{error}</p>}
+              {error && <p className="text-xs text-danger mt-1.5">{error}</p>}
             </div>
           )
         })}
@@ -538,6 +539,7 @@ interface TravelTimeCalcProps {
 }
 
 function TravelTimeCalc({ teamId }: TravelTimeCalcProps): React.JSX.Element {
+  const opponentName = useOpponentName()
   const [running, setRunning] = useState(false)
   const [done, setDone] = useState(false)
   const [log, setLog] = useState<(string | LogLine)[]>([])
@@ -633,7 +635,7 @@ function TravelTimeCalc({ teamId }: TravelTimeCalcProps): React.JSX.Element {
       }
 
       if (!toLat) {
-        lines.push({ text: `${match.opponent}: geen adres bekend`, ok: false })
+        lines.push({ text: `${opponentName(match.opponent)}: geen adres bekend`, ok: false })
         setProgress(p => ({ ...p, current: p.current + 1 }))
         continue
       }
@@ -645,12 +647,12 @@ function TravelTimeCalc({ teamId }: TravelTimeCalcProps): React.JSX.Element {
           .update({ travel_duration_minutes: minutes })
           .eq('id', match.id)
         if (saveErr) {
-          lines.push({ text: `${match.opponent}: ${minutes} min (opslaan mislukt: ${saveErr.message})`, ok: false })
+          lines.push({ text: `${opponentName(match.opponent)}: ${minutes} min (opslaan mislukt: ${saveErr.message})`, ok: false })
         } else {
-          lines.push({ text: `${match.opponent}: ${minutes} min ✓`, ok: true })
+          lines.push({ text: `${opponentName(match.opponent)}: ${minutes} min ✓`, ok: true })
         }
       } else {
-        lines.push({ text: `${match.opponent}: berekening mislukt`, ok: false })
+        lines.push({ text: `${opponentName(match.opponent)}: berekening mislukt`, ok: false })
       }
       setProgress(p => ({ ...p, current: p.current + 1 }))
     }
@@ -697,12 +699,12 @@ function TravelTimeCalc({ teamId }: TravelTimeCalcProps): React.JSX.Element {
       )}
 
       {log.length > 0 && (
-        <div className="rounded-lg p-2 text-xs space-y-0.5" style={{ backgroundColor: '#0f172a' }}>
+        <div className="rounded-lg p-2 text-xs space-y-0.5" style={{ backgroundColor: 'var(--color-bg)' }}>
           {log.map((line, i) => (
             <div key={i} className={
-              typeof line === 'string' ? 'text-slate-400' :
-              line.ok === null ? 'text-slate-400 mt-1 border-t pt-1' :
-              line.ok ? 'text-green-400' : 'text-red-400'
+              typeof line === 'string' ? 'text-text-muted' :
+              line.ok === null ? 'text-text-muted mt-1 border-t pt-1' :
+              line.ok ? 'text-success' : 'text-danger'
             }>
               {typeof line === 'string' ? line : line.text}
             </div>
@@ -788,7 +790,7 @@ export default function AdminLeague(): React.JSX.Element {
     <div className="p-4 pb-8 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3 pt-2">
-        <Link to="/admin" className="text-text-muted hover:text-slate-200">
+        <Link to="/admin" className="text-text-muted hover:text-text">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1 min-w-0">
@@ -820,7 +822,7 @@ export default function AdminLeague(): React.JSX.Element {
           <div className="grid grid-cols-2 gap-3">
             <Link
               to="/admin/league/matches"
-              className="flex items-center gap-3 p-3 rounded-xl border transition-colors hover:border-slate-500 bg-surface border-border"
+              className="flex items-center gap-3 p-3 rounded-xl border transition-colors hover:border-border-hover bg-surface border-border"
             >
               <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
                 <span className="text-purple-400 text-sm">📅</span>
@@ -832,7 +834,7 @@ export default function AdminLeague(): React.JSX.Element {
             </Link>
             <Link
               to="/admin/league/results"
-              className="flex items-center gap-3 p-3 rounded-xl border transition-colors hover:border-slate-500 bg-surface border-border"
+              className="flex items-center gap-3 p-3 rounded-xl border transition-colors hover:border-border-hover bg-surface border-border"
             >
               <div className="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center flex-shrink-0">
                 <span className="text-pink-400 text-sm">🏆</span>

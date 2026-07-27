@@ -1,4 +1,5 @@
-import { formatDate } from '../../lib/utils'
+import { formatDate, tint } from '../../lib/utils'
+import { useOpponentName } from '../../lib/opponents'
 import { subDays, parseISO, format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { UmpireDutyWithJoins, UmpireGroup } from '../../types/app'
@@ -16,6 +17,7 @@ interface UmpireCardProps {
 // Accepts a group: { match, duties: [duty1, duty2], umpireDate }
 // match may be null for orphan duties (no match_id)
 export function UmpireCard({ group, userId, past }: UmpireCardProps) {
+  const opponentName = useOpponentName()
   const { match, duties, umpireDate } = group
 
   const satLabel = umpireDate
@@ -29,8 +31,8 @@ export function UmpireCard({ group, userId, past }: UmpireCardProps) {
     const n = dutyName(d)
     return (
       <span key={d.id}>
-        {i > 0 && <span className="text-slate-500"> &amp; </span>}
-        {n || <span className="italic text-slate-600">open</span>}
+        {i > 0 && <span className="text-text-subtle"> &amp; </span>}
+        {n || <span className="italic text-text-faint">open</span>}
       </span>
     )
   })
@@ -49,22 +51,22 @@ export function UmpireCard({ group, userId, past }: UmpireCardProps) {
           <div className="flex items-center gap-2 mb-0.5">
             {isOwn && !past && (
               <span className="text-xs px-1.5 py-0.5 rounded font-semibold"
-                    style={{ backgroundColor: 'rgba(245,158,11,0.2)', color: '#f59e0b' }}>
+                    style={{ backgroundColor: tint('--color-secondary', 20), color: 'var(--color-secondary)' }}>
                 Jij
               </span>
             )}
-            <p className={`font-semibold text-sm ${past ? 'text-slate-500' : ''}`}>
+            <p className={`font-semibold text-sm ${past ? 'text-text-subtle' : ''}`}>
               {satLabel}
             </p>
           </div>
           {match && (
-            <p className="text-xs text-slate-400">
-              Bij thuiswedstrijd vs {match.opponent} ({formatDate(match.match_date)})
+            <p className="text-xs text-text-muted">
+              Bij thuiswedstrijd vs {opponentName(match.opponent)} ({formatDate(match.match_date)})
             </p>
           )}
         </div>
         <div className="flex-shrink-0 text-right">
-          <span className={`text-sm font-medium ${past ? 'text-slate-500' : isOwn ? 'text-amber-400' : 'text-slate-300'}`}>
+          <span className={`text-sm font-medium ${past ? 'text-text-subtle' : isOwn ? 'text-secondary-soft' : 'text-text-soft'}`}>
             {nameDisplay}
           </span>
         </div>
