@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle, XCircle, HelpCircle, Settings, ChevronDown, ChevronUp, ShieldCheck, Flag } from 'lucide-react'
+import { Settings, ChevronDown, ChevronUp, ShieldCheck, Flag } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import EmptyState from '../components/ui/EmptyState'
@@ -12,21 +12,8 @@ import useTeamStore from '../stores/useTeamStore'
 import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDate, formatTime } from '../lib/utils'
 import { useOpponentName } from '../lib/opponents'
+import { PLAYER_STATUSES } from '../lib/availability'
 import type { AvailabilityStatus, UmpireDutyWithJoins, UmpireGroup } from '../types/app'
-import type { LucideIcon } from 'lucide-react'
-
-interface StatusOption {
-  status: AvailabilityStatus
-  icon: LucideIcon
-  label: string
-  active: string
-}
-
-const STATUS_OPTIONS: StatusOption[] = [
-  { status: 'available',   icon: CheckCircle, label: 'Ja',        active: 'bg-available/25 border-available/60 text-success' },
-  { status: 'unavailable', icon: XCircle,     label: 'Nee',       active: 'bg-unavailable/25 border-unavailable/60 text-danger' },
-  { status: 'maybe',       icon: HelpCircle,  label: 'Misschien', active: 'bg-secondary/25 border-secondary/60 text-secondary-soft' },
-]
 
 interface MatchItem {
   id: string
@@ -241,7 +228,7 @@ export default function More() {
 
           {/* Snelle knoppen */}
           <div className="flex gap-1.5 flex-shrink-0">
-            {STATUS_OPTIONS.map(({ status, icon: Icon, label, active }) => {
+            {PLAYER_STATUSES.map(({ status, icon: Icon, label, active }) => {
               const isActive = myStatus === status
               return (
                 <button

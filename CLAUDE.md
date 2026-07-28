@@ -97,6 +97,28 @@ new season starts mid-August 2026. Installed by players as a homescreen PWA on t
 - Rules text shown via the info ("i") icon on `/potjescup` is hardcoded in `Potjescup.tsx`
   (`RulesModal`) — update it there if the rules change, it's not stored in the DB.
 
+## Availability statuses
+- Four values on `match_availability.status`, pinned by a CHECK constraint:
+  `available`, `unavailable`, `injured` ("Geblesseerd" — this replaced the old `maybe`/"Misschien"
+  in 2026-07-28) and `rostered_off` ("Uitgeroosterd").
+- **`src/lib/availability.ts` is the single source of truth** for label, icon, colours and the
+  matrix marker. It used to be redefined in six places, which made adding a status a six-way edit —
+  render every status through `STATUSES` / `PLAYER_STATUSES` / `statusDef()` instead of writing a
+  local `{status, icon, label}` array. `PLAYER_STATUSES` is the three a player may set for
+  themselves; `STATUSES` (all four) is only for the admin picker in `TeamAvailabilityList.tsx`.
+- **`rostered_off` is admin-only, and the UI is not what enforces it.** The RLS policies let a
+  player write to their own row, so hiding the button proves nothing — a REST call would still
+  land it. The `enforce_admin_only_rostered_off` trigger rejects it for anyone who isn't a
+  team_admin, platform_admin or the service role. Same reasoning as
+  `prevent_unauthorized_role_change`; keep both halves if you touch this.
+- A player set to `rostered_off` no longer counts as available — the status *replaces* their own
+  answer rather than layering on top. That was a deliberate call; if fairness tracking ("who has
+  been rostered off most") is ever wanted, it needs a separate column instead.
+- Statuses must never use the brand colour: `injured` uses `--color-maybe` and `rostered_off` uses
+  `--color-rostered-off`, so they stay distinguishable from buttons and navigation in all three
+  themes (the old `maybe` used `--color-secondary`, which in the light theme was indistinguishable
+  from bordeaux chrome).
+
 ## Availability & attendance
 - `match_availability` covers the **whole season**, not just upcoming matches — both
   `src/pages/More.tsx` (Beschikbaarheid tab, split into upcoming + "Al geweest") and

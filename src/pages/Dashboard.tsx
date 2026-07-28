@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, CheckCircle, XCircle, HelpCircle, Users, ChevronDown, ChevronUp, Flag } from 'lucide-react'
+import { Calendar, Users, ChevronDown, ChevronUp, Flag } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import StatsPodiums from '../components/ui/MiniPodium'
@@ -11,6 +11,7 @@ import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDate, formatTime } from '../lib/utils'
+import { PLAYER_STATUSES } from '../lib/availability'
 import { useOpponentName } from '../lib/opponents'
 import { formatGatheringDisplay } from '../lib/gathering'
 import { groupDuties } from '../components/ui/UmpireCard'
@@ -233,17 +234,13 @@ export default function Dashboard() {
           <div className="mb-3">
             <p className="text-xs text-text-muted mb-2">Jouw beschikbaarheid:</p>
             <div className="flex gap-2">
-              {([
-                { status: 'available' as const, icon: CheckCircle, label: 'Beschikbaar', color: 'bg-available/20 border-available/50 text-success' },
-                { status: 'unavailable' as const, icon: XCircle, label: 'Niet beschikbaar', color: 'bg-unavailable/20 border-unavailable/50 text-danger' },
-                { status: 'maybe' as const, icon: HelpCircle, label: 'Misschien', color: 'bg-secondary/20 border-secondary/50 text-secondary-soft' },
-              ]).map(({ status, icon: Icon, label, color }) => (
+              {PLAYER_STATUSES.map(({ status, icon: Icon, label, active }) => (
                 <button
                   key={status}
                   onClick={() => handleSetAvailability(status)}
                   className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-xs transition-all ${
                     myAvailability === status
-                      ? color + ' ring-2 ring-offset-1 ring-offset-transparent'
+                      ? active + ' ring-2 ring-offset-1 ring-offset-transparent'
                       : 'border-border text-text-subtle hover:border-border-hover'
                   }`}
                 >

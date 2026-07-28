@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Clock, MapPin, CheckCircle, XCircle, HelpCircle, Share2, Target, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Clock, MapPin, Share2, Target, ShieldCheck } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
@@ -8,7 +8,9 @@ import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
 import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDateLong, formatTime, buildWhatsAppUrl, buildShareText, tint } from '../lib/utils'
+import type { ShareAvailability } from '../lib/utils'
 import { useOpponentName } from '../lib/opponents'
+import { PLAYER_STATUSES, STATUSES } from '../lib/availability'
 import { formatGatheringDisplay } from '../lib/gathering'
 import type { Match, AvailabilityStatus } from '../types/app'
 
@@ -17,7 +19,7 @@ interface MatchDetailData {
   myAvailability: AvailabilityStatus | null
   myOverridden: boolean
   availability: { status: string }[]
-  names: { available: string[]; unavailable: string[]; unknownOrMaybe: string[] }
+  names: ShareAvailability
 }
 
 export default function MatchDetail() {
@@ -51,12 +53,16 @@ export default function MatchDetail() {
       const members = (membersRes.data || []) as { player_id: string; profiles: { full_name: string | null; nickname: string | null } | null }[]
       const nameOf = (m: (typeof members)[number]) => m.profiles?.nickname || m.profiles?.full_name?.split(' ')[0] || '?'
 
-      const names: MatchDetailData['names'] = { available: [], unavailable: [], unknownOrMaybe: [] }
+      const names: MatchDetailData['names'] = {
+        available: [], unavailable: [], injured: [], unknown: [], rosteredOff: [],
+      }
       for (const m of members) {
         const status = avMap[m.player_id]
         if (status === 'available') names.available.push(nameOf(m))
         else if (status === 'unavailable') names.unavailable.push(nameOf(m))
-        else names.unknownOrMaybe.push(nameOf(m))
+        else if (status === 'injured') names.injured.push(nameOf(m))
+        else if (status === 'rostered_off') names.rosteredOff.push(nameOf(m))
+        else names.unknown.push(nameOf(m))
       }
 
       return {
@@ -117,9 +123,13 @@ export default function MatchDetail() {
   }
 
   const gatheringInfo = formatGatheringDisplay(match, teamSettings)
-  const available = availability.filter(a => a.status === 'available').length
-  const unavailable = availability.filter(a => a.status === 'unavailable').length
-  const maybe = availability.filter(a => a.status === 'maybe').length
+  const counts = STATUSES
+    .map(def => ({
+      ...def,
+      countLabel: def.label.toLowerCase(),
+      count: availability.filter(a => a.status === def.status).length,
+    }))
+    .filter(c => !c.adminOnly || c.count > 0)
 
   function handleShare() {
     const text = buildShareText(match!, gatheringInfo, data!.names, opponentName(match!.opponent))
@@ -185,41 +195,30 @@ export default function MatchDetail() {
           </div>
         )}
         <div className="flex gap-2 mb-4">
-          {([
-            { status: 'available' as const, icon: CheckCircle, label: 'Beschikbaar', color: 'bg-available/20 border-available/50 text-success' },
-            { status: 'unavailable' as const, icon: XCircle, label: 'Niet', color: 'bg-unavailable/20 border-unavailable/50 text-danger' },
-            { status: 'maybe' as const, icon: HelpCircle, label: 'Misschien', color: 'bg-secondary/20 border-secondary/50 text-secondary-soft' },
-          ]).map(({ status, icon: Icon, label, color }) => (
+          {PLAYER_STATUSES.map(({ status, icon: Icon, shortLabel, active }) => (
             <button
               key={status}
               onClick={() => setAvail(status)}
               className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-lg border text-xs font-medium transition-all ${
-                displayMyAvailability === status ? color : 'border-border text-text-subtle hover:border-border-hover'
+                displayMyAvailability === status ? active : 'border-border text-text-subtle hover:border-border-hover'
               }`}
             >
               <Icon size={20} />
-              {label}
+              {shortLabel}
             </button>
           ))}
         </div>
 
-        {/* Counts */}
-        <div className="flex gap-3 text-sm">
-          <div className="flex items-center gap-1.5">
-            <CheckCircle size={14} className="text-success" />
-            <span className="text-success font-medium">{available}</span>
-            <span className="text-text-muted">beschikbaar</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <XCircle size={14} className="text-danger" />
-            <span className="text-danger font-medium">{unavailable}</span>
-            <span className="text-text-muted">niet</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <HelpCircle size={14} className="text-secondary-soft" />
-            <span className="text-secondary-soft font-medium">{maybe}</span>
-            <span className="text-text-muted">misschien</span>
-          </div>
+        {/* Counts. Uitgeroosterd only shows once it applies to someone —
+            before the squad is picked the line would always read 0. */}
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+          {counts.map(({ status, icon: Icon, text, countLabel, count }) => (
+            <div key={status} className="flex items-center gap-1.5">
+              <Icon size={14} className={text} />
+              <span className={`${text} font-medium`}>{count}</span>
+              <span className="text-text-muted">{countLabel}</span>
+            </div>
+          ))}
         </div>
       </div>
 

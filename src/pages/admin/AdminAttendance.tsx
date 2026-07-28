@@ -6,6 +6,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import { useRealtimeInvalidate } from '../../lib/realtime'
+import { STATUSES } from '../../lib/availability'
 import { format, parseISO } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { Profile } from '../../types/app'
@@ -35,11 +36,10 @@ interface AttendanceData {
   grid: Record<string, Record<string, string>>
 }
 
-const CELL: Record<string, { label: string; classes: string }> = {
-  available:   { label: '1', classes: 'bg-available/20 text-success' },
-  unavailable: { label: '0', classes: 'bg-unavailable/20 text-danger' },
-  maybe:       { label: '?', classes: 'bg-secondary/20 text-secondary-soft' },
-}
+/** Single-character markers keep this dense grid readable; the legend explains them. */
+const CELL: Record<string, { label: string; classes: string }> = Object.fromEntries(
+  STATUSES.map(s => [s.status, { label: s.cell, classes: `${s.dot}/20 ${s.text}` }]),
+)
 
 export default function AdminAttendance(): React.JSX.Element {
   const { activeTeam } = useTeamStore()
@@ -110,7 +110,8 @@ export default function AdminAttendance(): React.JSX.Element {
 
       <p className="text-xs text-text-muted px-1 leading-relaxed">
         Overzicht van opgegeven beschikbaarheid per speler, per wedstrijd. 1 = beschikbaar,
-        0 = niet beschikbaar, ? = misschien, leeg = nog geen antwoord.
+        0 = niet beschikbaar, B = geblesseerd, U = uitgeroosterd (door een beheerder),
+        leeg = nog geen antwoord.
       </p>
 
       {isLoading ? (

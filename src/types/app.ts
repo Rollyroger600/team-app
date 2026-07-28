@@ -35,7 +35,9 @@ export interface TeamSettings {
 }
 
 // ── Availability ──────────────────────────────────────────────────────────────
-export type AvailabilityStatus = 'available' | 'unavailable' | 'maybe'
+// 'rostered_off' is admin-only (enforced by a DB trigger, not just the UI).
+// Labels, icons and colours live in src/lib/availability.ts.
+export type AvailabilityStatus = 'available' | 'unavailable' | 'injured' | 'rostered_off'
 
 export interface MatchAvailability {
   match_id: string

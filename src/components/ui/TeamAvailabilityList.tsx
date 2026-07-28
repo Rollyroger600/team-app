@@ -1,28 +1,9 @@
 import { useState } from 'react'
-import { CheckCircle, XCircle, HelpCircle, Trash2 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import useAuthStore from '../../stores/useAuthStore'
+import { STATUSES, statusDot } from '../../lib/availability'
 import type { AvailabilityStatus } from '../../types/app'
-
-const STATUS_DOT: Record<string, string> = {
-  available:   'bg-success',
-  unavailable: 'bg-danger',
-  maybe:       'bg-secondary-soft',
-}
-
-interface PickerOption {
-  status: AvailabilityStatus
-  icon: LucideIcon
-  label: string
-  classes: string
-}
-
-const PICKER_OPTIONS: PickerOption[] = [
-  { status: 'available',   icon: CheckCircle, label: 'Beschikbaar',     classes: 'bg-available/20 border-available/50 text-success' },
-  { status: 'unavailable', icon: XCircle,     label: 'Niet beschikbaar', classes: 'bg-unavailable/20 border-unavailable/50 text-danger' },
-  { status: 'maybe',       icon: HelpCircle,  label: 'Misschien',        classes: 'bg-secondary/20 border-secondary/50 text-secondary-soft' },
-]
 
 export interface AvailabilityMember {
   id: string
@@ -90,7 +71,7 @@ export default function TeamAvailabilityList({
           const isMe = member.id === user?.id
           const content = (
             <>
-              <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[status || ''] || 'bg-surface-4'}`} />
+              <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${statusDot(status)}`} />
               <span className={`truncate ${isMe ? 'text-secondary-soft' : 'text-text-soft'}`}>{member.name}</span>
             </>
           )
@@ -126,7 +107,9 @@ export default function TeamAvailabilityList({
               <p className="text-xs text-text-muted">Beschikbaarheid aanpassen</p>
             </div>
 
-            {PICKER_OPTIONS.map(({ status, icon: Icon, label, classes }) => {
+            {/* Admins get all four; 'Uitgeroosterd' is theirs alone (the DB
+                trigger enforces that too, this list is only the UI half). */}
+            {STATUSES.map(({ status, icon: Icon, label, active }) => {
               const isActive = statusMap[editing.id] === status
               return (
                 <button
@@ -134,7 +117,7 @@ export default function TeamAvailabilityList({
                   onClick={() => apply(status)}
                   disabled={saving}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-sm transition-colors disabled:opacity-50 ${
-                    isActive ? classes : 'border-border text-text-muted hover:border-border-hover'
+                    isActive ? active : 'border-border text-text-muted hover:border-border-hover'
                   }`}
                 >
                   <Icon size={16} />

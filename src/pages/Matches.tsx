@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2, Users, CheckCircle, XCircle, HelpCircle } from 'lucide-react'
+import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2, Users } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
 import { leagueTeamDisplayName, tint } from '../lib/utils'
+import { PLAYER_STATUSES, statusDef, statusLabel } from '../lib/availability'
 import type { AvailabilityStatus } from '../types/app'
 import React from 'react'
 
@@ -329,10 +330,13 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
 }
 
 // --- Availability section (compact, used in both upcoming and past match cards) ---
+// Inline-style variants of the shared statuses; this card styles via `style`
+// rather than classes, so it needs colour literals instead of Tailwind tokens.
 const STATUS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  available:   { bg: tint('--color-available', 15),   border: tint('--color-available', 40),   text: 'var(--color-success)' },
-  unavailable: { bg: tint('--color-unavailable', 15), border: tint('--color-unavailable', 40), text: 'var(--color-danger)' },
-  maybe:       { bg: tint('--color-maybe', 15),       border: tint('--color-maybe', 40),       text: 'var(--color-secondary-soft)' },
+  available:    { bg: tint('--color-available', 15),    border: tint('--color-available', 40),    text: 'var(--color-success)' },
+  unavailable:  { bg: tint('--color-unavailable', 15),  border: tint('--color-unavailable', 40),  text: 'var(--color-danger)' },
+  injured:      { bg: tint('--color-maybe', 15),        border: tint('--color-maybe', 40),        text: 'var(--color-maybe)' },
+  rostered_off: { bg: tint('--color-rostered-off', 15), border: tint('--color-rostered-off', 40), text: 'var(--color-rostered-off)' },
 }
 
 interface AvailabilitySectionProps {
@@ -349,10 +353,11 @@ function AvailabilitySection({ matchId, initialPlayers, userId, isUpcoming }: Av
 
   useEffect(() => { setPlayers(initialPlayers || []) }, [initialPlayers])
 
-  const available   = players.filter(p => p.status === 'available')
-  const unavailable = players.filter(p => p.status === 'unavailable')
-  const maybe       = players.filter(p => p.status === 'maybe')
-  const myStatus    = players.find(p => p.player_id === userId)?.status || null
+  const available    = players.filter(p => p.status === 'available')
+  const unavailable  = players.filter(p => p.status === 'unavailable')
+  const injured      = players.filter(p => p.status === 'injured')
+  const rosteredOff  = players.filter(p => p.status === 'rostered_off')
+  const myStatus     = players.find(p => p.player_id === userId)?.status || null
 
   function dname(p: AvailPlayer): string {
     return (p.profiles as { nickname?: string | null; full_name?: string | null } | null)?.nickname
@@ -404,7 +409,7 @@ function AvailabilitySection({ matchId, initialPlayers, userId, isUpcoming }: Av
 
   // Upcoming match: my status buttons + counts, expandable player list
   const myColors = myStatus ? STATUS_COLORS[myStatus] : null
-  const myLabel  = myStatus === 'available' ? 'Beschikbaar' : myStatus === 'unavailable' ? 'Niet beschikbaar' : myStatus === 'maybe' ? 'Misschien' : 'Jouw opgave'
+  const myLabel  = statusLabel(myStatus, 'Jouw opgave')
 
   return (
     <div className="border-t border-border">
@@ -413,7 +418,10 @@ function AvailabilitySection({ matchId, initialPlayers, userId, isUpcoming }: Av
         <span className="flex items-center gap-2">
           <Users size={12} />
           <span style={{ color: myColors?.text || 'var(--color-text-muted)' }}>{myLabel}</span>
-          <span>• {available.length}✓ {unavailable.length}✗ {maybe.length}?</span>
+          <span>
+            • {available.length}✓ {unavailable.length}✗ {injured.length}B
+            {rosteredOff.length > 0 && ` ${rosteredOff.length}U`}
+          </span>
         </span>
         {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </button>
@@ -421,22 +429,21 @@ function AvailabilitySection({ matchId, initialPlayers, userId, isUpcoming }: Av
       {open && (
         <div className="px-3 pb-3 space-y-2">
           <div className="flex gap-1.5">
-            {((['available', 'unavailable', 'maybe'] as AvailabilityStatus[]).map(status => {
-              const labels: Record<string, string> = { available: 'Beschikbaar', unavailable: 'Niet', maybe: 'Misschien' }
+            {PLAYER_STATUSES.map(({ status, shortLabel }) => {
               const c = STATUS_COLORS[status]
               const active = myStatus === status
               return (
                 <button key={status} onClick={() => setMyAvail(status)} disabled={saving}
                   className="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50"
                   style={{ backgroundColor: active ? c.bg : 'transparent', borderColor: active ? c.border : 'var(--color-border)', color: active ? c.text : 'var(--color-text-muted)' }}>
-                  {labels[status]}
+                  {shortLabel}
                 </button>
               )
-            }))}
+            })}
           </div>
           {players.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {[...available, ...maybe, ...unavailable].map((p, i) => (
+              {[...available, ...injured, ...rosteredOff, ...unavailable].map((p, i) => (
                 <span key={i} className="text-xs px-2 py-0.5 rounded-full"
                   style={{ backgroundColor: STATUS_COLORS[p.status]?.bg, color: STATUS_COLORS[p.status]?.text }}>
                   {dname(p)}

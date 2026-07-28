@@ -35,7 +35,10 @@ export function buildWhatsAppUrl(text: string): string {
 export interface ShareAvailability {
   available: string[]
   unavailable: string[]
-  unknownOrMaybe: string[]
+  injured: string[]
+  unknown: string[]
+  /** Normally empty: the message goes out on Monday, long before a squad is picked. */
+  rosteredOff: string[]
 }
 
 function namesWithTotal(names: string[]): string {
@@ -49,10 +52,18 @@ export function buildShareText(match: Match, gatheringInfo: GatheringInfo | null
   const timeStr = formatTime(match.match_time)
   const gatherStr = gatheringInfo?.time || 'nog niet bekend'
 
+  // Uitgeroosterd has no fixed line — it's normally empty at share time — but it
+  // appears when it does apply, so nobody silently drops out of the message.
+  const rosteredOffLine = availability.rosteredOff.length > 0
+    ? `Uitgeroosterd: ${namesWithTotal(availability.rosteredOff)}\n`
+    : ''
+
   return `${dayDate} spelen we tegen ${opponentLabel || match.opponent}. We spelen om ${timeStr} en verzamelen om ${gatherStr} op de club.\n\n`
     + `De volgende spelers staan op aanwezig: ${namesWithTotal(availability.available)}\n`
     + `Afwezig: ${namesWithTotal(availability.unavailable)}\n`
-    + `Onbekend of misschien: ${namesWithTotal(availability.unknownOrMaybe)}\n\n`
+    + `Geblesseerd: ${namesWithTotal(availability.injured)}\n`
+    + rosteredOffLine
+    + `Onbekend: ${namesWithTotal(availability.unknown)}\n\n`
     + `Mocht bovenstaande aanwezigheid niet kloppen, graag aanpassen in de app én Marlof een bericht sturen.`
 }
 
@@ -78,20 +89,6 @@ export function leagueTeamDisplayName(team: { team_name: string; short_name?: st
   return team.short_name || team.team_name
 }
 
-export function getAvailabilityColor(status: string | null | undefined): string {
-  switch (status) {
-    case 'available': return 'text-success'
-    case 'unavailable': return 'text-danger'
-    case 'maybe': return 'text-secondary-soft'
-    default: return 'text-text-muted'
-  }
-}
-
-export function getAvailabilityBg(status: string | null | undefined): string {
-  switch (status) {
-    case 'available': return 'bg-available/20 border-available/40'
-    case 'unavailable': return 'bg-unavailable/20 border-unavailable/40'
-    case 'maybe': return 'bg-secondary/20 border-secondary/40'
-    default: return 'bg-text-subtle/20 border-border-hover/40'
-  }
-}
+// getAvailabilityColor/getAvailabilityBg lived here and knew the statuses by
+// name. They had no callers left and would have been a fourth place to update
+// per status — see statusText()/statusDot() in src/lib/availability.ts instead.
