@@ -168,6 +168,12 @@ new season starts mid-August 2026. Installed by players as a homescreen PWA on t
   home match by "Genereer fluitbeurten") and standalone/"losse" ones (`match_id` null,
   `duty_date` + `umpire_match_desc` set directly, added via the "Losse fluitbeurt toevoegen" form
   in `AdminUmpire.tsx` — e.g. a cup match not in the regular schedule).
+- Admins delete duties from `AdminUmpire.tsx` at two levels: the trash icon in a group header
+  removes the whole duty (both slots in one `.in('id', ids)` call), the one per row removes a
+  single slot. Both confirm first — deleting is irreversible and the rows carry player
+  assignments. Announcements have the same pattern in `src/pages/Announcements.tsx` (admin-only
+  trash icon per bericht); its mutation must also invalidate `['nextMatch', teamId]`, because the
+  Dashboard's "Laatste bericht" card is fetched inside that query rather than `['announcements']`.
 - `groupDuties()` in `src/components/ui/UmpireCard.tsx` is the single grouping/sorting
   implementation shared by `AdminUmpire.tsx`, `More.tsx`, and `Dashboard.tsx`'s "next duty" —
   don't reimplement match/date grouping separately. Standalone duties group by

@@ -11,7 +11,7 @@ import { useOpponentName } from '../../lib/opponents'
 import { groupDuties } from '../../components/ui/UmpireCard'
 import { parseISO, subDays, format } from 'date-fns'
 import { nl } from 'date-fns/locale'
-import type { Profile, UmpireDutyWithJoins } from '../../types/app'
+import type { Profile, UmpireDutyWithJoins, UmpireGroup } from '../../types/app'
 
 interface MatchItem {
   id: string
@@ -102,9 +102,9 @@ export default function AdminUmpire(): React.JSX.Element {
     onSuccess: invalidateAll,
   })
 
-  const deleteMutation = useMutation<void, Error, string>({
-    mutationFn: async (dutyId: string): Promise<void> => {
-      await supabase.from('umpire_duties').delete().eq('id', dutyId)
+  const deleteMutation = useMutation<void, Error, string[]>({
+    mutationFn: async (dutyIds: string[]): Promise<void> => {
+      await supabase.from('umpire_duties').delete().in('id', dutyIds)
     },
     onSuccess: invalidateAll,
   })
@@ -173,8 +173,23 @@ export default function AdminUmpire(): React.JSX.Element {
     await assignMutation.mutateAsync({ dutyId, playerId })
   }
 
+  /** Removes a single slot. Deleting is irreversible, hence the confirm. */
   async function deleteDuty(dutyId: string): Promise<void> {
-    await deleteMutation.mutateAsync(dutyId)
+    if (!window.confirm('Deze fluitbeurt-plek verwijderen?')) return
+    await deleteMutation.mutateAsync([dutyId])
+  }
+
+  /** Removes a whole duty — both slots at once, so it takes one action instead of two. */
+  async function deleteGroup(group: UmpireGroup): Promise<void> {
+    const label = group.match
+      ? `de fluitbeurt bij ${opponentName(group.match.opponent)}`
+      : group.duties[0]?.umpire_match_desc || 'deze fluitbeurt'
+    const assigned = group.duties.filter(d => d.player_id).length
+    const warning = assigned > 0
+      ? ` ${assigned} toegewezen ${assigned === 1 ? 'speler wordt' : 'spelers worden'} losgekoppeld.`
+      : ''
+    if (!window.confirm(`Weet je zeker dat je ${label} helemaal verwijdert?${warning}`)) return
+    await deleteMutation.mutateAsync(group.duties.map(d => d.id))
   }
 
   const today = new Date().toISOString().split('T')[0]
@@ -305,13 +320,23 @@ export default function AdminUmpire(): React.JSX.Element {
                         : umpireDate ? format(umpireDate, 'EEEE d MMM', { locale: nl }) : ''}
                     </p>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    slotDuties.every(d => d.player_id)
-                      ? 'bg-available/20 text-success'
-                      : 'bg-secondary/20 text-secondary-soft'
-                  }`}>
-                    {slotDuties.filter(d => d.player_id).length}/{slotDuties.length} toegewezen
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      slotDuties.every(d => d.player_id)
+                        ? 'bg-available/20 text-success'
+                        : 'bg-secondary/20 text-secondary-soft'
+                    }`}>
+                      {slotDuties.filter(d => d.player_id).length}/{slotDuties.length} toegewezen
+                    </span>
+                    <button
+                      onClick={() => deleteGroup(group)}
+                      title="Hele fluitbeurt verwijderen"
+                      aria-label="Hele fluitbeurt verwijderen"
+                      className="text-text-faint hover:text-danger transition-colors p-1"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Duty slots */}
