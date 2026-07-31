@@ -14,7 +14,7 @@ new season starts mid-August 2026. Installed by players as a homescreen PWA on t
   tools for migrations/SQL/edge function deploys, or `supabase functions deploy <name>
   --project-ref fwsjcjyovqikxrzcbovw` via CLI if MCP deploy fails.
 - Vercel project: `team-app` (team `rollyrogers-projects`), production domain
-  `team-app-zeta.vercel.app`.
+  `hockeyteam.app` (het oude `team-app-zeta.vercel.app` blijft als alias werken).
 - `npx tsc --noEmit` after any TS change — should be fully clean. If it isn't, the error is real
   (two previously-"known" pre-existing errors — a lucide `title` prop and a `SelectQueryError` in
   MatchDetail — turned out to be genuine bugs and were fixed 2026-07-27; don't wave away new

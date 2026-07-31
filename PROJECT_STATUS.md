@@ -6,7 +6,8 @@ draait dit voor precies één club/team. Pre-season pilot, nieuw seizoen start m
 Live in productie, nog geen echte gebruikers buiten Rogier (platform_admin) tijdens de testfase.
 Draait bij spelers als homescreen-PWA op hun telefoon.
 
-- **Productie:** https://team-app-zeta.vercel.app (auto-deploy vanaf `main` via Vercel ↔ GitHub)
+- **Productie:** https://hockeyteam.app (auto-deploy vanaf `main` via Vercel ↔ GitHub).
+  Het oude `team-app-zeta.vercel.app` blijft als alias werken.
 - **Supabase project:** `Team_APP_Pilot` (`fwsjcjyovqikxrzcbovw`)
 
 ---
@@ -39,17 +40,19 @@ Draait bij spelers als homescreen-PWA op hun telefoon.
 - Club/team-picker met auto-skip bij één keuze
 - Wedstrijden: programma, uitslagen, doelpunten/kaarten invoer (VD/SC/SB-onderscheid), reistijd-
   en verzameltijd-berekening, Stand-widget (client-side berekend uit league_matches)
-- **Beschikbaarheid**: spelers geven per wedstrijd aan (beschikbaar/niet/misschien), zichtbaar en
+- **Beschikbaarheid**: spelers geven per wedstrijd aan (beschikbaar/niet beschikbaar/geblesseerd), zichtbaar en
   aanpasbaar voor het **hele seizoen** (niet alleen aankomende wedstrijden) — "Al geweest"-sectie
   onder Meer. Beheerders kunnen ook de beschikbaarheid van andere spelers zetten/corrigeren
-  (bijv. last-minute afzeggingen), overal met dezelfde `TeamAvailabilityList`-component.
+  (bijv. last-minute afzeggingen), overal met dezelfde `TeamAvailabilityList`-component. Zij hebben
+  daar een vierde status: **Uitgeroosterd**, afgedwongen door een DB-trigger zodat een speler die
+  niet via een directe API-call bij zichzelf kan zetten.
 - **Aanwezigheidsoverzicht** (Admin → Aanwezigheid): matrix speler × wedstrijd voor het hele
   seizoen, met totalen per wedstrijd en per speler — vervangt het handmatige Excel-overzicht.
 - **Realtime**: beschikbaarheidsschermen (Home, Meer, wedstrijddetail, Aanwezigheidsoverzicht)
   verversen live via Supabase Realtime zodra iemand anders zijn status aanpast — geen handmatige
   refresh nodig, belangrijk op een homescreen-PWA.
 - **Delen-bericht** op wedstrijddetail genereert automatisch het wekelijkse team-appje: dag/datum,
-  tegenstander, tijden, en wie beschikbaar/afwezig/onbekend is (namen + totalen).
+  tegenstander, tijden, en wie beschikbaar/afwezig/geblesseerd/onbekend is (namen + totalen).
 - Fluitbeurten: automatisch genereren per thuiswedstrijd, plus losse/handmatige fluitbeurten
   (datum + omschrijving + 2 spelers) voor wedstrijden buiten het reguliere schema.
 - Uitroostering/opstelling (drag & drop) — bestaat, maar wordt voorlopig niet gebruikt in de app

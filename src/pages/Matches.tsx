@@ -992,6 +992,15 @@ export default function Matches() {
             </p>
           )}
         </div>
+        {isAdmin && league && (
+          <Link
+            to="/admin/league/results"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0 bg-secondary text-secondary-text"
+          >
+            <Plus size={14} />
+            Uitslag invoeren
+          </Link>
+        )}
       </div>
 
       {/* Tab bar */}

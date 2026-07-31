@@ -3,7 +3,7 @@
 Hockey team management PWA for LOHC Heren 30-1. React 19 + Vite + TypeScript + Tailwind v4,
 Supabase (Postgres/Auth/Edge Functions/Realtime) backend, deployed on Vercel.
 
-- **Production:** https://team-app-zeta.vercel.app
+- **Production:** https://hockeyteam.app
 - **Project context / architecture notes:** [CLAUDE.md](CLAUDE.md)
 - **Feature progress:** [PROJECT_STATUS.md](PROJECT_STATUS.md)
 
