@@ -1,7 +1,7 @@
 import React from 'react'
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Save, Trash2, ChevronDown, Check, AlertCircle, Calendar, Copy } from 'lucide-react'
+import { ArrowLeft, Plus, Save, Trash2, ChevronDown, Check, AlertCircle, Calendar, Copy, CalendarPlus } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
@@ -12,6 +12,9 @@ interface LeagueTeamDisplay {
   id: string
   display_name: string
   is_own_team: boolean
+  /** Rauwe registratienaam — dit is wat in `matches.opponent` moet landen, niet de korte naam. */
+  team_name: string
+  registry_id: string | null
 }
 
 interface MatchRow {
@@ -29,6 +32,12 @@ interface LeagueMatchesQueryData {
   leagueTeams: LeagueTeamDisplay[]
   ownTeamId: string | null
   existingMatches: LeagueMatch[]
+}
+
+/** Regel in het uitvoerlog van "Genereer mijn wedstrijden"; `ok: null` = neutrale melding. */
+interface LogLine {
+  text: string
+  ok: boolean | null
 }
 
 interface SaveMutationVars {
@@ -145,6 +154,8 @@ export default function AdminLeagueMatches(): React.JSX.Element {
   const [saveError, setSaveError] = useState('')
   const [mirroring, setMirroring] = useState(false)
   const [mirrorDone, setMirrorDone] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [genLog, setGenLog] = useState<LogLine[]>([])
 
   const { data, isLoading } = useQuery<LeagueMatchesQueryData>({
     queryKey: ['adminLeagueMatches', teamId],
@@ -153,9 +164,9 @@ export default function AdminLeagueMatches(): React.JSX.Element {
         .order('created_at', { ascending: false }).limit(1).maybeSingle()
       if (!lg) return { league: null, leagueTeams: [], ownTeamId: null, existingMatches: [] }
 
-      const { data: lt } = await supabase.from('league_teams').select('id, team_name, short_name, is_own_team')
+      const { data: lt } = await supabase.from('league_teams').select('id, team_name, short_name, is_own_team, registry_id')
         .eq('league_id', lg.id).order('team_name')
-      const teams: LeagueTeamDisplay[] = ((lt || []) as { id: string; team_name: string; short_name: string | null; is_own_team: boolean }[]).map((t) => ({ id: t.id, display_name: leagueTeamDisplayName(t), is_own_team: t.is_own_team }))
+      const teams: LeagueTeamDisplay[] = ((lt || []) as { id: string; team_name: string; short_name: string | null; is_own_team: boolean; registry_id: string | null }[]).map((t) => ({ id: t.id, display_name: leagueTeamDisplayName(t), is_own_team: t.is_own_team, team_name: t.team_name, registry_id: t.registry_id }))
       const own = teams.find((t) => t.is_own_team)
 
       const { data: em } = await supabase.from('league_matches').select('*').eq('league_id', lg.id)
@@ -244,42 +255,164 @@ export default function AdminLeagueMatches(): React.JSX.Element {
   }
 
   async function handleMirror(): Promise<void> {
-    if (!league) return
-    const filledRounds = [...new Set(existingMatches.map((m) => m.matchday))].filter((d): d is number => d !== null).sort((a, b) => a - b)
-    if (filledRounds.length === 0) return
-    const N = filledRounds.length
+    if (!league || halfLen < 1) return
+
+    // Bron is altijd ronde 1..halfLen — nooit "alles wat er staat", anders telt een
+    // tweede klik de al gegenereerde 2e helft mee als eerste helft.
+    const sourceRounds = filledMatchdays.filter((d) => d >= 1 && d <= halfLen)
+    if (sourceRounds.length === 0) return
+
+    if (secondHalfExists && !window.confirm(
+      `Speelronden ${halfLen + 1}–${halfLen * 2} bestaan al en worden opnieuw aangemaakt. ` +
+      'Datums en tijden die je daar hebt ingevuld gaan verloren. Doorgaan?'
+    )) return
+
     setMirroring(true)
+    setSaveError('')
 
     const inserts: { league_id: string; matchday: number; match_date: null; match_time: null; home_team_id: string | null; away_team_id: string | null }[] = []
-    filledRounds.forEach((round, idx) => {
-      const roundMatches = existingMatches.filter((m) => m.matchday === round)
-      const newRound = N + idx + 1
-      roundMatches.forEach((m) => {
+    for (const round of sourceRounds) {
+      for (const m of existingMatches.filter((x) => x.matchday === round)) {
         inserts.push({
           league_id: league.id,
-          matchday: newRound,
+          matchday: round + halfLen, // vaste offset: R spiegelt altijd naar R + halfLen
           match_date: null,
           match_time: null,
           home_team_id: m.away_team_id,
           away_team_id: m.home_team_id,
         })
-      })
-    })
+      }
+    }
 
-    const secondHalfRounds = filledRounds.map((_, idx) => N + idx + 1)
-    await supabase.from('league_matches').delete().eq('league_id', league.id).in('matchday', secondHalfRounds)
+    // Alles boven de eerste helft weg — ook eventuele rommel van een eerdere dubbelklik.
+    const { error: delErr } = await supabase.from('league_matches').delete()
+      .eq('league_id', league.id).gt('matchday', halfLen)
+    if (delErr) {
+      setSaveError(delErr.message)
+      setMirroring(false)
+      return
+    }
 
     const { error } = await supabase.from('league_matches').insert(inserts)
-    if (!error) {
+    if (error) {
+      setSaveError(error.message)
+    } else {
       queryClient.invalidateQueries({ queryKey: ['adminLeagueMatches', teamId] })
       setMirrorDone(true)
     }
     setMirroring(false)
   }
 
+  /**
+   * Maakt `matches`-rijen voor elke poulewedstrijd waarin het eigen team speelt.
+   *
+   * Herhaalbaar op twee manieren, allebei nodig:
+   *  - poulewedstrijden zonder datum worden overgeslagen (`matches.match_date` is NOT NULL),
+   *    dus de 2e helft komt er pas bij zodra die datums zijn ingevuld;
+   *  - een bestaande wedstrijd wordt herkend via `league_match_id` óf via datum + tegenstander.
+   *    Die tweede route herstelt de koppeling die verloren gaat als de 2e helft opnieuw is
+   *    gegenereerd (`matches.league_match_id` is ON DELETE SET NULL), in plaats van een duplicaat
+   *    aan te maken.
+   */
+  async function handleGenerateOwnMatches(): Promise<void> {
+    if (!league || !ownTeamId || !teamId) return
+    setGenerating(true)
+    setGenLog([])
+
+    const byId = new Map(leagueTeams.map((t) => [t.id, t]))
+    const ownFixtures = existingMatches.filter(
+      (m) => m.home_team_id === ownTeamId || m.away_team_id === ownTeamId,
+    )
+    const datedFixtures = ownFixtures.filter((m) => m.match_date)
+    const skipped = ownFixtures.length - datedFixtures.length
+
+    const { data: existingOwn, error: fetchErr } = await supabase
+      .from('matches')
+      .select('id, league_match_id, match_date, opponent')
+      .eq('team_id', teamId)
+
+    if (fetchErr) {
+      setGenLog([{ text: `Ophalen bestaande wedstrijden mislukt: ${fetchErr.message}`, ok: false }])
+      setGenerating(false)
+      return
+    }
+
+    const byLinkId = new Map<string, string>()
+    const byDateOpponent = new Map<string, string>()
+    for (const m of existingOwn || []) {
+      if (m.league_match_id) byLinkId.set(m.league_match_id, m.id)
+      if (m.match_date && m.opponent) byDateOpponent.set(`${m.match_date}|${m.opponent}`, m.id)
+    }
+
+    let added = 0
+    let updated = 0
+    let relinked = 0
+    const failures: string[] = []
+
+    for (const lm of datedFixtures) {
+      const isHome = lm.home_team_id === ownTeamId
+      const opponentTeam = byId.get((isHome ? lm.away_team_id : lm.home_team_id) || '')
+      if (!opponentTeam) {
+        failures.push('Poulewedstrijd zonder tegenstander overgeslagen')
+        continue
+      }
+
+      const matchDate = lm.match_date!.slice(0, 10)
+      // Bewust de volledige registratienaam: useOpponentName() mapt `matches.opponent`
+      // op `league_teams.team_name` om de korte naam te vinden.
+      const opponent = opponentTeam.team_name
+      const payload = {
+        match_date: matchDate,
+        match_time: lm.match_time,
+        is_home: isHome,
+        opponent,
+        registry_id: opponentTeam.registry_id,
+        league_match_id: lm.id,
+      }
+
+      const linkedId = byLinkId.get(lm.id)
+      const looseId = linkedId ? undefined : byDateOpponent.get(`${matchDate}|${opponent}`)
+      const targetId = linkedId || looseId
+
+      const { error } = targetId
+        ? await supabase.from('matches').update(payload).eq('id', targetId)
+        : await supabase.from('matches').insert({ ...payload, team_id: teamId, status: 'upcoming' })
+
+      if (error) {
+        // 23505 = de partiële unique index op matches(league_match_id). Betekent dat een
+        // parallelle run (dubbelklik) deze wedstrijd net heeft aangemaakt — geen echte fout.
+        if (error.code !== '23505') {
+          failures.push(`${opponentTeam.display_name}: ${error.message}`)
+        }
+      } else if (linkedId) {
+        updated++
+      } else if (looseId) {
+        relinked++
+      } else {
+        added++
+      }
+    }
+
+    const lines: LogLine[] = []
+    if (added) lines.push({ text: `${added} wedstrijd${added === 1 ? '' : 'en'} toegevoegd`, ok: true })
+    if (updated) lines.push({ text: `${updated} bijgewerkt`, ok: true })
+    if (relinked) lines.push({ text: `${relinked} opnieuw gekoppeld aan de poule`, ok: true })
+    if (skipped) lines.push({ text: `${skipped} overgeslagen (nog geen datum in de poule)`, ok: null })
+    for (const f of failures) lines.push({ text: f, ok: false })
+    if (lines.length === 0) lines.push({ text: 'Niets te doen — alles staat al goed.', ok: null })
+
+    setGenLog(lines)
+    queryClient.invalidateQueries({ queryKey: ['matches', teamId] })
+    queryClient.invalidateQueries({ queryKey: ['nextMatch', teamId] })
+    setGenerating(false)
+  }
+
   const filledMatchdays = [...new Set(existingMatches.map((m) => m.matchday))].filter((d): d is number => d !== null).sort((a, b) => a - b)
   const N = filledMatchdays.length
-  const secondHalfExists = filledMatchdays.some((d) => d > N / 2 + 0.5)
+  // Aantal ronden per helft volgt uit de poulegrootte, niet uit wat er toevallig al staat.
+  // Even aantal teams → T-1 ronden; oneven → T ronden (elke ronde één team vrij).
+  const halfLen = leagueTeams.length === 0 ? 0 : leagueTeams.length % 2 === 0 ? leagueTeams.length - 1 : leagueTeams.length
+  const secondHalfExists = filledMatchdays.some((d) => d > halfLen)
   const saving = saveMutation.isPending
 
   if (isLoading) {
@@ -404,28 +537,66 @@ export default function AdminLeagueMatches(): React.JSX.Element {
       )}
 
       {/* Genereer 2e helft */}
-      {N > 0 && (
+      {N > 0 && halfLen > 0 && (
         <div className="rounded-xl border p-4 space-y-3 bg-surface border-border">
           <div>
             <p className="text-sm font-semibold">2e helft genereren</p>
             <p className="text-xs text-text-muted mt-0.5">
-              Kopieert speelronden 1–{N} met thuis/uit omgedraaid naar ronden {N + 1}–{N * 2}.
+              Kopieert speelronden 1–{halfLen} met thuis/uit omgedraaid naar ronden {halfLen + 1}–{halfLen * 2}.
               Datums vul je daarna per speelronde in.
             </p>
           </div>
 
+          {secondHalfExists && (
+            <p className="text-xs text-secondary-soft">
+              Ronden {halfLen + 1}–{halfLen * 2} bestaan al. Opnieuw genereren overschrijft ze —
+              inclusief de datums die je daar hebt ingevuld.
+            </p>
+          )}
+
           {mirrorDone ? (
             <div className="flex items-center gap-2 text-sm text-success">
-              <Check size={15} />Speelronden {N + 1}–{N * 2} aangemaakt
+              <Check size={15} />Speelronden {halfLen + 1}–{halfLen * 2} aangemaakt
             </div>
           ) : (
             <button onClick={handleMirror} disabled={mirroring}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-opacity bg-surface-2 text-text"
               style={{ border: '1px solid var(--color-border)' }}>
               <Copy size={15} />
-              {mirroring ? 'Bezig...' : `Genereer speelronden ${N + 1}–${N * 2}`}
+              {mirroring ? 'Bezig...' : `Genereer speelronden ${halfLen + 1}–${halfLen * 2}`}
             </button>
           )}
+        </div>
+      )}
+
+      {/* Genereer eigen wedstrijden uit de poule */}
+      {ownTeamId && N > 0 && (
+        <div className="rounded-xl border p-4 space-y-3 bg-surface border-border">
+          <div>
+            <p className="text-sm font-semibold">Mijn wedstrijden genereren</p>
+            <p className="text-xs text-text-muted mt-0.5">
+              Zet elke poulewedstrijd met een datum waarin jouw team speelt om in een wedstrijd
+              op Wedstrijden — inclusief de koppeling die reistijden en verzameltijden nodig hebben.
+              Je kunt dit herhalen zodra je de datums van de 2e helft hebt ingevuld.
+            </p>
+          </div>
+
+          {genLog.length > 0 && (
+            <ul className="text-xs space-y-1">
+              {genLog.map((line, i) => (
+                <li key={i} className={line.ok === false ? 'text-danger' : line.ok ? 'text-success' : 'text-text-muted'}>
+                  {line.text}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <button onClick={handleGenerateOwnMatches} disabled={generating}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-opacity bg-surface-2 text-text"
+            style={{ border: '1px solid var(--color-border)' }}>
+            <CalendarPlus size={15} />
+            {generating ? 'Bezig...' : 'Genereer mijn wedstrijden'}
+          </button>
         </div>
       )}
 

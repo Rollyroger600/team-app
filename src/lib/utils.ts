@@ -83,6 +83,20 @@ export function tint(cssVar: string, percent: number): string {
   return `color-mix(in srgb, var(${cssVar}) ${percent}%, transparent)`
 }
 
+/**
+ * The hockey season that the given date falls in, as "2026-2027".
+ *
+ * The season runs roughly September–June, so July is the cutover: anything from
+ * August onwards belongs to the season that starts that calendar year. Used to
+ * pre-fill the season field when an admin creates a new poule, so it doesn't have
+ * to be edited by hand every August.
+ */
+export function currentSeason(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const startYear = date.getMonth() >= 7 ? year : year - 1 // getMonth() 7 = augustus
+  return `${startYear}-${startYear + 1}`
+}
+
 /** Prefer a league team's admin-set short_name over its (often long, registry-imported) team_name. */
 export function leagueTeamDisplayName(team: { team_name: string; short_name?: string | null } | null | undefined): string {
   if (!team) return '?'

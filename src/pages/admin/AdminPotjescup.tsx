@@ -68,6 +68,7 @@ export default function AdminPotjescup(): React.JSX.Element {
   function invalidateAll(): void {
     queryClient.invalidateQueries({ queryKey: ['adminPotjescup', activeTeam?.id] })
     queryClient.invalidateQueries({ queryKey: ['potjescupStats', activeTeam?.id] })
+    queryClient.invalidateQueries({ queryKey: ['potjescupHistory', activeTeam?.id] })
   }
 
   const updatePointsMutation = useMutation<void, Error, { scoreId: string; points: number }>({
@@ -108,7 +109,12 @@ export default function AdminPotjescup(): React.JSX.Element {
     await updatePointsMutation.mutateAsync({ scoreId, points })
   }
 
-  async function deleteSession(sessionId: string): Promise<void> {
+  async function deleteSession(sessionId: string, sessionDate: string): Promise<void> {
+    // Cascade neemt alle score-rijen van deze training mee en is niet terug te draaien —
+    // zelfde bevestigingspatroon als bij fluitbeurten en aankondigingen.
+    if (!window.confirm(
+      `Training van ${formatDate(sessionDate)} verwijderen? De punten van alle spelers voor deze training gaan verloren.`
+    )) return
     await deleteSessionMutation.mutateAsync(sessionId)
   }
 
@@ -162,7 +168,8 @@ export default function AdminPotjescup(): React.JSX.Element {
             <div key={session.id} className="rounded-xl border overflow-hidden bg-surface border-border">
               <div className="px-4 py-3 border-b border-border flex items-center justify-between">
                 <p className="font-semibold text-sm">{formatDate(session.session_date)}</p>
-                <button onClick={() => deleteSession(session.id)}
+                <button onClick={() => deleteSession(session.id, session.session_date)}
+                        title="Training verwijderen"
                         className="text-text-faint hover:text-danger transition-colors p-1 flex-shrink-0">
                   <Trash2 size={14} />
                 </button>

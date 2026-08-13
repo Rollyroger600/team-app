@@ -293,6 +293,8 @@ CREATE TABLE IF NOT EXISTS announcements (
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_clubs_registry_name        ON clubs_registry(name);
 CREATE INDEX IF NOT EXISTS idx_matches_team_date          ON matches(team_id, match_date);
+-- Eén eigen wedstrijd per poulewedstrijd; partieel omdat oefen-/bekerduels geen koppeling hebben.
+CREATE UNIQUE INDEX IF NOT EXISTS matches_league_match_id_key ON matches(league_match_id) WHERE league_match_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_match_availability_match   ON match_availability(match_id);
 CREATE INDEX IF NOT EXISTS idx_match_availability_player  ON match_availability(player_id);
 CREATE INDEX IF NOT EXISTS idx_match_roster_match         ON match_roster(match_id);

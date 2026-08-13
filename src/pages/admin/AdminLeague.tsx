@@ -7,7 +7,7 @@ import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import { geocodeAddress, getTravelDuration } from '../../lib/travel'
-import { leagueTeamDisplayName } from '../../lib/utils'
+import { leagueTeamDisplayName, currentSeason } from '../../lib/utils'
 import { useOpponentName } from '../../lib/opponents'
 import type { League, LeagueTeam } from '../../types/app'
 
@@ -50,7 +50,7 @@ interface CreateLeagueFormProps {
 
 function CreateLeagueForm({ teamId, onCreated }: CreateLeagueFormProps): React.JSX.Element {
   const [name, setName] = useState('')
-  const [season, setSeason] = useState('2025-2026')
+  const [season, setSeason] = useState(currentSeason())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -106,7 +106,7 @@ function CreateLeagueForm({ teamId, onCreated }: CreateLeagueFormProps): React.J
             type="text"
             value={season}
             onChange={(e) => setSeason(e.target.value)}
-            placeholder="2025-2026"
+            placeholder={currentSeason()}
             className="w-full px-3 py-2.5 rounded-lg text-sm outline-none bg-surface-2 text-text"
             style={{ border: '1px solid var(--color-border)' }}
           />

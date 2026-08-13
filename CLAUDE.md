@@ -9,6 +9,14 @@ React Router v7 + TanStack Query + Tailwind v4 + Supabase). Deployed via GitHub 
 (auto-deploy on push to `main`). Pre-season pilot — no real users yet besides the admin (Rogier),
 new season starts mid-August 2026. Installed by players as a homescreen PWA on their phones.
 
+**Season reset (2026-08-13)**: all pilot data from 2025-2026 was wiped so the 2026-2027 season
+could be entered from scratch — competition, matches, goals, availability, umpire duties,
+announcements and Potjescup are empty; the 22 players (profiles, memberships, roles, PIN
+credentials) and the 289-club `clubs_registry` were left untouched, and `teams.season` is now
+`2026-2027`. The pre-wipe snapshot lives in the **`backup_2526` schema** (not `public`, so
+PostgREST never exposes it). Drop it once the new season is running: `DROP SCHEMA backup_2526
+CASCADE;`.
+
 ## Stack quick reference
 - Supabase project ref: `fwsjcjyovqikxrzcbovw` (name `Team_APP_Pilot`) — use the Supabase MCP
   tools for migrations/SQL/edge function deploys, or `supabase functions deploy <name>
@@ -96,6 +104,21 @@ new season starts mid-August 2026. Installed by players as a homescreen PWA on t
   from day one at 0 points, not just once they've played a session.
 - Rules text shown via the info ("i") icon on `/potjescup` is hardcoded in `Potjescup.tsx`
   (`RulesModal`) — update it there if the rules change, it's not stored in the DB.
+- `usePotjescupHistory()` (also in `src/lib/potjescup.ts`) feeds the "Historie" log and the
+  "Verloop" chart on `/potjescup`: sessions newest-first, plus a cumulative per-player series
+  built over *every* session so a player who scored nothing still gets a flat segment rather
+  than a gap. Any mutation in `AdminPotjescup.tsx` must invalidate `['potjescupHistory', teamId]`
+  alongside the other two keys.
+- `PotjescupChart` (`src/components/ui/PotjescupChart.tsx`) is **lazy-loaded** from
+  `Potjescup.tsx` — recharts is ~100 kB gzip, which is why `MIN_SESSIONS_FOR_CHART` lives in
+  `potjescup.ts` and not in the chart module: importing it eagerly would defeat the split.
+  The `<Line>`s set `isAnimationActive={false}` deliberately — recharts' draw-on animation
+  restarts on every parent re-render, and on a page that re-renders often the lines stayed
+  stuck at ~2px of `stroke-dasharray` and the chart looked empty.
+- Chart series use `--color-chart-1..5` (added 2026-08-13, one set per theme). They are app
+  tokens, not brand ones, and must stay disjoint from the status colours — a line means "this
+  player", not "beschikbaar". A player's own line uses `--color-text` rather than a sixth hue,
+  so it never collides with the five.
 
 ## Availability statuses
 - Four values on `match_availability.status`, pinned by a CHECK constraint:
@@ -162,6 +185,26 @@ new season starts mid-August 2026. Installed by players as a homescreen PWA on t
   `short_name` yet gets its " Heren 30-1" suffix trimmed so it still fits on a phone.
   `buildShareText()` takes the resolved name as its 4th argument — the WhatsApp message uses short
   names too.
+- **"2e helft genereren"** (`AdminLeagueMatches.tsx`) derives the half-length from the number of
+  league teams (`T-1` for even T, `T` for odd), **not** from how many matchdays happen to exist.
+  Round R always mirrors to `R + halfLen`, and the delete is `.gt('matchday', halfLen)`. That makes
+  it idempotent: clicking ten times equals clicking once, and it repairs an earlier double-click.
+  The pre-2026-08-13 version took *all* existing rounds as "the first half", so a second click
+  turned 22 rounds into 44 and quadrupled the fixtures — don't reintroduce a length derived from
+  `filledMatchdays.length`.
+- **"Genereer mijn wedstrijden"** (same screen) creates the team's own `matches` rows from
+  `league_matches`. It exists because `AdminMatchEdit.tsx` never sets `league_match_id`, and
+  without that link "Reistijden berekenen" (`AdminLeague.tsx` filters `.not('league_match_id','is',
+  null)`) and the poule→wedstrijddetail link in `Matches.tsx` both silently stop working.
+  Three things it must keep doing: write the **full** `league_teams.team_name` into
+  `matches.opponent` (that's the key `useOpponentName()` maps on, not `short_name`); skip fixtures
+  without a date (`matches.match_date` is NOT NULL), so it can be re-run once the 2nd-half dates
+  are filled in; and dedupe on `league_match_id` **or** `match_date + opponent`. That second route
+  is what re-links own matches after the 2nd half is regenerated — `matches.league_match_id` is
+  `ON DELETE SET NULL`, so regenerating orphans them, and matching on date+opponent restores the
+  link instead of inserting a duplicate. A partial unique index
+  (`matches_league_match_id_key`, `WHERE league_match_id IS NOT NULL`) is the backstop; a 23505
+  from a concurrent double-click is swallowed on purpose.
 
 ## Umpire duties (fluitbeurten)
 - Two kinds of duty rows in `umpire_duties`: match-linked (via `match_id`, auto-generated 2 per
