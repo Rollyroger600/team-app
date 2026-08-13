@@ -40,6 +40,14 @@ interface LogLine {
   ok: boolean | null
 }
 
+// Gedeelde fallback voor `existingMatches` uit de query. Moet één stabiel array-object
+// zijn, geen verse `[]` per render: het voedt de dependency-array van het effect
+// hieronder, dat zelf setRows() met een nieuw array aanroept. Een literal daar gaf elke
+// render een nieuwe identiteit, dus het effect draaide steeds opnieuw, zette de rows
+// opnieuw, rerenderde... — honderden renders en een stroom "Maximum update depth
+// exceeded" bij elk bezoek aan dit scherm zodra er speelronden staan (fixed 2026-08-13).
+const NO_MATCHES: LeagueMatch[] = []
+
 interface SaveMutationVars {
   leagueId: string
   matchdayNum: number
@@ -185,7 +193,7 @@ export default function AdminLeagueMatches(): React.JSX.Element {
   const league = data?.league || null
   const leagueTeams = data?.leagueTeams || []
   const ownTeamId = data?.ownTeamId || null
-  const existingMatches = data?.existingMatches || []
+  const existingMatches = data?.existingMatches ?? NO_MATCHES
 
   // Laad rows + gedeelde datum wanneer speelronde wijzigt
   useEffect(() => {
