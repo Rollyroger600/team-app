@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Settings, ChevronDown, ChevronUp, ShieldCheck, Flag } from 'lucide-react'
+import { Settings, ChevronDown, ChevronUp, ShieldCheck, Flag, ChevronRight } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import EmptyState from '../components/ui/EmptyState'
@@ -216,15 +216,22 @@ export default function More() {
       <div key={match.id} className={`${isLast ? '' : 'border-b'} border-border`}>
         {/* Hoofdrij */}
         <div className="flex items-center gap-3 px-4 py-3">
-          <div className="flex-1 min-w-0">
+          {/* Deze lijst is de enige plek die élke wedstrijd van het seizoen toont,
+              inclusief losse/oefenwedstrijden zonder poulekoppeling (Wedstrijden ->
+              Overzicht/Programma/Uitslagen zijn allemaal opgebouwd uit league_matches
+              en filteren die er dus stil uit). Vandaar de link naar wedstrijddetail
+              hier, zodat een admin een losse wedstrijd ook echt kan terugvinden om te
+              bewerken of te verwijderen. */}
+          <Link to={`/matches/${match.id}`} className="flex-1 min-w-0 group">
             <p className="text-xs text-text-muted">{formatDate(match.match_date)} • {formatTime(match.match_time)}</p>
-            <p className="font-medium text-sm truncate">
+            <p className="font-medium text-sm truncate group-hover:text-secondary-soft transition-colors">
               {match.is_home ? 'Thuis' : 'Uit'} vs {opponentName(match.opponent)}
             </p>
             {myOverridden && (
               <p className="text-xs text-secondary-soft mt-0.5">Aangepast door admin</p>
             )}
-          </div>
+          </Link>
+          <ChevronRight size={16} className="flex-shrink-0 text-text-faint" />
 
           {/* Snelle knoppen */}
           <div className="flex gap-1.5 flex-shrink-0">
