@@ -716,6 +716,34 @@ interface StandingRow {
   points: number
 }
 
+/**
+ * Onderling resultaat tussen twee teams: punten (en bij gelijke punten het
+ * doelsaldo) uit alleen de wedstrijden die deze twee teams tegen elkaar
+ * speelden — laatste stap in de ranking-tiebreak van MiniStandings. Positief
+ * betekent teamB hoger, negatief teamA hoger, 0 = nog niet tegen elkaar
+ * gespeeld (of nog gelijk), wat de sort ongewijzigd laat.
+ */
+function headToHead(matches: LeagueMatchRow[], teamAId: string, teamBId: string): number {
+  let pointsA = 0, pointsB = 0, gdA = 0, gdB = 0
+
+  for (const m of matches) {
+    if (m.score_home === null || m.score_away === null) continue
+    const aIsHome = m.home_team_id === teamAId && m.away_team_id === teamBId
+    const bIsHome = m.home_team_id === teamBId && m.away_team_id === teamAId
+    if (!aIsHome && !bIsHome) continue
+
+    const [scoreA, scoreB] = aIsHome ? [m.score_home, m.score_away] : [m.score_away, m.score_home]
+    gdA += scoreA - scoreB
+    gdB += scoreB - scoreA
+    if (scoreA > scoreB) pointsA += 3
+    else if (scoreA < scoreB) pointsB += 3
+    else { pointsA++; pointsB++ }
+  }
+
+  if (pointsB !== pointsA) return pointsB - pointsA
+  return gdB - gdA
+}
+
 interface MiniStandingsProps {
   matches: LeagueMatchRow[]
   teams: LeagueTeamFull[]
@@ -768,9 +796,17 @@ function MiniStandings({ matches, teams }: MiniStandingsProps) {
       }
     })
 
+    // Ranking: 1) punten, 2) gewonnen wedstrijden, 3) netto doelsaldo, 4) doelpunten
+    // voor, 5) onderling resultaat — in deze exacte volgorde, elk criterium beslist
+    // pas als alles ervoor gelijk is.
     return Object.values(table).sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points
-      return (b.gf - b.ga) - (a.gf - a.ga)
+      if (b.won !== a.won) return b.won - a.won
+      const gdA = a.gf - a.ga
+      const gdB = b.gf - b.ga
+      if (gdB !== gdA) return gdB - gdA
+      if (b.gf !== a.gf) return b.gf - a.gf
+      return headToHead(matches, a.id, b.id)
     })
   }, [matches, teams])
 

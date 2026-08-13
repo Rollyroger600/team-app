@@ -1,7 +1,7 @@
 import React from 'react'
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, Trash2 } from 'lucide-react'
 import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
@@ -31,6 +31,7 @@ export default function AdminMatchEdit(): React.JSX.Element {
   })
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -80,6 +81,28 @@ export default function AdminMatchEdit(): React.JSX.Element {
 
   function handleChange(key: keyof MatchForm, value: string | boolean): void {
     setForm(prev => ({ ...prev, [key]: value }))
+  }
+
+  async function handleDelete(): Promise<void> {
+    if (!id) return
+    // Cascade wist ook doelpunten, beschikbaarheid, kaarten en de opstelling voor
+    // deze wedstrijd; fluitbeurten en aankondigingen die eraan gekoppeld zijn
+    // verliezen alleen de koppeling (match_id → NULL), die blijven zelf bestaan.
+    if (!window.confirm(
+      `Wedstrijd tegen ${form.opponent || 'onbekende tegenstander'} verwijderen? ` +
+      'Doelpunten, beschikbaarheid en opstelling voor deze wedstrijd gaan mee verloren. Dit kan niet ongedaan worden gemaakt.'
+    )) return
+
+    setDeleting(true)
+    setError('')
+    const { error: delErr } = await supabase.from('matches').delete().eq('id', id)
+    setDeleting(false)
+
+    if (delErr) {
+      setError(delErr.message)
+      return
+    }
+    navigate('/matches')
   }
 
   if (loading) {
@@ -196,12 +219,25 @@ export default function AdminMatchEdit(): React.JSX.Element {
 
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || deleting}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50 bg-secondary text-secondary-text"
         >
           <Save size={16} />
           {saving ? 'Opslaan...' : isNew ? 'Wedstrijd aanmaken' : 'Wijzigingen opslaan'}
         </button>
+
+        {!isNew && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving || deleting}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm disabled:opacity-50 text-danger transition-colors hover:bg-unavailable/10"
+            style={{ border: '1px solid var(--color-border)' }}
+          >
+            <Trash2 size={16} />
+            {deleting ? 'Verwijderen...' : 'Wedstrijd verwijderen'}
+          </button>
+        )}
       </form>
     </div>
   )

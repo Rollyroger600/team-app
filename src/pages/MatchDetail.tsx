@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Clock, MapPin, Share2, Target, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Clock, MapPin, Share2, Target, ShieldCheck, Pencil } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
@@ -226,6 +226,16 @@ export default function MatchDetail() {
       {isAdmin && (
         <div className="space-y-2">
           <p className="text-xs font-semibold text-text-subtle uppercase tracking-wide px-1">Beheer</p>
+          <Link
+            to={`/admin/matches/${id}/edit`}
+            className="flex items-center justify-between p-4 rounded-xl border transition-colors hover:border-border-hover bg-surface border-border"
+          >
+            <div className="flex items-center gap-3">
+              <Pencil size={20} className="text-secondary-soft" />
+              <span className="font-medium text-sm">Wedstrijd bewerken</span>
+            </div>
+            <ArrowLeft size={18} className="text-text-subtle rotate-180" />
+          </Link>
           <Link
             to={`/admin/matches/${id}/roster`}
             className="flex items-center justify-between p-4 rounded-xl border transition-colors hover:border-border-hover bg-surface border-border"
