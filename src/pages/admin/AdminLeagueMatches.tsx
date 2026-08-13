@@ -228,6 +228,20 @@ export default function AdminLeagueMatches(): React.JSX.Element {
     setSaved(false)
   }
 
+  // Elke rij krijgt bij het laden van een al-opgeslagen speelronde zijn eigen datum
+  // (zie het effect hierboven) — dus zodra een ronde eenmaal is opgeslagen wint die
+  // eigen rijdatum altijd van dit gedeelde veld (r.date || matchdayDateVal in
+  // handleSave). Het bovenste datumveld wijzigen deed daardoor stilletjes niets meer
+  // voor een bestaande ronde. Dit is de expliciete, opt-in manier om alle rijen
+  // alsnog gelijk te zetten — bewust geen automatische override bij het typen, dat
+  // zou de "tenzij individueel overschreven"-functie (een enkele wedstrijd op een
+  // afwijkende datum) stuk maken.
+  function applyMatchdayDateToAllRows(): void {
+    if (!matchdayDate) return
+    setRows((prev) => prev.map((r) => ({ ...r, date: matchdayDate })))
+    setSaved(false)
+  }
+
   const saveMutation = useMutation<void, Error, SaveMutationVars>({
     mutationFn: async ({ leagueId, matchdayNum, toSave, matchdayDateVal }: SaveMutationVars): Promise<void> => {
       await supabase.from('league_matches').delete().eq('league_id', leagueId).eq('matchday', matchdayNum)
@@ -482,13 +496,23 @@ export default function AdminLeagueMatches(): React.JSX.Element {
             Datum speelronde {matchday}
             <span className="ml-1 opacity-60">(geldt voor alle wedstrijden, tenzij individueel overschreven)</span>
           </label>
-          <input
-            type="date"
-            value={matchdayDate}
-            onChange={(e) => handleMatchdayDateChange(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-secondary-soft"
-            style={{ backgroundColor: 'var(--color-surface-2)', borderColor: matchdayDate ? 'rgb(245 158 11 / 0.5)' : 'var(--color-border)', color: 'var(--color-text)' }}
-          />
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={matchdayDate}
+              onChange={(e) => handleMatchdayDateChange(e.target.value)}
+              className="flex-1 rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-secondary-soft"
+              style={{ backgroundColor: 'var(--color-surface-2)', borderColor: matchdayDate ? 'rgb(245 158 11 / 0.5)' : 'var(--color-border)', color: 'var(--color-text)' }}
+            />
+            {rows.length > 0 && (
+              <button type="button" onClick={applyMatchdayDateToAllRows} disabled={!matchdayDate}
+                title="Zet de datum van alle wedstrijden in deze speelronde gelijk aan de datum hierboven"
+                className="flex-shrink-0 px-3 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-40 transition-opacity bg-surface-2 text-text"
+                style={{ border: '1px solid var(--color-border)' }}>
+                Toepassen op alle
+              </button>
+            )}
+          </div>
         </div>
 
         {filledMatchdays.length > 0 && (
