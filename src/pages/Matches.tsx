@@ -1,13 +1,12 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2, Users } from 'lucide-react'
+import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
-import { leagueTeamDisplayName, tint } from '../lib/utils'
-import { PLAYER_STATUSES, statusDef, statusLabel } from '../lib/availability'
-import type { AvailabilityStatus } from '../types/app'
+import { leagueTeamDisplayName } from '../lib/utils'
+import { statusDef } from '../lib/availability'
 import React from 'react'
 
 interface TabDef {
@@ -80,12 +79,6 @@ interface MemberRow {
   profiles: { full_name: string | null; nickname: string | null } | null
 }
 
-interface AvailPlayer {
-  player_id: string
-  status: string
-  profiles: { full_name: string | null; nickname: string | null } | null
-}
-
 interface LeagueTeamFull {
   id: string
   team_name: string
@@ -110,7 +103,6 @@ interface MatchesQueryData {
   goalsMap: Record<string, GoalRow[]>
   teamMembers: MemberRow[]
   logoMap: Record<string, string>
-  availabilityMap: Record<string, { players: AvailPlayer[] }>
 }
 
 function displayNameProfile(profile: { full_name: string | null; nickname: string | null } | null | undefined): string {
@@ -329,144 +321,13 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
   )
 }
 
-// --- Availability section (compact, used in both upcoming and past match cards) ---
-// Inline-style variants of the shared statuses; this card styles via `style`
-// rather than classes, so it needs colour literals instead of Tailwind tokens.
-const STATUS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  available:    { bg: tint('--color-available', 15),    border: tint('--color-available', 40),    text: 'var(--color-success)' },
-  unavailable:  { bg: tint('--color-unavailable', 15),  border: tint('--color-unavailable', 40),  text: 'var(--color-danger)' },
-  injured:      { bg: tint('--color-maybe', 15),        border: tint('--color-maybe', 40),        text: 'var(--color-maybe)' },
-  rostered_off: { bg: tint('--color-rostered-off', 15), border: tint('--color-rostered-off', 40), text: 'var(--color-rostered-off)' },
-}
-
-interface AvailabilitySectionProps {
-  matchId: string
-  initialPlayers: AvailPlayer[]
-  userId: string | undefined
-  isUpcoming: boolean
-}
-
-function AvailabilitySection({ matchId, initialPlayers, userId, isUpcoming }: AvailabilitySectionProps) {
-  const [players, setPlayers] = useState<AvailPlayer[]>(initialPlayers || [])
-  const [saving, setSaving] = useState(false)
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => { setPlayers(initialPlayers || []) }, [initialPlayers])
-
-  const available    = players.filter(p => p.status === 'available')
-  const unavailable  = players.filter(p => p.status === 'unavailable')
-  const injured      = players.filter(p => p.status === 'injured')
-  const rosteredOff  = players.filter(p => p.status === 'rostered_off')
-  const myStatus     = players.find(p => p.player_id === userId)?.status || null
-
-  function dname(p: AvailPlayer): string {
-    return (p.profiles as { nickname?: string | null; full_name?: string | null } | null)?.nickname
-      || (p.profiles as { full_name?: string | null } | null)?.full_name?.split(' ')[0]
-      || '?'
-  }
-
-  async function setMyAvail(status: AvailabilityStatus) {
-    if (saving || !userId) return
-    setSaving(true)
-    await supabase.from('match_availability').upsert(
-      { match_id: matchId, player_id: userId, status, responded_at: new Date().toISOString() },
-      { onConflict: 'match_id,player_id' }
-    )
-    setPlayers(prev => {
-      const me = prev.find(p => p.player_id === userId)
-      const rest = prev.filter(p => p.player_id !== userId)
-      return [...rest, { ...(me || { player_id: userId, profiles: null }), status }]
-    })
-    setSaving(false)
-  }
-
-  if (!isUpcoming) {
-    // Past match: show who was there, collapsible
-    if (available.length === 0) return null
-    return (
-      <div className="border-t border-border">
-        <button onClick={() => setOpen(o => !o)}
-          className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors text-text-muted">
-          <span className="flex items-center gap-1.5">
-            <Users size={12} />
-            {available.length} aanwezig
-          </span>
-          {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        </button>
-        {open && (
-          <div className="px-3 pb-3 flex flex-wrap gap-1">
-            {available.map((p, i) => (
-              <span key={i} className="text-xs px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: STATUS_COLORS.available.bg, color: STATUS_COLORS.available.text }}>
-                {dname(p)}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // Upcoming match: my status buttons + counts, expandable player list
-  const myColors = myStatus ? STATUS_COLORS[myStatus] : null
-  const myLabel  = statusLabel(myStatus, 'Jouw opgave')
-
-  return (
-    <div className="border-t border-border">
-      <button onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 transition-colors text-text-muted">
-        <span className="flex items-center gap-2">
-          <Users size={12} />
-          <span style={{ color: myColors?.text || 'var(--color-text-muted)' }}>{myLabel}</span>
-          <span>
-            • {available.length}✓ {unavailable.length}✗ {injured.length}B
-            {rosteredOff.length > 0 && ` ${rosteredOff.length}U`}
-          </span>
-        </span>
-        {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-      </button>
-
-      {open && (
-        <div className="px-3 pb-3 space-y-2">
-          <div className="flex gap-1.5">
-            {PLAYER_STATUSES.map(({ status, shortLabel }) => {
-              const c = STATUS_COLORS[status]
-              const active = myStatus === status
-              return (
-                <button key={status} onClick={() => setMyAvail(status)} disabled={saving}
-                  className="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50"
-                  style={{ backgroundColor: active ? c.bg : 'transparent', borderColor: active ? c.border : 'var(--color-border)', color: active ? c.text : 'var(--color-text-muted)' }}>
-                  {shortLabel}
-                </button>
-              )
-            })}
-          </div>
-          {players.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {[...available, ...injured, ...rosteredOff, ...unavailable].map((p, i) => (
-                <span key={i} className="text-xs px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: STATUS_COLORS[p.status]?.bg, color: STATUS_COLORS[p.status]?.text }}>
-                  {dname(p)}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // --- Match card for programma/overzicht ---
 interface MatchCardProps {
   match: LeagueMatchRow
   logoMap?: Record<string, string>
-  matchId?: string
-  availability?: { players: AvailPlayer[] }
-  userId?: string
 }
 
-function MatchCard({ match, logoMap = {}, matchId, availability, userId }: MatchCardProps) {
+function MatchCard({ match, logoMap = {} }: MatchCardProps) {
   const isPlayed = match.score_home !== null && match.score_away !== null
   const homeIsOwn = match.home_team?.is_own_team
   const awayIsOwn = match.away_team?.is_own_team
@@ -506,14 +367,6 @@ function MatchCard({ match, logoMap = {}, matchId, availability, userId }: Match
           Speelronde {match.matchday}
         </p>
       )}
-      {matchId && userId && (
-        <AvailabilitySection
-          matchId={matchId}
-          initialPlayers={availability?.players || []}
-          userId={userId}
-          isUpcoming
-        />
-      )}
     </div>
   )
 }
@@ -526,11 +379,9 @@ interface ResultCardProps {
   members: MemberRow[]
   isAdmin: boolean
   logoMap?: Record<string, string>
-  availability?: { players: AvailPlayer[] }
-  userId?: string
 }
 
-function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {}, availability, userId }: ResultCardProps) {
+function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {} }: ResultCardProps) {
   const homeIsOwn = match.home_team?.is_own_team
   const awayIsOwn = match.away_team?.is_own_team
   const isOwnMatch = homeIsOwn || awayIsOwn
@@ -578,14 +429,6 @@ function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {}, ava
           maxGoals={ourScore ?? null}
         />
       )}
-      {isOwnMatch && matchId && userId && (
-        <AvailabilitySection
-          matchId={matchId}
-          initialPlayers={availability?.players || []}
-          userId={userId}
-          isUpcoming={false}
-        />
-      )}
     </div>
   )
 }
@@ -599,11 +442,9 @@ interface MatchGroupProps {
   teamMembers?: MemberRow[]
   isAdmin?: boolean
   logoMap?: Record<string, string>
-  availabilityMap?: Record<string, { players: AvailPlayer[] }>
-  userId?: string
 }
 
-function MatchGroup({ dateStr, matches, resultMode, ownMatchMap = {}, goalsMap = {}, teamMembers = [], isAdmin = false, logoMap = {}, availabilityMap = {}, userId }: MatchGroupProps) {
+function MatchGroup({ dateStr, matches, resultMode, ownMatchMap = {}, goalsMap = {}, teamMembers = [], isAdmin = false, logoMap = {} }: MatchGroupProps) {
   return (
     <div>
       <p className="text-xs font-bold uppercase tracking-wide mb-2 mt-5 first:mt-0 text-text-muted">
@@ -620,17 +461,12 @@ function MatchGroup({ dateStr, matches, resultMode, ownMatchMap = {}, goalsMap =
               members={teamMembers}
               isAdmin={isAdmin}
               logoMap={logoMap}
-              availability={availabilityMap?.[ownMatchMap?.[m.id]]}
-              userId={userId}
             />
           ) : (
             <MatchCard
               key={m.id}
               match={m}
               logoMap={logoMap}
-              matchId={ownMatchMap?.[m.id]}
-              availability={availabilityMap?.[ownMatchMap?.[m.id]]}
-              userId={userId}
             />
           )
         )}
@@ -859,7 +695,7 @@ function MiniStandings({ matches, teams }: MiniStandingsProps) {
 
 export default function Matches() {
   const { activeTeam } = useTeamStore()
-  const { user, isTeamAdmin, isPlatformAdmin } = useAuthStore()
+  const { isTeamAdmin, isPlatformAdmin } = useAuthStore()
   const isAdmin = isTeamAdmin(activeTeam?.id ?? '') || isPlatformAdmin()
 
   const [activeTab, setActiveTab] = useState('overzicht')
@@ -877,7 +713,7 @@ export default function Matches() {
         .maybeSingle()
 
       if (!leagueData) {
-        return { league: null, leagueTeams: [], matches: [], ownMatchMap: {}, goalsMap: {}, teamMembers: [], logoMap: {}, availabilityMap: {} }
+        return { league: null, leagueTeams: [], matches: [], ownMatchMap: {}, goalsMap: {}, teamMembers: [], logoMap: {} }
       }
 
       const [teamsRes, matchesRes, ownMatchesRes, membersRes] = await Promise.all([
@@ -912,33 +748,20 @@ export default function Matches() {
         if (m.league_match_id) lmMap[m.league_match_id] = m.id
       }
 
-      // Load goals + availability for own matches
+      // Load goals for own matches
       const matchIds = (ownMatchesRes.data || []).map(m => m.id)
       let goalsMap: Record<string, GoalRow[]> = {}
-      let availabilityMap: Record<string, { players: AvailPlayer[] }> = {}
 
       if (matchIds.length > 0) {
-        const [goalsRes, availRes] = await Promise.all([
-          supabase
-            .from('goals')
-            .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
-            .in('match_id', matchIds)
-            .order('minute', { ascending: true, nullsFirst: false }),
-          supabase
-            .from('match_availability')
-            .select('match_id, player_id, status, profiles(full_name, nickname)')
-            .in('match_id', matchIds),
-        ])
+        const { data: goalsData } = await supabase
+          .from('goals')
+          .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+          .in('match_id', matchIds)
+          .order('minute', { ascending: true, nullsFirst: false })
 
-        for (const g of (goalsRes.data || []) as unknown as GoalRow[]) {
+        for (const g of (goalsData || []) as unknown as GoalRow[]) {
           if (!goalsMap[g.match_id]) goalsMap[g.match_id] = []
           goalsMap[g.match_id].push(g)
-        }
-
-        for (const a of (availRes.data || []) as unknown as AvailPlayer[]) {
-          const mid = (a as unknown as { match_id: string }).match_id
-          if (!availabilityMap[mid]) availabilityMap[mid] = { players: [] }
-          availabilityMap[mid].players.push({ player_id: a.player_id, status: a.status, profiles: a.profiles })
         }
       }
 
@@ -950,7 +773,6 @@ export default function Matches() {
         goalsMap,
         teamMembers: (membersRes.data || []) as unknown as MemberRow[],
         logoMap: lMap,
-        availabilityMap,
       }
     },
     enabled: !!activeTeam?.id,
@@ -963,7 +785,6 @@ export default function Matches() {
   const goalsMap = data?.goalsMap || {}
   const teamMembers = data?.teamMembers || []
   const logoMap = data?.logoMap || {}
-  const availabilityMap = data?.availabilityMap || {}
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -1078,7 +899,7 @@ export default function Matches() {
                   Object.entries(overzichtGroups)
                     .sort(([a], [b]) => (a < b ? -1 : 1))
                     .map(([date, group]) => (
-                      <MatchGroup key={date} dateStr={date} matches={group} logoMap={logoMap} ownMatchMap={ownMatchMap} availabilityMap={availabilityMap} userId={user?.id} />
+                      <MatchGroup key={date} dateStr={date} matches={group} logoMap={logoMap} ownMatchMap={ownMatchMap} />
                     ))
                 ) : (
                   <div className="rounded-xl p-5 border text-center bg-surface border-border">
@@ -1151,8 +972,6 @@ export default function Matches() {
                       teamMembers={teamMembers}
                       isAdmin={isAdmin}
                       logoMap={logoMap}
-                      availabilityMap={availabilityMap}
-                      userId={user?.id}
                     />
                   ))
               )}
