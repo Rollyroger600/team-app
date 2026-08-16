@@ -7,6 +7,7 @@ import useTeamStore from './stores/useTeamStore'
 import AppShell from './components/layout/AppShell'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import AdminRoute from './components/layout/AdminRoute'
+import FeatureRoute from './components/layout/FeatureRoute'
 import PageLoader from './components/ui/PageLoader'
 
 // Pages — lazy-loaded so a visit only downloads the page actually opened
@@ -76,9 +77,13 @@ export default function App() {
             <Route path="/matches" element={<Matches />} />
             <Route path="/matches/:id" element={<MatchDetail />} />
             <Route path="/matches/:id/lineup" element={<MatchLineup />} />
-            <Route path="/potjescup" element={<Potjescup />} />
+            <Route element={<FeatureRoute flag="potjescup_enabled" />}>
+              <Route path="/potjescup" element={<Potjescup />} />
+            </Route>
             <Route path="/stats" element={<Stats />} />
-            <Route path="/umpire" element={<Umpire />} />
+            <Route element={<FeatureRoute flag="fluitbeurten_enabled" />}>
+              <Route path="/umpire" element={<Umpire />} />
+            </Route>
             <Route path="/announcements" element={<Announcements />} />
             <Route path="/more" element={<More />} />
             <Route path="/settings" element={<Settings />} />

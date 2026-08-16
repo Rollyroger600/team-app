@@ -151,10 +151,10 @@ export default function Dashboard() {
         .order('created_at', { ascending: true })
 
       const today = new Date().toISOString().split('T')[0]
-      const { upcoming } = groupDuties((data as unknown as UmpireDutyWithJoins[]) || [], today)
+      const { upcoming } = groupDuties((data as unknown as UmpireDutyWithJoins[]) || [], today, teamSettings)
       return upcoming[0] || null
     },
-    enabled: !!activeTeam?.id,
+    enabled: !!activeTeam?.id && teamSettings.fluitbeurten_enabled,
   })
 
   // Podiums (Topscorer / MVP) — shares the same query/cache as the Stats page

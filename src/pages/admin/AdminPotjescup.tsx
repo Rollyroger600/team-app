@@ -1,7 +1,7 @@
 import React from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Trophy, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Trophy, Plus, Trash2, Settings } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import EmptyState from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabase'
@@ -129,6 +129,17 @@ export default function AdminPotjescup(): React.JSX.Element {
         </Link>
         <h1 className="text-2xl font-bold">Potjescup</h1>
       </div>
+
+      {/* Spelregels bewerken zit sinds 2026-08-16 bij Team instellingen (naast de
+          andere Potjescup/Fluitbeurten-toggles), niet hier — dit scherm blijft de
+          sessie/puntentoekenning-CRUD. */}
+      <Link
+        to="/admin/settings"
+        className="flex items-center gap-2 text-xs text-text-muted hover:text-text px-1"
+      >
+        <Settings size={13} />
+        Spelregels aanpassen? Dat doe je via Team instellingen.
+      </Link>
 
       {/* Nieuwe training toevoegen */}
       <div className="rounded-xl p-4 border space-y-2 bg-surface border-border">

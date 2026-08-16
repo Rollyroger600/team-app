@@ -1,8 +1,8 @@
-import { formatDate, tint } from '../../lib/utils'
+import { formatDate, tint, dutyDateFor } from '../../lib/utils'
 import { useOpponentName } from '../../lib/opponents'
-import { subDays, parseISO, format } from 'date-fns'
+import { parseISO, format } from 'date-fns'
 import { nl } from 'date-fns/locale'
-import type { UmpireDutyWithJoins, UmpireGroup } from '../../types/app'
+import type { UmpireDutyWithJoins, UmpireGroup, TeamSettings } from '../../types/app'
 
 function dutyName(duty: UmpireDutyWithJoins): string | null {
   return duty.profiles?.nickname || duty.profiles?.full_name?.split(' ')[0] || null
@@ -76,15 +76,22 @@ export function UmpireCard({ group, userId, past }: UmpireCardProps) {
 }
 
 // Helper: convert flat duties array → grouped by match_id (or, for standalone
-// "losse" duties with no match, by duty_date + description), sorted by umpire date
-export function groupDuties(duties: UmpireDutyWithJoins[], today: string): { upcoming: UmpireGroup[]; past: UmpireGroup[] } {
+// "losse" duties with no match, by duty_date + description), sorted by umpire date.
+// `settings` drives the match-linked umpireDate via dutyDateFor() — every caller must
+// pass the team's actual fluitbeurten settings, or the shown/sorted date silently
+// stops matching what "Genereer fluitbeurten" (AdminUmpire.tsx) actually generated.
+export function groupDuties(
+  duties: UmpireDutyWithJoins[],
+  today: string,
+  settings: Pick<TeamSettings, 'fluitbeurten_day_of_week' | 'fluitbeurten_relative_to_match'>
+): { upcoming: UmpireGroup[]; past: UmpireGroup[] } {
   const groups: Record<string, UmpireGroup> = {}
 
   for (const d of duties) {
     const key = d.match_id || `orphan-${d.duty_date || 'nodate'}-${d.umpire_match_desc}`
     if (!groups[key]) {
       const umpireDate = d.matches?.match_date
-        ? subDays(parseISO(d.matches.match_date), 1)
+        ? dutyDateFor(d.matches.match_date, settings.fluitbeurten_day_of_week, settings.fluitbeurten_relative_to_match)
         : d.duty_date
           ? parseISO(d.duty_date)
           : null

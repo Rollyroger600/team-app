@@ -15,7 +15,7 @@ interface UmpireQueryResult {
 
 export default function Umpire() {
   const { user } = useAuthStore()
-  const { activeTeam } = useTeamStore()
+  const { activeTeam, teamSettings } = useTeamStore()
 
   const { data, isLoading } = useQuery<UmpireQueryResult>({
     queryKey: ['umpire', activeTeam?.id],
@@ -27,7 +27,7 @@ export default function Umpire() {
         .order('created_at', { ascending: true })
 
       const today = new Date().toISOString().split('T')[0]
-      return groupDuties((data as unknown as UmpireDutyWithJoins[]) || [], today)
+      return groupDuties((data as unknown as UmpireDutyWithJoins[]) || [], today, teamSettings)
     },
     enabled: !!activeTeam?.id && !!user?.id,
   })

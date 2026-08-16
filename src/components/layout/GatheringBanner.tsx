@@ -29,7 +29,7 @@ export default function GatheringBanner() {
       .then(({ data }) => setNextMatch(data))
   }, [activeTeam?.id])
 
-  if (!nextMatch) return null
+  if (!nextMatch || !teamSettings.gathering_banner_enabled) return null
 
   const gatheringInfo = formatGatheringDisplay(nextMatch, teamSettings)
   const dateStr = formatDate(nextMatch.match_date)

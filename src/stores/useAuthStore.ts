@@ -16,6 +16,7 @@ interface AuthState {
   isPlatformAdmin: () => boolean
   isTeamAdmin: (teamId: string) => boolean
   isAnyTeamAdmin: () => boolean
+  isTeamOwner: (teamId: string) => boolean
   isClubAdmin: (clubId?: string | null) => boolean
   getActiveTeam: () => Team | null
   getActiveClub: () => Club | null
@@ -86,14 +87,23 @@ const useAuthStore = create<AuthState>((set, get) => ({
     return profile?.is_platform_admin === true
   },
 
+  // 'team_owner' (Hoofdbeheerder) mag alles wat 'team_admin' (Beheerder) mag — zelfde
+  // fallthrough als de DB-functie is_team_admin(), zie 20260814_team_owner_role.sql.
   isTeamAdmin: (teamId: string) => {
     const { memberships } = get()
-    return memberships.some(m => m.team_id === teamId && m.role === 'team_admin')
+    return memberships.some(m => m.team_id === teamId && (m.role === 'team_admin' || m.role === 'team_owner'))
   },
 
   isAnyTeamAdmin: () => {
     const { memberships } = get()
-    return memberships.some(m => m.role === 'team_admin')
+    return memberships.some(m => m.role === 'team_admin' || m.role === 'team_owner')
+  },
+
+  // Hoofdbeheerder-specifieke check — voor instellingen/rol-toekenning die zelfs een
+  // gewone Beheerder niet mag (zie AdminPlayers.tsx changeRole-gate).
+  isTeamOwner: (teamId: string) => {
+    const { memberships } = get()
+    return memberships.some(m => m.team_id === teamId && m.role === 'team_owner')
   },
 
   // The separate club_admin tier has been collapsed into platform_admin — this app

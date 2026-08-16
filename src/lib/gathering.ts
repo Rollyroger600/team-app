@@ -23,7 +23,7 @@ export function calculateGatheringTime(
 ): string | null {
   if (!matchTime) return null
 
-  const { gathering_lead_time = 30, travel_buffer_minutes = 10 } = settings
+  const { gathering_lead_time = 30, travel_buffer_minutes = 10, gathering_rounding_minutes = 15 } = settings
 
   // Parse time as a Date object (use arbitrary date)
   const [hours, minutes] = matchTime.split(':').map(Number)
@@ -39,10 +39,13 @@ export function calculateGatheringTime(
     gatherTime = subMinutes(gatherTime, travelMinutes + travel_buffer_minutes)
   }
 
-  // Round DOWN to nearest 15 minutes (always give extra time)
-  const mins = getMinutes(gatherTime)
-  const roundedDown = Math.floor(mins / 15) * 15
-  gatherTime = setMinutes(gatherTime, roundedDown)
+  // Round DOWN to nearest N minutes (always give extra time) — per-team instelbaar,
+  // 0 = geen afronding. Default 15 reproduceert het oude hardcoded gedrag.
+  if (gathering_rounding_minutes > 0) {
+    const mins = getMinutes(gatherTime)
+    const roundedDown = Math.floor(mins / gathering_rounding_minutes) * gathering_rounding_minutes
+    gatherTime = setMinutes(gatherTime, roundedDown)
+  }
 
   return format(gatherTime, 'HH:mm')
 }

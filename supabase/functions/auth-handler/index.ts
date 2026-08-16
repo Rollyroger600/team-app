@@ -465,8 +465,15 @@ async function getPlayersStatus(body: Record<string, unknown>, authHeader: strin
 }
 
 /**
- * change_role — club_admin+ changes a team member's role
- * team_admins cannot change roles (peer protection)
+ * change_role — platform_admin or team_owner changes a team member's role
+ * - platform_admin: mag alles, in elk team (player/team_admin/team_owner) — de enige
+ *   overgebleven exclusiviteit t.o.v. team_owner is dat dit over alle teams heen werkt
+ * - team_owner: mag binnen zijn eigen team elke rol toekennen, inclusief andere
+ *   hoofdbeheerders aanwijzen/degraderen — bewuste keuze (2026-08-16): elk team regelt
+ *   zijn eigen hoofdbeheerders zelf, platform_admin hoeft niet als tussenpersoon op te
+ *   treden voor elke promotie. Geen guard tegen "laatste hoofdbeheerder degradeert
+ *   zichzelf" — bewust simpel gehouden, platform_admin kan dat altijd herstellen.
+ * - team_admin ("Beheerder") mag helemaal geen rollen wijzigen (peer protection)
  */
 async function changeRole(body: Record<string, unknown>, authHeader: string | null) {
   const caller = await resolveCaller(authHeader)
@@ -476,16 +483,27 @@ async function changeRole(body: Record<string, unknown>, authHeader: string | nu
   if (!player_id || !team_id || !new_role) {
     return json({ error: 'player_id, team_id en new_role zijn verplicht' }, 400)
   }
-  if (!['player', 'team_admin'].includes(new_role as string)) {
-    return json({ error: 'Ongeldig role. Kies player of team_admin.' }, 400)
-  }
-
-  const isClubAdmin = await isClubAdminForTeam(caller.user.id, team_id as string)
-  if (!isClubAdmin) {
-    return json({ error: 'Alleen de platform-admin kan rollen wijzigen' }, 403)
+  if (!['player', 'team_admin', 'team_owner'].includes(new_role as string)) {
+    return json({ error: 'Ongeldig role. Kies player, team_admin of team_owner.' }, 400)
   }
 
   const svc = adminClient()
+  const isPlatformAdmin = await isClubAdminForTeam(caller.user.id, team_id as string)
+
+  if (!isPlatformAdmin) {
+    const { data: callerMembership } = await svc
+      .from('team_memberships')
+      .select('role')
+      .eq('team_id', team_id)
+      .eq('player_id', caller.user.id)
+      .eq('active', true)
+      .maybeSingle()
+
+    if (callerMembership?.role !== 'team_owner') {
+      return json({ error: 'Alleen de hoofdbeheerder of platform-admin kan rollen wijzigen' }, 403)
+    }
+  }
+
   const { error } = await svc.from('team_memberships')
     .update({ role: new_role })
     .eq('team_id', team_id)

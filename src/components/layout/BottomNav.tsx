@@ -1,28 +1,36 @@
 import { NavLink } from 'react-router-dom'
 import { Home, Calendar, Trophy, BarChart2, MoreHorizontal, LucideIcon } from 'lucide-react'
 import useAuthStore from '../../stores/useAuthStore'
+import useTeamStore from '../../stores/useTeamStore'
+import type { BooleanSettingKey } from '../../types/app'
 
 interface NavItem {
   to: string
   icon: LucideIcon
   label: string
+  // Optioneel: verbergt dit item als de bijbehorende teaminstelling uitstaat.
+  // Herbruikbaar voor elke boolean toggle op TeamSettings — zie ook More.tsx
+  // en FeatureRoute voor dezelfde flag-check op tabblad- resp. route-niveau.
+  flag?: BooleanSettingKey
 }
 
 const navItems: NavItem[] = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/matches', icon: Calendar, label: 'Wedstrijden' },
-  { to: '/potjescup', icon: Trophy, label: 'Potjescup' },
+  { to: '/potjescup', icon: Trophy, label: 'Potjescup', flag: 'potjescup_enabled' },
   { to: '/stats', icon: BarChart2, label: 'Stats' },
 ]
 
 export default function BottomNav() {
   const { isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
+  const { teamSettings } = useTeamStore()
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
+  const visibleItems = navItems.filter(item => !item.flag || teamSettings[item.flag])
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t bg-surface border-border">
       <div className="flex items-stretch h-16 max-w-lg mx-auto">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {visibleItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

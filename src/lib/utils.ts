@@ -1,4 +1,4 @@
-import { format, isToday, isTomorrow, parseISO } from 'date-fns'
+import { format, isToday, isTomorrow, parseISO, previousDay, nextDay, type Day } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { Match } from '../types/app'
 
@@ -7,6 +7,31 @@ type GatheringInfo = {
   label: string
   isNtb?: boolean
   isOverride?: boolean
+}
+
+// 0=zondag..6=zaterdag — zelfde indexering als teams.fluitbeurten_day_of_week en
+// date-fns' Day-type. Gedeeld tussen AdminUmpire.tsx (fluitbeurten genereren) en
+// AdminTeamSettings.tsx (dag-kiezer in de Functies-sectie).
+export const DAY_NAMES_NL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag']
+
+export type FluitbeurtenRelative = 'before' | 'after' | 'match_day'
+
+/**
+ * Waar een fluitbeurt-datum op valt t.o.v. de wedstrijd — gedeeld tussen de generator
+ * (AdminUmpire.tsx) én de weergave/groepering (UmpireCard.tsx's groupDuties). Die
+ * laatste had voorheen zijn eigen hardcoded "dag ervoor"-aanname (subDays(..., 1)),
+ * los van deze functie — daardoor klopte de getoonde fluitdatum niet meer zodra een
+ * team een andere dag/relatie instelde. Nu is dit de enige plek die het berekent.
+ * 'match_day': fluitbeurt-datum = wedstrijddatum zelf (meest voorkomend voor
+ * thuiswedstrijden — de exacte fluittijd is toch vaak pas in de week zelf bekend, dus
+ * alleen de datum is hier relevant, geen dag-van-de-week-offset nodig).
+ * 'before'/'after': een vaste dag-van-de-week vóór/na de wedstrijd (dayOfWeek).
+ */
+export function dutyDateFor(matchDate: string | Date, dayOfWeek: number, relative: FluitbeurtenRelative): Date {
+  const d = typeof matchDate === 'string' ? parseISO(matchDate) : matchDate
+  if (relative === 'match_day') return d
+  const dow = dayOfWeek as Day
+  return relative === 'before' ? previousDay(d, dow) : nextDay(d, dow)
 }
 
 export function formatDate(dateStr: string | null | undefined): string {

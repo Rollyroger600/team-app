@@ -1,7 +1,7 @@
 import React from 'react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle, Shield, KeyRound, Lock, LogIn, MoreVertical } from 'lucide-react'
+import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle, Shield, KeyRound, Crown, Lock, LogIn, MoreVertical } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import EmptyState from '../../components/ui/EmptyState'
@@ -16,7 +16,7 @@ interface PlayerMembership {
   id: string
   team_id: string
   player_id: string
-  role: 'player' | 'team_admin'
+  role: 'player' | 'team_admin' | 'team_owner'
   is_captain: boolean | null
   active: boolean
   joined_at: string | null
@@ -37,7 +37,7 @@ interface ActionResult {
 export default function AdminPlayers(): React.JSX.Element {
   const navigate = useNavigate()
   const { activeTeam } = useTeamStore()
-  const { isClubAdmin, loadProfile } = useAuthStore()
+  const { isClubAdmin, isTeamOwner, loadProfile } = useAuthStore()
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState<AddForm>({ full_name: '', display_name: '', jersey_number: '' })
@@ -53,7 +53,11 @@ export default function AdminPlayers(): React.JSX.Element {
   const [impersonateErrors, setImpersonateErrors] = useState<Record<string, string>>({})
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null)
 
-  const canManage = isClubAdmin(activeTeam?.club_id)
+  // Hoofdbeheerder mag hier net als de platform-admin komen én, sinds 2026-08-16, ook
+  // zelf andere hoofdbeheerders aanwijzen/degraderen binnen het eigen team — zie de
+  // changeRole edge-function actie. platform_admin blijft de enige die dit over alle
+  // teams heen kan, maar binnen dít team is er geen apart onderscheid meer nodig.
+  const canManage = isClubAdmin(activeTeam?.club_id) || isTeamOwner(activeTeam?.id ?? '')
 
   const { data: players = [], isLoading } = useQuery<PlayerMembership[]>({
     queryKey: ['adminPlayers', activeTeam?.id],
@@ -124,9 +128,8 @@ export default function AdminPlayers(): React.JSX.Element {
     queryClient.invalidateQueries({ queryKey: ['adminPlayersStatus', activeTeam?.id] })
   }
 
-  async function handleToggleRole(membership: PlayerMembership): Promise<void> {
+  async function handleSetRole(membership: PlayerMembership, newRole: 'player' | 'team_admin' | 'team_owner'): Promise<void> {
     if (!canManage || !activeTeam?.id) return
-    const newRole = membership.role === 'team_admin' ? 'player' : 'team_admin'
     setChangingRole(membership.player_id)
     const result = await changePlayerRole(membership.player_id, activeTeam.id, newRole)
     setChangingRole(null)
@@ -194,6 +197,7 @@ export default function AdminPlayers(): React.JSX.Element {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-text-muted px-1">
         <span className="flex items-center gap-1"><Shield size={12} className="text-info" /> Aanvoerder (op het veld)</span>
         <span className="flex items-center gap-1"><KeyRound size={12} className="text-secondary-soft" /> Beheerder (app-toegang)</span>
+        <span className="flex items-center gap-1"><Crown size={12} className="text-secondary-soft" /> Hoofdbeheerder (+ instellingen &amp; rollen)</span>
         <span className="flex items-center gap-1"><Check size={12} className="text-success" /> PIN ingesteld</span>
         <span className="flex items-center gap-1"><AlertCircle size={12} className="text-orange-400" /> PIN niet ingesteld</span>
         <span className="flex items-center gap-1"><Lock size={12} className="text-danger" /> Geblokkeerd</span>
@@ -290,6 +294,12 @@ export default function AdminPlayers(): React.JSX.Element {
                         <KeyRound size={10} /> Beheerder
                       </span>
                     )}
+                    {membership.role === 'team_owner' && (
+                      <span className="text-[11px] px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                            style={{ backgroundColor: tint('--color-secondary', 15), color: 'var(--color-secondary)' }}>
+                        <Crown size={10} /> Hoofdbeheerder
+                      </span>
+                    )}
                   </div>
                   {p?.full_name && p.display_name && p.display_name !== p.full_name && (
                     <p className="text-xs text-text-muted truncate">{p.full_name}</p>
@@ -342,16 +352,35 @@ export default function AdminPlayers(): React.JSX.Element {
                               ? 'Bezig...'
                               : membership.is_captain ? 'Aanvoerder verwijderen' : 'Maak aanvoerder'}
                           </button>
-                          <button
-                            onClick={() => { setOpenMenuFor(null); handleToggleRole(membership) }}
-                            disabled={changingRole === membership.player_id}
-                            className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 hover:bg-surface-2 text-text border-t border-border disabled:opacity-40"
-                          >
-                            <KeyRound size={15} className="text-secondary-soft flex-shrink-0" />
-                            {changingRole === membership.player_id
-                              ? 'Bezig...'
-                              : membership.role === 'team_admin' ? 'Beheerder verwijderen' : 'Maak beheerder'}
-                          </button>
+                          {/* Speler ↔ Beheerder — voor Hoofdbeheerder én platform-admin.
+                              Niet getoond voor een Hoofdbeheerder-rij zelf: die rol kan
+                              alleen de platform-admin aan/uit zetten, via de knop hieronder. */}
+                          {membership.role !== 'team_owner' && (
+                            <button
+                              onClick={() => { setOpenMenuFor(null); handleSetRole(membership, membership.role === 'team_admin' ? 'player' : 'team_admin') }}
+                              disabled={changingRole === membership.player_id}
+                              className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 hover:bg-surface-2 text-text border-t border-border disabled:opacity-40"
+                            >
+                              <KeyRound size={15} className="text-secondary-soft flex-shrink-0" />
+                              {changingRole === membership.player_id
+                                ? 'Bezig...'
+                                : membership.role === 'team_admin' ? 'Beheerder verwijderen' : 'Maak beheerder'}
+                            </button>
+                          )}
+                          {/* Hoofdbeheerder toekennen/afpakken — elke hoofdbeheerder mag
+                              dit binnen zijn eigen team, niet alleen platform_admin. */}
+                          {canManage && (
+                            <button
+                              onClick={() => { setOpenMenuFor(null); handleSetRole(membership, membership.role === 'team_owner' ? 'team_admin' : 'team_owner') }}
+                              disabled={changingRole === membership.player_id}
+                              className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 hover:bg-surface-2 text-text border-t border-border disabled:opacity-40"
+                            >
+                              <Crown size={15} className="text-secondary-soft flex-shrink-0" />
+                              {changingRole === membership.player_id
+                                ? 'Bezig...'
+                                : membership.role === 'team_owner' ? 'Hoofdbeheerder verwijderen' : 'Maak hoofdbeheerder'}
+                            </button>
+                          )}
                           <button
                             onClick={() => { setOpenMenuFor(null); handleResetPin(membership.player_id) }}
                             disabled={resettingPin === membership.player_id}

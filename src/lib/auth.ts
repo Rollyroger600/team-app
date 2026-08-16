@@ -160,7 +160,7 @@ export async function impersonatePlayer(playerId: string, teamId: string): Promi
 export async function changePlayerRole(
   playerId: string,
   teamId: string,
-  newRole: 'player' | 'team_admin'
+  newRole: 'player' | 'team_admin' | 'team_owner'
 ): Promise<{ ok?: boolean; error?: string }> {
   const token = await getFreshAccessToken()
   if (!token) return { error: 'Niet ingelogd' }

@@ -2,6 +2,20 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import type { PodiumEntry } from './stats'
 
+// Val hierop terug zolang teams.potjescup_rules_text leeg is (NULL) — gebruikt door
+// zowel Potjescup.tsx (RulesModal) als AdminPotjescup.tsx (placeholder/startpunt bij
+// het eerste keer bewerken).
+export const DEFAULT_POTJESCUP_RULES = [
+  'Elke woensdag voorafgaand aan een competitiewedstrijd wordt er op de training ' +
+  'gespeeld voor de potjescup. Tijdens de eindpartij zijn hiervoor punten te verdienen. ' +
+  'Winnende team krijgt 1 punt, verliezende team 0. Winnende team moet er zelf voor ' +
+  'zorgen dat dezelfde avond er een foto in de team whatsapp staat met de winnaars.',
+  'Ter verduidelijking er zijn dus 22 kansen om punten te verdienen voor de potjescup. ' +
+  'Alleen de woensdagen vóór competitiewedstrijden.',
+  '*Minimaal aantal spelers aanwezig is 10.',
+  '**Mocht er een speler halverwege de wedstrijd moeten wisselen van team dan krijgt deze speler 0,5 punt.',
+]
+
 export interface PotjescupPlayerRow {
   player_id: string
   full_name: string

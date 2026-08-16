@@ -7,7 +7,7 @@ import { PodiumCard } from '../components/ui/MiniPodium'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
 import { formatDate } from '../lib/utils'
-import { usePotjescupStats, usePotjescupHistory, topByPoints, MIN_SESSIONS_FOR_CHART } from '../lib/potjescup'
+import { usePotjescupStats, usePotjescupHistory, topByPoints, MIN_SESSIONS_FOR_CHART, DEFAULT_POTJESCUP_RULES } from '../lib/potjescup'
 import type { PotjescupSession } from '../lib/potjescup'
 
 // recharts weegt ~100 kB gzip — te veel om standaard mee te sturen op een telefoon-PWA.
@@ -18,7 +18,12 @@ function formatPoints(points: number): string {
   return points % 1 === 0 ? String(points) : points.toFixed(1)
 }
 
-function RulesModal({ onClose }: { onClose: () => void }) {
+function RulesModal({ onClose, rulesText }: { onClose: () => void; rulesText: string | null }) {
+  // Alinea's gescheiden door een lege regel — zie CLAUDE.md Potjescup-sectie.
+  const paragraphs = rulesText
+    ? rulesText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
+    : DEFAULT_POTJESCUP_RULES
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4"
@@ -35,18 +40,7 @@ function RulesModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <div className="text-sm text-text-muted space-y-3 leading-relaxed">
-          <p>
-            Elke woensdag voorafgaand aan een competitiewedstrijd wordt er op de training
-            gespeeld voor de potjescup. Tijdens de eindpartij zijn hiervoor punten te verdienen.
-            Winnende team krijgt 1 punt, verliezende team 0. Winnende team moet er zelf voor
-            zorgen dat dezelfde avond er een foto in de team whatsapp staat met de winnaars.
-          </p>
-          <p>
-            Ter verduidelijking er zijn dus 22 kansen om punten te verdienen voor de potjescup.
-            Alleen de woensdagen vóór competitiewedstrijden.
-          </p>
-          <p>*Minimaal aantal spelers aanwezig is 10.</p>
-          <p>**Mocht er een speler halverwege de wedstrijd moeten wisselen van team dan krijgt deze speler 0,5 punt.</p>
+          {paragraphs.map((p, i) => <p key={i}>{p}</p>)}
         </div>
       </div>
     </div>
@@ -100,7 +94,7 @@ function HistoryRow({ session }: { session: PotjescupSession }) {
 }
 
 export default function Potjescup() {
-  const { activeTeam } = useTeamStore()
+  const { activeTeam, teamSettings } = useTeamStore()
   const { isAnyTeamAdmin, isPlatformAdmin, profile } = useAuthStore()
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
   const { data: players = [], isLoading } = usePotjescupStats(activeTeam?.id)
@@ -135,7 +129,7 @@ export default function Potjescup() {
         )}
       </div>
 
-      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+      {showRules && <RulesModal onClose={() => setShowRules(false)} rulesText={teamSettings.potjescup_rules_text} />}
 
       {isLoading ? (
         <PageLoader />
@@ -186,10 +180,6 @@ export default function Potjescup() {
               ))}
             </div>
           )}
-
-          <p className="text-[11px] text-text-muted px-1 leading-relaxed">
-            Elke training telt de winnende eindpartij 1 punt; bij een wissel halverwege telt een half punt.
-          </p>
         </>
       )}
     </div>

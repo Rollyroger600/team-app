@@ -957,11 +957,19 @@ export type Database = {
         Row: {
           club_id: string | null
           created_at: string | null
+          fluitbeurten_day_of_week: number
+          fluitbeurten_enabled: boolean
+          fluitbeurten_mode: string
+          fluitbeurten_relative_to_match: string
+          gathering_banner_enabled: boolean
           gathering_lead_time: number | null
+          gathering_rounding_minutes: number
           id: string
           league_id: string | null
           match_squad_size: number | null
           name: string
+          potjescup_enabled: boolean
+          potjescup_rules_text: string | null
           season: string | null
           short_name: string | null
           slug: string | null
@@ -970,11 +978,19 @@ export type Database = {
         Insert: {
           club_id?: string | null
           created_at?: string | null
+          fluitbeurten_day_of_week?: number
+          fluitbeurten_enabled?: boolean
+          fluitbeurten_mode?: string
+          fluitbeurten_relative_to_match?: string
+          gathering_banner_enabled?: boolean
           gathering_lead_time?: number | null
+          gathering_rounding_minutes?: number
           id?: string
           league_id?: string | null
           match_squad_size?: number | null
           name: string
+          potjescup_enabled?: boolean
+          potjescup_rules_text?: string | null
           season?: string | null
           short_name?: string | null
           slug?: string | null
@@ -983,11 +999,19 @@ export type Database = {
         Update: {
           club_id?: string | null
           created_at?: string | null
+          fluitbeurten_day_of_week?: number
+          fluitbeurten_enabled?: boolean
+          fluitbeurten_mode?: string
+          fluitbeurten_relative_to_match?: string
+          gathering_banner_enabled?: boolean
           gathering_lead_time?: number | null
+          gathering_rounding_minutes?: number
           id?: string
           league_id?: string | null
           match_squad_size?: number | null
           name?: string
+          potjescup_enabled?: boolean
+          potjescup_rules_text?: string | null
           season?: string | null
           short_name?: string | null
           slug?: string | null
@@ -1151,6 +1175,7 @@ export type Database = {
       is_platform_admin: { Args: never; Returns: boolean }
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
+      is_team_owner: { Args: { p_team_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

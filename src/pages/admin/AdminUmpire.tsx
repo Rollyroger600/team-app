@@ -9,8 +9,9 @@ import useTeamStore from '../../stores/useTeamStore'
 import { formatDate } from '../../lib/utils'
 import { useOpponentName } from '../../lib/opponents'
 import { groupDuties } from '../../components/ui/UmpireCard'
-import { parseISO, subDays, format } from 'date-fns'
+import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
+import { DAY_NAMES_NL, dutyDateFor } from '../../lib/utils'
 import type { Profile, UmpireDutyWithJoins, UmpireGroup } from '../../types/app'
 
 interface MatchItem {
@@ -32,15 +33,9 @@ interface UmpireQueryData {
   players: PlayerItem[]
 }
 
-function saturdayBefore(matchDate: string | Date): Date {
-  // Onze wedstrijden zijn op zondag → zaterdag ervoor = matchDate - 1 dag
-  const d = typeof matchDate === 'string' ? parseISO(matchDate) : matchDate
-  return subDays(d, 1)
-}
-
 export default function AdminUmpire(): React.JSX.Element {
   const opponentName = useOpponentName()
-  const { activeTeam } = useTeamStore()
+  const { activeTeam, teamSettings } = useTeamStore()
   const queryClient = useQueryClient()
   const [generating, setGenerating] = useState(false)
   const [genResult, setGenResult] = useState('')
@@ -80,7 +75,7 @@ export default function AdminUmpire(): React.JSX.Element {
         players: (playersRes.data as unknown as PlayerItem[]) || [],
       }
     },
-    enabled: !!activeTeam?.id,
+    enabled: !!activeTeam?.id && teamSettings.fluitbeurten_enabled,
   })
 
   const duties = data?.duties || []
@@ -126,8 +121,11 @@ export default function AdminUmpire(): React.JSX.Element {
       const needed = 2 - existing.length
       if (needed <= 0) continue
 
-      const sat = saturdayBefore(match.match_date)
-      const desc = `Fluitbeurt zaterdag ${format(sat, 'd MMM', { locale: nl })}`
+      const dutyDate = dutyDateFor(match.match_date, teamSettings.fluitbeurten_day_of_week, teamSettings.fluitbeurten_relative_to_match)
+      const dayName = teamSettings.fluitbeurten_relative_to_match === 'match_day'
+        ? 'wedstrijddag'
+        : DAY_NAMES_NL[teamSettings.fluitbeurten_day_of_week]
+      const desc = `Fluitbeurt ${dayName} ${format(dutyDate, 'd MMM', { locale: nl })}`
 
       const inserts = Array.from({ length: needed }, () => ({
         team_id: activeTeam!.id,
@@ -193,11 +191,34 @@ export default function AdminUmpire(): React.JSX.Element {
   }
 
   const today = new Date().toISOString().split('T')[0]
-  const { upcoming, past } = groupDuties(duties, today)
+  const { upcoming, past } = groupDuties(duties, today, teamSettings)
   const allGroups = [...upcoming, ...past]
 
   const playerName = (p: { profiles: Pick<Profile, 'full_name' | 'nickname'> | null }): string =>
     p?.profiles?.nickname || p?.profiles?.full_name?.split(' ')[0] || '?'
+
+  const timingLabel = teamSettings.fluitbeurten_relative_to_match === 'match_day'
+    ? 'op de wedstrijddag zelf'
+    : `${DAY_NAMES_NL[teamSettings.fluitbeurten_day_of_week]} ${teamSettings.fluitbeurten_relative_to_match === 'before' ? 'ervoor' : 'erna'}`
+
+  // De UI verbergt dit tabblad al (BottomNav/More.tsx), maar deze pagina is direct
+  // bereikbaar via /admin/umpire — laat een nette melding zien i.p.v. een redirect,
+  // want de pagina is toch al alleen-admin.
+  if (!teamSettings.fluitbeurten_enabled) {
+    return (
+      <div className="p-4 space-y-4 pb-8">
+        <div className="flex items-center gap-3 pt-2">
+          <Link to="/admin" className="text-text-muted hover:text-text">
+            <ArrowLeft size={20} />
+          </Link>
+          <h1 className="text-2xl font-bold">Fluitbeurten</h1>
+        </div>
+        <EmptyState icon={Flag}>
+          Fluitbeurten staat uit voor dit team. Zet het aan via Team-instellingen om deze pagina te gebruiken.
+        </EmptyState>
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 space-y-4 pb-8">
@@ -208,20 +229,25 @@ export default function AdminUmpire(): React.JSX.Element {
         <h1 className="text-2xl font-bold">Fluitbeurten</h1>
       </div>
 
-      {/* Genereer knop */}
+      {/* Genereer knop — alleen in 'auto'-modus. Losse fluitbeurt toevoegen blijft in
+          beide standen zichtbaar; dat is en blijft het handmatige vangnet. */}
       <div className="rounded-xl p-4 border space-y-2 bg-surface border-border">
-        <p className="text-sm text-text-muted">
-          Genereert 2 open slots voor elke aankomende thuiswedstrijd (zaterdag ervoor).
-        </p>
+        {teamSettings.fluitbeurten_mode === 'auto' && (
+          <p className="text-sm text-text-muted">
+            Genereert 2 open slots voor elke aankomende thuiswedstrijd ({timingLabel}).
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={generateDuties}
-            disabled={generating}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors bg-secondary text-secondary-text"
-          >
-            <Wand2 size={16} />
-            {generating ? 'Genereren...' : 'Genereer fluitbeurten'}
-          </button>
+          {teamSettings.fluitbeurten_mode === 'auto' && (
+            <button
+              onClick={generateDuties}
+              disabled={generating}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors bg-secondary text-secondary-text"
+            >
+              <Wand2 size={16} />
+              {generating ? 'Genereren...' : 'Genereer fluitbeurten'}
+            </button>
+          )}
           <button
             onClick={() => setShowManualForm(v => !v)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-border text-text hover:border-border-hover"

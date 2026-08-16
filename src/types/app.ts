@@ -20,7 +20,7 @@ export interface TeamMembership {
   id: string
   team_id: string
   player_id: string
-  role: 'player' | 'team_admin'
+  role: 'player' | 'team_admin' | 'team_owner'
   active: boolean
   created_at: string | null
   teams: (Team & { clubs: (Club & { clubs_registry: { primary_color: string | null; secondary_color: string | null; logo_url: string | null } | null }) | null }) | null
@@ -32,7 +32,31 @@ export interface TeamSettings {
   gathering_lead_time: number
   travel_buffer_minutes: number
   match_squad_size: number
+  // Afronding van de berekende verzameltijd — 0 = geen afronding, anders naar
+  // beneden afgerond op het dichtstbijzijnde veelvoud (10 of 15 min), zie
+  // calculateGatheringTime() in lib/gathering.ts. Default 15 reproduceert het oude,
+  // hardcoded gedrag ("always give extra time") exact.
+  gathering_rounding_minutes: number
+  // Multi-team fase 2: per-team aan/uit-schakelbare features. Defaults hier moeten
+  // het huidige, live gedrag exact reproduceren (alles aan, fluitbeurten
+  // auto/zaterdag-voor) — zie 20260816_team_settings_toggles.sql.
+  potjescup_enabled: boolean
+  potjescup_rules_text: string | null
+  fluitbeurten_enabled: boolean
+  fluitbeurten_mode: 'auto' | 'manual'
+  fluitbeurten_day_of_week: number
+  // 'match_day' (op de wedstrijddag zelf) is de meest voorkomende instelling voor
+  // thuiswedstrijden — toegevoegd 2026-08-16 naast de vaste-dag-ervoor/erna varianten,
+  // zie dutyDateFor() in lib/utils.ts.
+  fluitbeurten_relative_to_match: 'before' | 'after' | 'match_day'
+  gathering_banner_enabled: boolean
 }
+
+// The boolean-valued subset of TeamSettings — used to type any "hide/gate this if
+// the toggle is off" prop (BottomNav's flag, FeatureRoute's flag, More.tsx's tab
+// filter) so a mistaken non-boolean key (e.g. fluitbeurten_day_of_week) is a
+// compile error instead of a silently-broken guard.
+export type BooleanSettingKey = { [K in keyof TeamSettings]: TeamSettings[K] extends boolean ? K : never }[keyof TeamSettings]
 
 // ── Availability ──────────────────────────────────────────────────────────────
 // 'rostered_off' is admin-only (enforced by a DB trigger, not just the UI).

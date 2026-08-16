@@ -50,7 +50,7 @@ interface UmpireData {
 export default function More() {
   const { user, isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
   const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
-  const { activeTeam } = useTeamStore()
+  const { activeTeam, teamSettings } = useTeamStore()
   const opponentName = useOpponentName()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('beschikbaarheid')
@@ -146,9 +146,9 @@ export default function More() {
         .order('created_at', { ascending: true })
 
       const today = new Date().toISOString().split('T')[0]
-      return groupDuties((duties as unknown as UmpireDutyWithJoins[]) || [], today)
+      return groupDuties((duties as unknown as UmpireDutyWithJoins[]) || [], today, teamSettings)
     },
-    enabled: !!activeTeam?.id && !!user?.id,
+    enabled: !!activeTeam?.id && !!user?.id && teamSettings.fluitbeurten_enabled,
   })
 
   const umpireUpcoming = umpireData?.upcoming || []
@@ -311,7 +311,7 @@ export default function More() {
       <div className="flex gap-1 p-1 rounded-xl bg-surface">
         {[
           { key: 'beschikbaarheid', label: 'Beschikbaarheid' },
-          { key: 'fluitbeurten', label: 'Fluitbeurten' },
+          ...(teamSettings.fluitbeurten_enabled ? [{ key: 'fluitbeurten', label: 'Fluitbeurten' }] : []),
         ].map(t => (
           <button
             key={t.key}
