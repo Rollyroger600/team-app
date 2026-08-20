@@ -6,8 +6,13 @@ for feature progress and pilot data.
 ## What this is
 Hockey team management PWA for LOHC Heren 30-1 (React 19 + Vite + TS + Zustand +
 React Router v7 + TanStack Query + Tailwind v4 + Supabase). Deployed via GitHub → Vercel
-(auto-deploy on push to `main`). Pre-season pilot — no real users yet besides the admin (Rogier),
-new season starts mid-August 2026. Installed by players as a homescreen PWA on their phones.
+(auto-deploy on push to `main`). Installed by players as a homescreen PWA on their phones.
+
+**Live in production since the 2026-2027 season started (mid-August 2026).** This is no longer a
+pre-season pilot: as of 2026-08-20, 19 of the 22 players have signed in at least once and 15 did
+so in the past week. Weigh changes accordingly — in particular **anything touching the login flow
+now risks locking out real people mid-season**, so login changes need a fallback path and a
+deliberate moment to hand out whatever replaces the old route.
 
 **Season reset (2026-08-13)**: all pilot data from 2025-2026 was wiped so the 2026-2027 season
 could be entered from scratch — competition, matches, goals, availability, umpire duties,
@@ -102,6 +107,27 @@ CASCADE;`.
   `ALTER TABLE teams DISABLE/ENABLE TRIGGER enforce_team_owner_only_settings` — same pattern
   `20260814_team_owner_role.sql` uses for the role trigger. See
   `20260820_backfill_club_team_slugs.sql`.
+
+## What the anon key can reach
+The anon key ships inside the frontend bundle, so it is public — treat "anon can read it" as
+"the internet can read it". Verify with a bare `curl -H "apikey: <anon>"`, not by reasoning
+about policies.
+
+- **Views need `security_invoker`, and it is not the default.** Without it a view runs with its
+  owner's rights and bypasses RLS entirely — the policies on the underlying tables simply do not
+  apply. `v_player_stats` and `v_league_standings` were created without it, so one anonymous GET
+  returned every player's name, goals, assists and attendance history across all teams. Fixed
+  2026-08-20 (`20260820_lock_down_public_reads.sql`). **Any new view must set it explicitly.**
+- `SECURITY DEFINER` functions default to `EXECUTE` for PUBLIC. `get_team_players_for_login`
+  handed out any team's full roster to anyone with a `team_id`; its only real caller is the edge
+  function, which uses the service role. Revoke from `PUBLIC, anon, authenticated` and let
+  `service_role` keep it.
+- **Still open, deliberately**: `clubs` and `teams` are `USING (true)` — one club name and one
+  team name. They stay readable until the personal-access-code login (1c) replaces the club/team
+  picker in `Login.tsx`, which is the only thing that needs them unauthenticated. Every other
+  table was probed on 2026-08-20 and returns zero rows to anon.
+- `clubs_registry` INSERT is open to any authenticated user of any tenant — a pollution vector,
+  not a data leak. Not yet addressed.
 
 ## Known gotchas (don't reintroduce)
 - **Every UPDATE policy needs `WITH CHECK`, not just `USING`.** `USING` says which rows you may
