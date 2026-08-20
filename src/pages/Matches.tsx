@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
 import { leagueTeamDisplayName } from '../lib/utils'
+import { useOpponentName } from '../lib/opponents'
 import { statusDef } from '../lib/availability'
 import React from 'react'
 
@@ -95,10 +96,29 @@ interface LeagueData {
   team_id: string
 }
 
+/**
+ * A row from `matches` — the team's own fixture list. Deliberately a different
+ * shape from `LeagueMatchRow`: a league match is two `league_teams` references,
+ * an own match is one free-text `opponent` plus an `is_home` flag. Own matches
+ * exist without a league counterpart (friendlies, cup games), which is exactly
+ * why the "Eigen team" view has to read from here and not from `league_matches`.
+ */
+interface OwnMatchRow {
+  id: string
+  match_date: string
+  match_time: string | null
+  opponent: string | null
+  is_home: boolean | null
+  score_home: number | null
+  score_away: number | null
+  league_match_id: string | null
+}
+
 interface MatchesQueryData {
   league: LeagueData | null
   leagueTeams: LeagueTeamFull[]
   matches: LeagueMatchRow[]
+  ownMatches: OwnMatchRow[]
   ownMatchMap: Record<string, string>
   goalsMap: Record<string, GoalRow[]>
   teamMembers: MemberRow[]
@@ -107,6 +127,24 @@ interface MatchesQueryData {
 
 function displayNameProfile(profile: { full_name: string | null; nickname: string | null } | null | undefined): string {
   return profile?.nickname || profile?.full_name?.split(' ')[0] || '?'
+}
+
+/** Goals for the team's own matches, grouped by `match_id`. */
+async function loadGoalsMap(matchIds: string[]): Promise<Record<string, GoalRow[]>> {
+  const goalsMap: Record<string, GoalRow[]> = {}
+  if (matchIds.length === 0) return goalsMap
+
+  const { data } = await supabase
+    .from('goals')
+    .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+    .in('match_id', matchIds)
+    .order('minute', { ascending: true, nullsFirst: false })
+
+  for (const g of (data || []) as unknown as GoalRow[]) {
+    if (!goalsMap[g.match_id]) goalsMap[g.match_id] = []
+    goalsMap[g.match_id].push(g)
+  }
+  return goalsMap
 }
 
 interface TeamNameProps {
@@ -433,6 +471,130 @@ function ResultCard({ match, matchId, goals, members, isAdmin, logoMap = {} }: R
   )
 }
 
+// --- Own-team cards, fed from `matches` instead of `league_matches` ---
+// A friendly has no league counterpart, so there are no two `league_teams` rows
+// to render: one side is always us, the other is the free-text `opponent`
+// resolved through useOpponentName().
+
+interface OwnSide {
+  name: string
+  logo?: string
+}
+
+/** Puts us and the opponent on the right sides of the card. */
+function ownSides(match: OwnMatchRow, ownName: string, ownLogo: string | undefined, opponentName: string, opponentLogo: string | undefined): { home: OwnSide; away: OwnSide } {
+  const us: OwnSide = { name: ownName, logo: ownLogo }
+  const them: OwnSide = { name: opponentName, logo: opponentLogo }
+  return match.is_home ? { home: us, away: them } : { home: them, away: us }
+}
+
+interface OwnMatchCardProps {
+  match: OwnMatchRow
+  ownName: string
+  ownLogo?: string
+  opponentName: string
+  opponentLogo?: string
+  resultMode?: boolean
+  goals?: GoalRow[]
+  members?: MemberRow[]
+  isAdmin?: boolean
+}
+
+function OwnMatchCard({ match, ownName, ownLogo, opponentName, opponentLogo, resultMode, goals, members = [], isAdmin = false }: OwnMatchCardProps) {
+  const { home, away } = ownSides(match, ownName, ownLogo, opponentName, opponentLogo)
+  const isPlayed = match.score_home !== null && match.score_away !== null
+
+  // Our score is whichever side we were on.
+  const ourScore = match.is_home ? match.score_home : match.score_away
+  const goalsCount = (goals || []).length
+  const incomplete = isAdmin && resultMode && ourScore != null && ourScore > 0 && goalsCount < ourScore
+
+  return (
+    <div
+      className="rounded-xl border overflow-hidden bg-surface-2"
+      style={{ borderColor: incomplete ? 'var(--color-unavailable)' : 'var(--color-border)' }}
+    >
+      <Link to={`/matches/${match.id}`} className="block px-3 py-3">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center justify-end gap-1.5 text-sm">
+            <span className="truncate">{home.name}</span>
+            <TeamLogo url={home.logo} name={home.name} />
+          </div>
+          <div className="flex-shrink-0 w-16 text-center">
+            {isPlayed ? (
+              <span className="font-bold text-base text-text">
+                {match.score_home}–{match.score_away}
+              </span>
+            ) : (
+              <span className="text-sm font-medium text-text-muted">
+                {formatTime(match.match_time)}
+              </span>
+            )}
+          </div>
+          <div className="flex-1 flex items-center gap-1.5 text-sm">
+            <TeamLogo url={away.logo} name={away.name} />
+            <span className="truncate">{away.name}</span>
+          </div>
+        </div>
+        {!match.league_match_id && (
+          // Not necessarily a friendly — a cup game has no league counterpart
+          // either. "Losse" matches the existing wording for standalone umpire
+          // duties, so it stays neutral about which kind it is.
+          <p className="text-center text-xs mt-1 text-text-muted">Losse wedstrijd</p>
+        )}
+      </Link>
+      {resultMode && (
+        <GoalSection
+          matchId={match.id}
+          goals={goals || []}
+          members={members}
+          isAdmin={isAdmin}
+          maxGoals={ourScore ?? null}
+        />
+      )}
+    </div>
+  )
+}
+
+interface OwnMatchGroupProps {
+  dateStr: string
+  matches: OwnMatchRow[]
+  ownName: string
+  ownLogo?: string
+  resolveOpponent: (opponent: string | null | undefined) => string
+  opponentLogo: (opponent: string | null | undefined) => string | undefined
+  resultMode?: boolean
+  goalsMap?: Record<string, GoalRow[]>
+  teamMembers?: MemberRow[]
+  isAdmin?: boolean
+}
+
+function OwnMatchGroup({ dateStr, matches, ownName, ownLogo, resolveOpponent, opponentLogo, resultMode, goalsMap = {}, teamMembers = [], isAdmin = false }: OwnMatchGroupProps) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-wide mb-2 mt-5 first:mt-0 text-text-muted">
+        {capitalize(formatMatchDate(dateStr))}
+      </p>
+      <div className="space-y-2">
+        {matches.map((m) => (
+          <OwnMatchCard
+            key={m.id}
+            match={m}
+            ownName={ownName}
+            ownLogo={ownLogo}
+            opponentName={resolveOpponent(m.opponent)}
+            opponentLogo={opponentLogo(m.opponent)}
+            resultMode={resultMode}
+            goals={goalsMap[m.id] || []}
+            members={teamMembers}
+            isAdmin={isAdmin}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 interface MatchGroupProps {
   dateStr: string
   matches: LeagueMatchRow[]
@@ -497,6 +659,31 @@ function FilterToggle({ ownOnly, onChange }: FilterToggleProps) {
       >
         Hele poule
       </button>
+    </div>
+  )
+}
+
+interface EmptyMatchesProps {
+  label: string
+  icon?: 'calendar' | 'trophy'
+  isAdmin?: boolean
+}
+
+function EmptyMatches({ label, icon = 'calendar', isAdmin = false }: EmptyMatchesProps) {
+  const Icon = icon === 'trophy' ? Trophy : Calendar
+  return (
+    <div className="rounded-xl p-6 border text-center mt-2 bg-surface border-border">
+      <Icon size={32} className="mx-auto mb-2 text-text-faint" />
+      <p className="text-sm text-text-muted">{label}</p>
+      {isAdmin && (
+        <Link
+          to="/admin/matches/new"
+          className="inline-flex items-center gap-1 mt-3 text-sm text-secondary-soft"
+        >
+          <PlusCircle size={14} />
+          Wedstrijd toevoegen
+        </Link>
+      )}
     </div>
   )
 }
@@ -712,8 +899,36 @@ export default function Matches() {
         .limit(1)
         .maybeSingle()
 
+      // Own matches are loaded regardless of whether a league exists — a team can
+      // play only friendlies, and even a team with a poule has fixtures that have
+      // no `league_match_id` (friendlies, cup games). Filtering those out here is
+      // what used to make them unreachable from this screen entirely.
+      const ownMatchesQuery = supabase
+        .from('matches')
+        .select('id, match_date, match_time, opponent, is_home, score_home, score_away, league_match_id')
+        .eq('team_id', activeTeam!.id)
+        .order('match_date', { ascending: true })
+        .order('match_time', { ascending: true, nullsFirst: false })
+
+      const membersQuery = supabase
+        .from('team_memberships')
+        .select('player_id, profiles(full_name, nickname)')
+        .eq('team_id', activeTeam!.id)
+        .eq('active', true)
+
       if (!leagueData) {
-        return { league: null, leagueTeams: [], matches: [], ownMatchMap: {}, goalsMap: {}, teamMembers: [], logoMap: {} }
+        const [ownMatchesRes, membersRes] = await Promise.all([ownMatchesQuery, membersQuery])
+        const ownMatches = (ownMatchesRes.data || []) as unknown as OwnMatchRow[]
+        return {
+          league: null,
+          leagueTeams: [],
+          matches: [],
+          ownMatches,
+          ownMatchMap: {},
+          goalsMap: await loadGoalsMap(ownMatches.map(m => m.id)),
+          teamMembers: (membersRes.data || []) as unknown as MemberRow[],
+          logoMap: {},
+        }
       }
 
       const [teamsRes, matchesRes, ownMatchesRes, membersRes] = await Promise.all([
@@ -724,16 +939,8 @@ export default function Matches() {
           .eq('league_id', leagueData.id)
           .order('match_date', { ascending: true })
           .order('match_time', { ascending: true, nullsFirst: false }),
-        supabase
-          .from('matches')
-          .select('id, league_match_id')
-          .eq('team_id', activeTeam!.id)
-          .not('league_match_id', 'is', null),
-        supabase
-          .from('team_memberships')
-          .select('player_id, profiles(full_name, nickname)')
-          .eq('team_id', activeTeam!.id)
-          .eq('active', true),
+        ownMatchesQuery,
+        membersQuery,
       ])
 
       // Build logoMap: leagueTeamId → logo_url
@@ -742,35 +949,21 @@ export default function Matches() {
         if (t.clubs_registry?.logo_url) lMap[t.id] = t.clubs_registry.logo_url
       }
 
+      const ownMatches = (ownMatchesRes.data || []) as unknown as OwnMatchRow[]
+
       // Build leagueMatchId → matchId map
       const lmMap: Record<string, string> = {}
-      for (const m of (ownMatchesRes.data || [])) {
+      for (const m of ownMatches) {
         if (m.league_match_id) lmMap[m.league_match_id] = m.id
-      }
-
-      // Load goals for own matches
-      const matchIds = (ownMatchesRes.data || []).map(m => m.id)
-      let goalsMap: Record<string, GoalRow[]> = {}
-
-      if (matchIds.length > 0) {
-        const { data: goalsData } = await supabase
-          .from('goals')
-          .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
-          .in('match_id', matchIds)
-          .order('minute', { ascending: true, nullsFirst: false })
-
-        for (const g of (goalsData || []) as unknown as GoalRow[]) {
-          if (!goalsMap[g.match_id]) goalsMap[g.match_id] = []
-          goalsMap[g.match_id].push(g)
-        }
       }
 
       return {
         league: leagueData as unknown as LeagueData,
         leagueTeams: (teamsRes.data || []) as unknown as LeagueTeamFull[],
         matches: (matchesRes.data || []) as unknown as LeagueMatchRow[],
+        ownMatches,
         ownMatchMap: lmMap,
-        goalsMap,
+        goalsMap: await loadGoalsMap(ownMatches.map(m => m.id)),
         teamMembers: (membersRes.data || []) as unknown as MemberRow[],
         logoMap: lMap,
       }
@@ -781,12 +974,48 @@ export default function Matches() {
   const league = data?.league || null
   const leagueTeams = data?.leagueTeams || []
   const matches = data?.matches || []
+  const ownMatches = useMemo(() => data?.ownMatches || [], [data])
   const ownMatchMap = data?.ownMatchMap || {}
   const goalsMap = data?.goalsMap || {}
   const teamMembers = data?.teamMembers || []
   const logoMap = data?.logoMap || {}
 
   const today = new Date().toISOString().split('T')[0]
+
+  // --- Own-team view: name, crest and opponent resolution ---
+  // Our own side comes from the league row when there is one (it carries the
+  // short name and the club crest); a team without a poule falls back to its
+  // own team name.
+  const ownLeagueTeam = leagueTeams.find(t => t.is_own_team)
+  const ownName = ownLeagueTeam ? leagueTeamDisplayName(ownLeagueTeam) : (activeTeam?.name ?? 'Ons team')
+  const ownLogo = ownLeagueTeam ? logoMap[ownLeagueTeam.id] : undefined
+
+  const resolveOpponent = useOpponentName()
+
+  // `matches.opponent` is free text, so the crest can only be found by matching
+  // that text back onto a league_teams row. A friendly simply has none.
+  const opponentLogo = useCallback(
+    (opponent: string | null | undefined): string | undefined => {
+      if (!opponent) return undefined
+      const lt = leagueTeams.find(t => t.team_name === opponent)
+      return lt ? logoMap[lt.id] : undefined
+    },
+    [leagueTeams, logoMap],
+  )
+
+  const ownUpcoming = useMemo(
+    () => ownMatches.filter((m) => m.match_date > today || (m.match_date === today && m.score_home === null)),
+    [ownMatches, today]
+  )
+
+  const ownResults = useMemo(
+    () => ownMatches
+      .filter((m) => m.match_date < today && m.score_home !== null)
+      .sort((a, b) => (a.match_date < b.match_date ? 1 : -1)),
+    [ownMatches, today]
+  )
+
+  const ownOverzicht = useMemo(() => (ownUpcoming.length > 0 ? [ownUpcoming[0]] : []), [ownUpcoming])
 
   const upcomingMatches = useMemo(
     () => matches.filter((m) => m.match_date > today || (m.match_date === today && m.score_home === null)),
@@ -819,8 +1048,8 @@ export default function Matches() {
     return upcomingMatches
   }, [upcomingMatches, ownOnly])
 
-  function groupByDate(list: LeagueMatchRow[]): Record<string, LeagueMatchRow[]> {
-    const groups: Record<string, LeagueMatchRow[]> = {}
+  function groupByDate<T extends { match_date: string }>(list: T[]): Record<string, T[]> {
+    const groups: Record<string, T[]> = {}
     list.forEach((m) => {
       if (!groups[m.match_date]) groups[m.match_date] = []
       groups[m.match_date].push(m)
@@ -831,6 +1060,15 @@ export default function Matches() {
   const programmaGroups = groupByDate(programmaMatchesFiltered)
   const uitslagenGroups = groupByDate(resultsMatches)
   const overzichtGroups = groupByDate(overzichtMatches)
+
+  const ownOverzichtGroups = groupByDate(ownOverzicht)
+  const ownProgrammaGroups = groupByDate(ownUpcoming)
+  const ownUitslagenGroups = groupByDate(ownResults)
+
+  // A team without a poule has nothing to toggle to, so it always sees the own view.
+  const showOwn = ownOnly || !league
+
+  const ownGroupProps = { ownName, ownLogo, resolveOpponent, opponentLogo, isAdmin }
 
   return (
     <div className="p-4 pb-24 space-y-4">
@@ -882,60 +1120,61 @@ export default function Matches() {
       {/* Content */}
       {loading ? (
         <LoadingSkeleton />
-      ) : !league ? (
+      ) : !league && ownMatches.length === 0 ? (
         <EmptyNoLeague isAdmin={isAdmin} />
       ) : (
         <>
           {/* OVERZICHT TAB */}
           {activeTab === 'overzicht' && (
             <div className="space-y-4">
-              <FilterToggle ownOnly={ownOnly} onChange={setOwnOnly} />
+              {league && <FilterToggle ownOnly={ownOnly} onChange={setOwnOnly} />}
 
               <div>
                 <p className="text-sm font-semibold mb-3">
-                  {ownOnly ? 'Volgende wedstrijd' : 'Komende 2 weken'}
+                  {showOwn ? 'Volgende wedstrijd' : 'Komende 2 weken'}
                 </p>
-                {overzichtMatches.length > 0 ? (
+                {showOwn ? (
+                  ownOverzicht.length > 0 ? (
+                    Object.entries(ownOverzichtGroups)
+                      .sort(([a], [b]) => (a < b ? -1 : 1))
+                      .map(([date, group]) => (
+                        <OwnMatchGroup key={date} dateStr={date} matches={group} {...ownGroupProps} />
+                      ))
+                  ) : (
+                    <EmptyMatches label="Geen aankomende wedstrijden" />
+                  )
+                ) : overzichtMatches.length > 0 ? (
                   Object.entries(overzichtGroups)
                     .sort(([a], [b]) => (a < b ? -1 : 1))
                     .map(([date, group]) => (
                       <MatchGroup key={date} dateStr={date} matches={group} logoMap={logoMap} ownMatchMap={ownMatchMap} />
                     ))
                 ) : (
-                  <div className="rounded-xl p-5 border text-center bg-surface border-border">
-                    <Calendar size={28} className="mx-auto mb-2 text-text-faint" />
-                    <p className="text-sm text-text-muted">
-                      {ownOnly ? 'Geen aankomende wedstrijden' : 'Geen wedstrijden de komende twee weken'}
-                    </p>
-                  </div>
+                  <EmptyMatches label="Geen wedstrijden de komende twee weken" />
                 )}
               </div>
 
-              <MiniStandings matches={matches} teams={leagueTeams} />
+              {league && <MiniStandings matches={matches} teams={leagueTeams} />}
             </div>
           )}
 
           {/* PROGRAMMA TAB */}
           {activeTab === 'programma' && (
             <div className="space-y-4">
-              <FilterToggle ownOnly={ownOnly} onChange={setOwnOnly} />
+              {league && <FilterToggle ownOnly={ownOnly} onChange={setOwnOnly} />}
 
-              {programmaMatchesFiltered.length === 0 ? (
-                <div className="rounded-xl p-6 border text-center bg-surface border-border">
-                  <Calendar size={32} className="mx-auto mb-2 text-text-faint" />
-                  <p className="text-sm text-text-muted">
-                    Geen aankomende wedstrijden
-                  </p>
-                  {isAdmin && (
-                    <Link
-                      to="/admin/league/matches"
-                      className="inline-flex items-center gap-1 mt-3 text-sm text-secondary-soft"
-                    >
-                      <PlusCircle size={14} />
-                      Wedstrijden toevoegen
-                    </Link>
-                  )}
-                </div>
+              {showOwn ? (
+                ownUpcoming.length === 0 ? (
+                  <EmptyMatches label="Geen aankomende wedstrijden" isAdmin={isAdmin} />
+                ) : (
+                  Object.entries(ownProgrammaGroups)
+                    .sort(([a], [b]) => (a < b ? -1 : 1))
+                    .map(([date, group]) => (
+                      <OwnMatchGroup key={date} dateStr={date} matches={group} {...ownGroupProps} />
+                    ))
+                )
+              ) : programmaMatchesFiltered.length === 0 ? (
+                <EmptyMatches label="Geen aankomende wedstrijden" isAdmin={isAdmin} />
               ) : (
                 Object.entries(programmaGroups)
                   .sort(([a], [b]) => (a < b ? -1 : 1))
@@ -949,15 +1188,28 @@ export default function Matches() {
           {/* UITSLAGEN TAB */}
           {activeTab === 'uitslagen' && (
             <div>
-              <FilterToggle ownOnly={ownOnly} onChange={setOwnOnly} />
+              {league && <FilterToggle ownOnly={ownOnly} onChange={setOwnOnly} />}
 
-              {resultsMatches.length === 0 ? (
-                <div className="rounded-xl p-6 border text-center mt-2 bg-surface border-border">
-                  <Trophy size={32} className="mx-auto mb-2 text-text-faint" />
-                  <p className="text-sm text-text-muted">
-                    {ownOnly ? 'Geen eigen uitslagen beschikbaar' : 'Nog geen uitslagen beschikbaar'}
-                  </p>
-                </div>
+              {showOwn ? (
+                ownResults.length === 0 ? (
+                  <EmptyMatches label="Geen eigen uitslagen beschikbaar" icon="trophy" />
+                ) : (
+                  Object.entries(ownUitslagenGroups)
+                    .sort(([a], [b]) => (a > b ? -1 : 1))
+                    .map(([date, group]) => (
+                      <OwnMatchGroup
+                        key={date}
+                        dateStr={date}
+                        matches={group}
+                        resultMode
+                        goalsMap={goalsMap}
+                        teamMembers={teamMembers}
+                        {...ownGroupProps}
+                      />
+                    ))
+                )
+              ) : resultsMatches.length === 0 ? (
+                <EmptyMatches label="Nog geen uitslagen beschikbaar" icon="trophy" />
               ) : (
                 Object.entries(uitslagenGroups)
                   .sort(([a], [b]) => (a > b ? -1 : 1))
