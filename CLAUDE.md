@@ -36,10 +36,23 @@ CASCADE;`.
 - All auth mutations go through the single edge function
   `supabase/functions/auth-handler/index.ts`. Do not add direct client-side writes to
   `player_credentials` or auth-adjacent tables — add an action to this function instead.
-- RBAC hierarchy: `platform_admin` (Rogier — sole overall app admin) > `team_admin`
-  (`team_memberships.role`, labeled "Beheerder" in the UI) > `player`. `is_captain` on
-  `team_memberships` is a separate, purely informational flag — it grants no permissions. Don't
-  conflate captain status with admin status in UI or checks.
+- RBAC hierarchy: `platform_admin` (Rogier — sole overall app admin, a flat boolean on
+  `profiles`) > `team_owner` ("Hoofdbeheerder") > `team_admin` ("Beheerder") > `player`. The
+  last three live in `team_memberships.role`, which is plain TEXT with **no CHECK constraint** —
+  adding a role costs no schema change. `is_captain` on `team_memberships` is a separate, purely
+  informational flag — it grants no permissions. Don't conflate captain status with admin status.
+- **`team_owner` is swallowed by every admin check**, deliberately: SQL `is_team_admin()` matches
+  `role IN ('team_admin','team_owner')`, and so do the edge function's `isAdminForTeam()` and
+  client `isTeamAdmin()`. That way no RLS policy or call site needs to enumerate both. A
+  Hoofdbeheerder additionally passes `is_team_owner()`, which gates Admin → Team-instellingen and
+  the whole `teams` table (see the settings trigger below). Migration `20260814` promoted every
+  existing `team_admin` to `team_owner`, so **omitting `'team_owner'` from an admin check silently
+  locks out real users** — that exact bug sat in `isAdminForTeam()` until 2026-08-20.
+- **Permission checks in the client must be team-scoped.** Use `useIsTeamAdmin()` /
+  `useIsTeamOwner()` from `src/lib/permissions.ts`, which bind to `useTeamStore.activeTeam`. The
+  old `isAnyTeamAdmin()` looked at *all* memberships at once and was removed — with one team it
+  gave the same answer, but with two it hands an admin of team B the admin UI while they're
+  looking at team A, and RLS then rejects the write with a raw Postgres error.
 - The `club_admin` tier (`club_memberships.role`) is intentionally collapsed into
   `platform_admin` (since 2026-07-25) — this app manages a single team, so a club-scoped admin
   role added no real distinction. Rather than ripping it out of every RLS policy and call site,
@@ -49,17 +62,57 @@ CASCADE;`.
   table still exists (harmless, shown on `/debug`) but no longer grants anything — don't
   reintroduce a real club_admin check without deliberately deciding to un-collapse it.
 - There is no longer a separate "Beheerders" admin page — role changes (making/unmaking someone
-  a "Beheerder") happen from Admin → Spelers → player's ⋮ menu, gated by the same `changeRole`
-  edge-function action (platform_admin only).
-- `isAdminForTeam` in the edge function checks team_admin OR falls through to
-  `isClubAdminForTeam` (→ platform_admin). Keep that fallthrough intact in any refactor.
+  a "Beheerder" or "Hoofdbeheerder") happen from Admin → Spelers → player's ⋮ menu via the
+  `changeRole` edge-function action. **Not platform_admin-only since 2026-08-16**: a `team_owner`
+  may assign any role *within their own team*, including making someone else a Hoofdbeheerder.
+  `platform_admin`'s remaining exclusivity is that it works across all teams. There is
+  deliberately no "last owner can't demote themselves" guard — platform_admin can always repair it.
+- `isAdminForTeam` in the edge function checks team_admin/team_owner OR falls through to
+  `isClubAdminForTeam` (→ platform_admin). Keep both the `team_owner` arm and that fallthrough
+  intact in any refactor.
 - A DB trigger (`prevent_unauthorized_role_change`) blocks direct REST updates to
   `team_memberships.role` from anyone but the service role or platform_admin — RLS alone can't
   enforce this at the column level. Its service-role bypass must use `auth.role() = 'service_role'`
   — the legacy GUC `request.jwt.claim.role` is **not** set by this PostgREST version and would
   silently reject every legitimate edge-function role change if reverted (fixed 2026-07-25).
 
+## Per-team settings & feature toggles
+- Settings live as **columns on `teams`**, not in a separate table — same precedent as
+  `gathering_lead_time`. `TeamSettings` in `src/types/app.ts` is a hand-written mirror of that
+  subset; `src/stores/useTeamStore.ts` projects a `teams` row onto it with `?? default` per field.
+  Adding a setting means editing **both** places in useTeamStore (the initial state *and*
+  `setActiveTeam`) plus the `TeamSettings` type.
+- `BooleanSettingKey` (also `types/app.ts`) is a mapped type resolving to just the `*_enabled`
+  keys. Any new `boolean` on `TeamSettings` automatically becomes usable as a `flag` — that's the
+  whole point. Three consumers share it: `BottomNav.tsx` (`navItems[].flag`),
+  `FeatureRoute.tsx` (route guard), and `More.tsx`'s tab array. Gate the *query* too
+  (`enabled: ... && teamSettings.x_enabled`), not just the render.
+- **`FeatureRoute` waits for `settingsLoaded`.** `teamSettings` defaults to everything-on so the
+  app can render before a team loads; without that guard a disabled page flashes for one frame
+  before redirecting. Same role as `profileLoaded` in `AdminRoute`.
+- **The `enforce_team_owner_only_settings` trigger fails CLOSED** (since 2026-08-20). It compares
+  the whole row as `jsonb`, so *every* column on `teams` — including ones added later — is
+  Hoofdbeheerder-only automatically. The old version was a hand-maintained per-column
+  `IS DISTINCT FROM` chain that failed *open*: a forgotten column was silently writable by a plain
+  Beheerder (`season` actually was). To let a plain Beheerder write a column, add it explicitly to
+  `v_admin_writable` inside the function.
+- **Consequence for migrations**: a migration connection has no `auth.uid()` and no
+  `service_role`, so a data `UPDATE` on `teams` from a migration is rejected. DDL is unaffected
+  (`ADD COLUMN` doesn't fire a row trigger). For a real UPDATE, wrap it in
+  `ALTER TABLE teams DISABLE/ENABLE TRIGGER enforce_team_owner_only_settings` — same pattern
+  `20260814_team_owner_role.sql` uses for the role trigger. See
+  `20260820_backfill_club_team_slugs.sql`.
+
 ## Known gotchas (don't reintroduce)
+- **Every UPDATE policy needs `WITH CHECK`, not just `USING`.** `USING` says which rows you may
+  touch; `WITH CHECK` says what the row may look like afterwards. All 18 lacked it until
+  2026-08-20, which let a player rewrite their own availability row into someone else's name
+  (`USING` passes — at that moment it *is* their row) and let an admin move a row to another
+  team. New tables must set both, with the same expression.
+- **`memberships[0]` is not a stable choice.** `useAuthStore` now filters `.eq('active', true)`
+  and orders by `joined_at`, and `resolveActiveMembership()` in `src/lib/activeTeam.ts` layers the
+  remembered `localStorage.activeTeamId` on top. Don't index into `memberships` directly —
+  without an ORDER BY, Postgres returns physical row order, which shifts after any UPDATE.
 - **Supabase-js auth deadlock**: never `await` a Supabase call directly inside
   `onAuthStateChange` — it re-enters the client's internal lock held during `setSession()` and
   silently freezes every future call (no errors, no network activity). Defer via
@@ -102,8 +155,11 @@ CASCADE;`.
 - `usePotjescupStats()` in `src/lib/potjescup.ts` derives the full ranking from
   `team_memberships` (active players) left-joined against scores — every active player appears
   from day one at 0 points, not just once they've played a session.
-- Rules text shown via the info ("i") icon on `/potjescup` is hardcoded in `Potjescup.tsx`
-  (`RulesModal`) — update it there if the rules change, it's not stored in the DB.
+- Rules text shown via the info ("i") icon on `/potjescup` is stored per team in
+  `teams.potjescup_rules_text` and edited in **Admin → Team instellingen** (not in
+  Admin → Potjescup, which is session/points CRUD only). `DEFAULT_POTJESCUP_RULES` in
+  `src/lib/potjescup.ts` is the fallback when the column is NULL. Paragraphs are split on a blank
+  line.
 - `usePotjescupHistory()` (also in `src/lib/potjescup.ts`) feeds the "Historie" log and the
   "Verloop" chart on `/potjescup`: sessions newest-first, plus a cumulative per-player series
   built over *every* session so a player who scored nothing still gets a flat segment rather
@@ -151,9 +207,9 @@ CASCADE;`.
 - Admins can set/correct *any* player's availability (not just their own) via
   `src/components/ui/TeamAvailabilityList.tsx`, used on the Dashboard, `More.tsx`, and (read-only
   count) `MatchDetail.tsx`. Admin-set rows are flagged `overridden: true` + `set_by: <admin id>`
-  so the player can see it was set on their behalf. Gated client-side by
-  `isAnyTeamAdmin()/isPlatformAdmin()`, not separately checked against match date — editing past
-  matches is intentional (see above).
+  so the player can see it was set on their behalf. Gated client-side by `useIsTeamAdmin()`
+  (`src/lib/permissions.ts`), not separately checked against match date — editing past matches is
+  intentional (see above).
 - **Realtime**: `match_availability` is in the `supabase_realtime` publication, and
   `useRealtimeInvalidate(table, queryKey, enabled)` in `src/lib/realtime.ts` subscribes to
   `postgres_changes` and invalidates the given React Query key on any insert/update/delete. Wired
@@ -262,6 +318,14 @@ session directly via their `player_credentials.internal_email` / `internal_passw
 `/auth/v1/token?grant_type=password`), then inject it in the browser with
 `supabase.auth.setSession()`. Always delete any temp file holding the token/password afterward,
 and clean up any test rows you inserted directly via SQL once done verifying.
+
+**The Playwright suite in `tests/` is currently red and cannot guard anything.** It drives the
+real login against `qa-club`/`qa-team` slug fixtures (`.env.test`) that no longer exist in the
+database — only LOHC/Heren 30-1 remain. Re-seeding them against the live project has a visible
+side effect worth knowing before anyone tries: `Login.tsx` auto-skips the club picker only when
+there is exactly **one** club, so adding a QA club makes a club chooser appear at login for every
+real player. Same for QA players — they'd show up in the real name picker. Doing this properly
+needs a second Supabase project; until then, verify manually via the impersonation recipe above.
 
 ## Conventions
 - UI copy is Dutch. Match existing terminology exactly (e.g. "Beheerder" not "Admin",
