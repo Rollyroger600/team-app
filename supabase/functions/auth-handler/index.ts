@@ -51,7 +51,16 @@ async function resolveCaller(authHeader: string | null) {
   return { user, client: callerClient(authHeader) }
 }
 
-/** Check if caller is team_admin, club_admin (for this team's club), or platform_admin */
+/**
+ * Check if caller is team_admin, team_owner, or platform_admin.
+ *
+ * 'team_owner' MUST stay in this list. Migratie 20260814_team_owner_role.sql promoveerde
+ * élke bestaande team_admin naar team_owner, dus zonder die waarde kan een hoofdbeheerder
+ * die géén platform-admin is geen speler aanmaken, PIN resetten, impersoneren of aanvoerder
+ * zetten. Dat bleef onopgemerkt omdat de enige owner toevallig ook platform-admin is en dus
+ * via de fallthrough hieronder binnenkwam. Spiegelt SQL is_team_admin(), die owner ook
+ * meeneemt.
+ */
 async function isAdminForTeam(callerUserId: string, teamId: string): Promise<boolean> {
   const svc = adminClient()
   const { data: membership } = await svc
@@ -61,7 +70,7 @@ async function isAdminForTeam(callerUserId: string, teamId: string): Promise<boo
     .eq('player_id', callerUserId)
     .eq('active', true)
     .single()
-  if (membership?.role === 'team_admin') return true
+  if (membership?.role === 'team_admin' || membership?.role === 'team_owner') return true
 
   return isClubAdminForTeam(callerUserId, teamId)
 }
