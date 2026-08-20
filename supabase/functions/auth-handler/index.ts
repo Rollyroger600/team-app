@@ -94,9 +94,91 @@ async function isClubAdminForTeam(callerUserId: string, _teamId: string): Promis
 
 // ── Action handlers ───────────────────────────────────────────────────────────
 
+/** Naam → url-veilige slug. Diakrieten eruit, alles wat geen letter/cijfer is wordt een streepje. */
+function slugify(name: string): string {
+  return name
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'team'
+}
+
+/**
+ * Zoekt een vrije slug in een tabel. teams.slug is GLOBAAL uniek (niet per club), dus
+ * twee clubs kunnen niet allebei 'heren-1' hebben — vandaar de -2/-3 suffix.
+ */
+async function uniqueSlug(svc: ReturnType<typeof adminClient>, table: string, base: string): Promise<string> {
+  let candidate = base
+  for (let i = 2; i < 50; i++) {
+    const { data } = await svc.from(table).select('id').eq('slug', candidate).maybeSingle()
+    if (!data) return candidate
+    candidate = `${base}-${i}`
+  }
+  return `${base}-${crypto.randomUUID().slice(0, 6)}`
+}
+
+interface ProvisionedPlayer { playerId: string }
+
+/**
+ * Maakt een compleet speler-account: shadow auth-user + profiel + PIN-credentials.
+ * Gedeeld door create_player en create_team, zodat er maar één plek is die weet hoe
+ * een speler ontstaat. Voegt bewust GEEN membership toe — dat doet de aanroeper, die
+ * weet in welk team en met welke rol.
+ *
+ * Bij een fout onderweg wordt de auth-user weer verwijderd, anders blijft er een
+ * account zonder profiel/credentials achter waar niemand meer bij kan.
+ */
+async function provisionPlayer(
+  svc: ReturnType<typeof adminClient>,
+  opts: { full_name: string; display_name?: string; jersey_number?: unknown },
+): Promise<ProvisionedPlayer | { error: string }> {
+  const internalEmail    = `${crypto.randomUUID()}@team.internal`
+  const internalPassword = randomString(32)
+  const fullName    = opts.full_name.trim()
+  const displayName = (opts.display_name || opts.full_name).trim()
+
+  const { data: authUser, error: createError } = await svc.auth.admin.createUser({
+    email: internalEmail,
+    password: internalPassword,
+    email_confirm: true,
+    user_metadata: { full_name: fullName, display_name: displayName },
+  })
+  if (createError || !authUser.user) {
+    return { error: createError?.message ?? 'Kon gebruiker niet aanmaken' }
+  }
+  const playerId = authUser.user.id
+
+  const { error: profileError } = await svc.from('profiles').update({
+    full_name:     fullName,
+    display_name:  displayName,
+    jersey_number: opts.jersey_number ? parseInt(opts.jersey_number as string) : null,
+    email:         internalEmail,
+  }).eq('id', playerId)
+  if (profileError) {
+    await svc.auth.admin.deleteUser(playerId)
+    return { error: 'Kon profiel niet bijwerken: ' + profileError.message }
+  }
+
+  const { error: credError } = await svc.from('player_credentials').insert({
+    player_id:         playerId,
+    internal_email:    internalEmail,
+    internal_password: internalPassword,
+    pin_hash:          null,
+    has_set_pin:       false,
+    failed_attempts:   0,
+  })
+  if (credError) {
+    await svc.auth.admin.deleteUser(playerId)
+    return { error: 'Kon credentials niet opslaan: ' + credError.message }
+  }
+
+  return { playerId }
+}
+
 /**
  * create_player — creates a new player with PIN-based auth credentials
- * Caller must be team_admin, club_admin, or platform_admin
+ * Caller must be team_admin, team_owner, or platform_admin
  */
 async function createPlayer(body: Record<string, unknown>, authHeader: string | null) {
   const caller = await resolveCaller(authHeader)
@@ -111,59 +193,110 @@ async function createPlayer(body: Record<string, unknown>, authHeader: string | 
   if (!isAdmin) return json({ error: 'Geen toestemming om spelers aan te maken' }, 403)
 
   const svc = adminClient()
-  const internalEmail    = `${crypto.randomUUID()}@team.internal`
-  const internalPassword = randomString(32)
-
-  // Create Supabase Auth user
-  const { data: authUser, error: createError } = await svc.auth.admin.createUser({
-    email: internalEmail,
-    password: internalPassword,
-    email_confirm: true,
-    user_metadata: {
-      full_name: (full_name as string).trim(),
-      display_name: ((display_name as string) || (full_name as string)).trim(),
-    },
+  const result = await provisionPlayer(svc, {
+    full_name: full_name as string,
+    display_name: display_name as string | undefined,
+    jersey_number,
   })
-  if (createError || !authUser.user) {
-    return json({ error: createError?.message ?? 'Kon gebruiker niet aanmaken' }, 500)
-  }
-  const playerId = authUser.user.id
+  if ('error' in result) return json({ error: result.error }, 500)
 
-  // Update profile with display_name and jersey_number
-  const { error: profileError } = await svc.from('profiles').update({
-    full_name: (full_name as string).trim(),
-    display_name: ((display_name as string) || (full_name as string)).trim(),
-    jersey_number: jersey_number ? parseInt(jersey_number as string) : null,
-    email: internalEmail,
-  }).eq('id', playerId)
-  if (profileError) {
-    await svc.auth.admin.deleteUser(playerId)
-    return json({ error: 'Kon profiel niet bijwerken: ' + profileError.message }, 500)
-  }
-
-  // Store credentials (pin_hash null until player sets PIN)
-  const { error: credError } = await svc.from('player_credentials').insert({
-    player_id:         playerId,
-    internal_email:    internalEmail,
-    internal_password: internalPassword,
-    pin_hash:          null,
-    has_set_pin:       false,
-    failed_attempts:   0,
-  })
-  if (credError) {
-    await svc.auth.admin.deleteUser(playerId)
-    return json({ error: 'Kon credentials niet opslaan: ' + credError.message }, 500)
-  }
-
-  // Add to team
   await svc.from('team_memberships').upsert({
     team_id,
-    player_id: playerId,
+    player_id: result.playerId,
     role:      role || 'player',
     active:    true,
   }, { onConflict: 'team_id,player_id' })
 
-  return json({ ok: true, player_id: playerId })
+  return json({ ok: true, player_id: result.playerId })
+}
+
+/**
+ * create_team — platform_admin maakt een nieuw team aan, met meteen een hoofdbeheerder.
+ *
+ * Vervangt het handmatige, becommentarieerde stapje in supabase/seed_pilot.sql. Bewust
+ * géén zelfregistratie vanaf het inlogscherm: teams ontstaan alleen doordat de
+ * platform-admin ze aanmaakt.
+ *
+ * Club: of een bestaande (club_id), of een nieuwe op naam (club_name). Slugs worden
+ * gegenereerd en ontdubbeld, want die waren er nergens en de deeplink /login?club=&team=
+ * draait erop.
+ */
+async function createTeam(body: Record<string, unknown>, authHeader: string | null) {
+  const caller = await resolveCaller(authHeader)
+  if (!caller) return json({ error: 'Niet geauthenticeerd' }, 401)
+
+  // Team aanmaken is teamoverstijgend, dus expliciet platform-admin. isClubAdminForTeam
+  // is hier de bestaande naam voor die check (het club_admin-niveau is samengevouwen).
+  const isPlatformAdmin = await isClubAdminForTeam(caller.user.id, '')
+  if (!isPlatformAdmin) {
+    return json({ error: 'Alleen de platform-admin kan een team aanmaken' }, 403)
+  }
+
+  const { club_id, club_name, team_name, season, owner_full_name, owner_display_name } = body
+  if (!team_name || !owner_full_name) {
+    return json({ error: 'team_name en owner_full_name zijn verplicht' }, 400)
+  }
+  if (!club_id && !club_name) {
+    return json({ error: 'Kies een bestaande club (club_id) of geef een naam op (club_name)' }, 400)
+  }
+
+  const svc = adminClient()
+
+  // 1. Club: bestaande of nieuwe
+  let resolvedClubId = club_id as string | undefined
+  if (!resolvedClubId) {
+    const clubSlug = await uniqueSlug(svc, 'clubs', slugify(club_name as string))
+    const { data: club, error: clubError } = await svc.from('clubs')
+      .insert({ name: (club_name as string).trim(), slug: clubSlug })
+      .select('id').single()
+    if (clubError || !club) {
+      return json({ error: 'Kon club niet aanmaken: ' + (clubError?.message ?? '') }, 500)
+    }
+    resolvedClubId = club.id
+  }
+
+  // 2. Team
+  const teamSlug = await uniqueSlug(svc, 'teams', slugify(team_name as string))
+  const { data: team, error: teamError } = await svc.from('teams')
+    .insert({
+      club_id: resolvedClubId,
+      name:    (team_name as string).trim(),
+      slug:    teamSlug,
+      season:  (season as string) || null,
+    })
+    .select('id').single()
+  if (teamError || !team) {
+    return json({ error: 'Kon team niet aanmaken: ' + (teamError?.message ?? '') }, 500)
+  }
+
+  // 3. Eerste speler, meteen als hoofdbeheerder — anders is het team onbeheerbaar.
+  const provisioned = await provisionPlayer(svc, {
+    full_name: owner_full_name as string,
+    display_name: owner_display_name as string | undefined,
+  })
+  if ('error' in provisioned) {
+    // Team en eventuele club blijven staan; opruimen zou de platform-admin verrassen
+    // als er al iets goed ging. De fout is duidelijk genoeg om handmatig af te maken.
+    return json({ error: provisioned.error }, 500)
+  }
+
+  const { error: membershipError } = await svc.from('team_memberships').insert({
+    team_id:   team.id,
+    player_id: provisioned.playerId,
+    role:      'team_owner',
+    active:    true,
+  })
+  if (membershipError) {
+    return json({ error: 'Kon hoofdbeheerder niet koppelen: ' + membershipError.message }, 500)
+  }
+
+  return json({
+    ok: true,
+    team_id:   team.id,
+    club_id:   resolvedClubId,
+    team_slug: teamSlug,
+    owner_player_id: provisioned.playerId,
+  })
 }
 
 /**
@@ -534,6 +667,7 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case 'create_player':         return createPlayer(body, authHeader)
+      case 'create_team':           return createTeam(body, authHeader)
       case 'get_players_for_login': return getPlayersForLogin(body)
       case 'get_players_status':    return getPlayersStatus(body, authHeader)
       case 'login':                 return login(body)
