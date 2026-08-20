@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import useTeamStore from '../../stores/useTeamStore'
+import PageLoader from '../ui/PageLoader'
 import type { BooleanSettingKey } from '../../types/app'
 
 interface FeatureRouteProps {
@@ -13,8 +14,12 @@ interface FeatureRouteProps {
  * URL visit (e.g. a bookmarked /potjescup) once a team switches the feature off.
  */
 export default function FeatureRoute({ flag }: FeatureRouteProps) {
-  const { teamSettings } = useTeamStore()
+  const { teamSettings, settingsLoaded } = useTeamStore()
 
+  // teamSettings staat default op "alles aan", dus zonder deze guard flitst een
+  // uitgeschakelde pagina één frame in beeld voordat de redirect volgt. Nu onzichtbaar
+  // (er is één team), zichtbaar zodra je van team kunt wisselen.
+  if (!settingsLoaded) return <PageLoader />
   if (!teamSettings[flag]) {
     return <Navigate to="/" replace />
   }

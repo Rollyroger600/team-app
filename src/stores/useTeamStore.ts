@@ -18,6 +18,13 @@ interface TeamState {
   activeTeam: Team | null
   activeClub: ClubWithRegistry | null
   teamSettings: TeamSettings
+  /**
+   * False tot setActiveTeam() één keer gedraaid heeft. Nodig omdat teamSettings
+   * hieronder default op "alles aan" staat: zonder deze vlag rendert FeatureRoute een
+   * uitgeschakelde pagina één frame voordat hij redirect. Zelfde rol als profileLoaded
+   * in useAuthStore.
+   */
+  settingsLoaded: boolean
   setActiveTeam: (team: Team | null, club: ClubWithRegistry | null) => Promise<void>
   refreshTeam: (teamId: string) => Promise<void>
 }
@@ -25,6 +32,7 @@ interface TeamState {
 const useTeamStore = create<TeamState>((set, get) => ({
   activeTeam: null,
   activeClub: null,
+  settingsLoaded: false,
   teamSettings: {
     gathering_lead_time: 30,
     travel_buffer_minutes: 10,
@@ -43,6 +51,7 @@ const useTeamStore = create<TeamState>((set, get) => ({
     set({
       activeTeam: team,
       activeClub: club,
+      settingsLoaded: true,
       teamSettings: {
         gathering_lead_time: team?.gathering_lead_time ?? 30,
         travel_buffer_minutes: team?.travel_buffer_minutes ?? 10,
