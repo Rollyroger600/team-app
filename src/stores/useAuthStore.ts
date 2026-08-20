@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import type { User } from '@supabase/supabase-js'
-import type { Profile, TeamMembership, Team, Club } from '../types/app'
+import type { Profile, TeamMembership } from '../types/app'
 
 interface AuthState {
   user: User | null
@@ -18,8 +18,6 @@ interface AuthState {
   isAnyTeamAdmin: () => boolean
   isTeamOwner: (teamId: string) => boolean
   isClubAdmin: (clubId?: string | null) => boolean
-  getActiveTeam: () => Team | null
-  getActiveClub: () => Club | null
   signOut: () => Promise<void>
 }
 
@@ -61,10 +59,17 @@ const useAuthStore = create<AuthState>((set, get) => ({
       .eq('id', user.id)
       .single()
 
+    // active + joined_at zijn allebei nodig: zonder de filter kan een oude/gearchiveerde
+    // membership het actieve team worden, en zonder ORDER BY geeft Postgres de rijen in
+    // fysieke volgorde terug (die na een UPDATE kan verschuiven). Zie resolveActiveMembership()
+    // in src/lib/activeTeam.ts. Let op: joined_at is de echte kolom — .order('created_at')
+    // geeft hier stil een lege lijst terug.
     const { data: memberships } = await supabase
       .from('team_memberships')
       .select('*, teams(*, clubs(*, clubs_registry(primary_color, secondary_color, logo_url)))')
       .eq('player_id', user.id)
+      .eq('active', true)
+      .order('joined_at', { ascending: true })
 
     const { data: clubMemberships } = await supabase
       .from('club_memberships')
@@ -112,17 +117,6 @@ const useAuthStore = create<AuthState>((set, get) => ({
   // so every caller automatically follows if a club_admin tier is ever reintroduced.
   isClubAdmin: (_clubId?: string | null) => {
     return get().isPlatformAdmin()
-  },
-
-  getActiveTeam: () => {
-    const { memberships } = get()
-    return (memberships[0]?.teams as Team | null | undefined) ?? null
-  },
-
-  getActiveClub: () => {
-    const { memberships } = get()
-    const teams = memberships[0]?.teams as (Team & { clubs: Club | null }) | null | undefined
-    return teams?.clubs ?? null
   },
 
   signOut: async () => {

@@ -9,6 +9,7 @@ import {
   type LoginPlayer,
 } from '../lib/auth'
 import { supabase } from '../lib/supabase'
+import { storeActiveTeamId } from '../lib/activeTeam'
 import useAuthStore from '../stores/useAuthStore'
 import React from 'react'
 
@@ -111,6 +112,11 @@ export default function Login() {
       setLoading(false)
       return
     }
+    // De loginflow heeft al een team gekozen (club → team → speler uit díe selectie),
+    // dus dat is het team waar je wilt landen. Onthouden zodat resolveActiveMembership()
+    // het oppikt en het ook een refresh overleeft — relevant zodra iemand in meerdere
+    // teams zit.
+    if (selectedTeamId) storeActiveTeamId(selectedTeamId)
     await loadProfile(session.user)
     navigate('/')
   }

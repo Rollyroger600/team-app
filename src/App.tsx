@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
 import useAuthStore from './stores/useAuthStore'
 import useTeamStore from './stores/useTeamStore'
+import { resolveActiveMembership } from './lib/activeTeam'
 import AppShell from './components/layout/AppShell'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import AdminRoute from './components/layout/AdminRoute'
@@ -49,9 +50,9 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (memberships.length > 0) {
-      const firstMembership = memberships[0]
-      setActiveTeam(firstMembership.teams as Parameters<typeof setActiveTeam>[0], firstMembership.teams?.clubs as Parameters<typeof setActiveTeam>[1])
+    const active = resolveActiveMembership(memberships)
+    if (active) {
+      setActiveTeam(active.teams as Parameters<typeof setActiveTeam>[0], active.teams?.clubs as Parameters<typeof setActiveTeam>[1])
     }
   }, [memberships])
 

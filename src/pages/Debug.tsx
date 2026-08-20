@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getPlayersForLogin } from '../lib/auth'
+import { resolveActiveMembership } from '../lib/activeTeam'
 import useAuthStore from '../stores/useAuthStore'
 
 export default function Debug() {
@@ -34,7 +35,7 @@ export default function Debug() {
   async function testEdgeFunction() {
     setTesting(true)
     addLog('Testing Edge Function...')
-    const teamId = memberships[0]?.team_id
+    const teamId = resolveActiveMembership(memberships)?.team_id
     if (!teamId) {
       addLog('No team membership — cannot test (need a team_id)')
       setTesting(false)
