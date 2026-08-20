@@ -9,6 +9,7 @@ import TeamAvailabilityList from '../components/ui/TeamAvailabilityList'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
+import { useIsTeamAdmin } from '../lib/permissions'
 import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDate, formatTime } from '../lib/utils'
 import { useOpponentName } from '../lib/opponents'
@@ -48,8 +49,8 @@ interface UmpireData {
 }
 
 export default function More() {
-  const { user, isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
-  const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
+  const { user } = useAuthStore()
+  const isAdmin = useIsTeamAdmin()
   const { activeTeam, teamSettings } = useTeamStore()
   const opponentName = useOpponentName()
   const queryClient = useQueryClient()

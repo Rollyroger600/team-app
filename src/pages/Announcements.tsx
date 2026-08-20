@@ -4,8 +4,8 @@ import { MessageSquare, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import PageLoader from '../components/ui/PageLoader'
 import EmptyState from '../components/ui/EmptyState'
-import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
+import { useIsTeamAdmin } from '../lib/permissions'
 import { formatDateLong } from '../lib/utils'
 
 interface AnnouncementItem {
@@ -18,8 +18,7 @@ interface AnnouncementItem {
 
 export default function Announcements() {
   const { activeTeam } = useTeamStore()
-  const { isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
-  const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
+  const isAdmin = useIsTeamAdmin()
   const queryClient = useQueryClient()
   const [error, setError] = useState('')
 

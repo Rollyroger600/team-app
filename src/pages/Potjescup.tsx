@@ -6,6 +6,7 @@ import EmptyState from '../components/ui/EmptyState'
 import { PodiumCard } from '../components/ui/MiniPodium'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
+import { useIsTeamAdmin } from '../lib/permissions'
 import { formatDate } from '../lib/utils'
 import { usePotjescupStats, usePotjescupHistory, topByPoints, MIN_SESSIONS_FOR_CHART, DEFAULT_POTJESCUP_RULES } from '../lib/potjescup'
 import type { PotjescupSession } from '../lib/potjescup'
@@ -95,8 +96,8 @@ function HistoryRow({ session }: { session: PotjescupSession }) {
 
 export default function Potjescup() {
   const { activeTeam, teamSettings } = useTeamStore()
-  const { isAnyTeamAdmin, isPlatformAdmin, profile } = useAuthStore()
-  const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
+  const { profile } = useAuthStore()
+  const isAdmin = useIsTeamAdmin()
   const { data: players = [], isLoading } = usePotjescupStats(activeTeam?.id)
   const { data: history } = usePotjescupHistory(activeTeam?.id)
   const [showRules, setShowRules] = useState(false)

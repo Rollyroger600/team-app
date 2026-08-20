@@ -15,7 +15,6 @@ interface AuthState {
   loadProfile: (user: User) => Promise<void>
   isPlatformAdmin: () => boolean
   isTeamAdmin: (teamId: string) => boolean
-  isAnyTeamAdmin: () => boolean
   isTeamOwner: (teamId: string) => boolean
   isClubAdmin: (clubId?: string | null) => boolean
   signOut: () => Promise<void>
@@ -99,10 +98,10 @@ const useAuthStore = create<AuthState>((set, get) => ({
     return memberships.some(m => m.team_id === teamId && (m.role === 'team_admin' || m.role === 'team_owner'))
   },
 
-  isAnyTeamAdmin: () => {
-    const { memberships } = get()
-    return memberships.some(m => m.role === 'team_admin' || m.role === 'team_owner')
-  },
+  // Bewust GEEN isAnyTeamAdmin() meer: die keek naar álle memberships tegelijk en gaf
+  // met twee teams het verkeerde antwoord voor het team dat je bekijkt. Gebruik
+  // useIsTeamAdmin()/useIsTeamOwner() uit src/lib/permissions.ts — die binden aan het
+  // actieve team.
 
   // Hoofdbeheerder-specifieke check — voor instellingen/rol-toekenning die zelfs een
   // gewone Beheerder niet mag (zie AdminPlayers.tsx changeRole-gate).

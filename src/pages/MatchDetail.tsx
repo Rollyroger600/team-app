@@ -6,6 +6,7 @@ import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
+import { useIsTeamAdmin } from '../lib/permissions'
 import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDateLong, formatTime, buildWhatsAppUrl, buildShareText, tint } from '../lib/utils'
 import type { ShareAvailability } from '../lib/utils'
@@ -25,8 +26,8 @@ interface MatchDetailData {
 export default function MatchDetail() {
   const opponentName = useOpponentName()
   const { id } = useParams<{ id: string }>()
-  const { user, isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
-  const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
+  const { user } = useAuthStore()
+  const isAdmin = useIsTeamAdmin()
   const { teamSettings, activeTeam } = useTeamStore()
   const queryClient = useQueryClient()
   const [myAvailability, setMyAvailability] = useState<AvailabilityStatus | null>(null)

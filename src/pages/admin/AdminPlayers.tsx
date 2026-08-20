@@ -10,6 +10,7 @@ import { tint } from '../../lib/utils'
 import { createPlayer, resetPlayerPin, changePlayerRole, setPlayerCaptain, getPlayersStatus, impersonatePlayer, type PlayerStatus } from '../../lib/auth'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
+import { useIsTeamOwner } from '../../lib/permissions'
 import type { Profile } from '../../types/app'
 
 interface PlayerMembership {
@@ -37,7 +38,7 @@ interface ActionResult {
 export default function AdminPlayers(): React.JSX.Element {
   const navigate = useNavigate()
   const { activeTeam } = useTeamStore()
-  const { isClubAdmin, isTeamOwner, loadProfile } = useAuthStore()
+  const { loadProfile } = useAuthStore()
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState<AddForm>({ full_name: '', display_name: '', jersey_number: '' })
@@ -57,7 +58,7 @@ export default function AdminPlayers(): React.JSX.Element {
   // zelf andere hoofdbeheerders aanwijzen/degraderen binnen het eigen team — zie de
   // changeRole edge-function actie. platform_admin blijft de enige die dit over alle
   // teams heen kan, maar binnen dít team is er geen apart onderscheid meer nodig.
-  const canManage = isClubAdmin(activeTeam?.club_id) || isTeamOwner(activeTeam?.id ?? '')
+  const canManage = useIsTeamOwner()
 
   const { data: players = [], isLoading } = useQuery<PlayerMembership[]>({
     queryKey: ['adminPlayers', activeTeam?.id],

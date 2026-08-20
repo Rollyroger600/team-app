@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import useAuthStore from '../../stores/useAuthStore'
+import { useIsTeamAdmin } from '../../lib/permissions'
 import { STATUSES, statusDot } from '../../lib/availability'
 import type { AvailabilityStatus } from '../../types/app'
 
@@ -27,8 +28,8 @@ interface TeamAvailabilityListProps {
 export default function TeamAvailabilityList({
   matchId, members, statusMap, onChanged,
 }: TeamAvailabilityListProps) {
-  const { user, isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
-  const canEdit = isAnyTeamAdmin() || isPlatformAdmin()
+  const { user } = useAuthStore()
+  const canEdit = useIsTeamAdmin()
   const [editing, setEditing] = useState<AvailabilityMember | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')

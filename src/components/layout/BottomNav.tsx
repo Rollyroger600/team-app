@@ -1,6 +1,5 @@
 import { NavLink } from 'react-router-dom'
 import { Home, Calendar, Trophy, BarChart2, MoreHorizontal, LucideIcon } from 'lucide-react'
-import useAuthStore from '../../stores/useAuthStore'
 import useTeamStore from '../../stores/useTeamStore'
 import type { BooleanSettingKey } from '../../types/app'
 
@@ -22,9 +21,7 @@ const navItems: NavItem[] = [
 ]
 
 export default function BottomNav() {
-  const { isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
   const { teamSettings } = useTeamStore()
-  const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
   const visibleItems = navItems.filter(item => !item.flag || teamSettings[item.flag])
 
   return (

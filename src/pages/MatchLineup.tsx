@@ -4,7 +4,7 @@ import { ArrowLeft, Save } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../components/ui/PageLoader'
 import { supabase } from '../lib/supabase'
-import useAuthStore from '../stores/useAuthStore'
+import { useIsTeamAdmin } from '../lib/permissions'
 import { formatDate, formatTime } from '../lib/utils'
 import { useOpponentName } from '../lib/opponents'
 import type { Match } from '../types/app'
@@ -113,8 +113,7 @@ interface RosterUpdate {
 export default function MatchLineup() {
   const opponentName = useOpponentName()
   const { id } = useParams<{ id: string }>()
-  const { isAnyTeamAdmin, isPlatformAdmin } = useAuthStore()
-  const isAdmin = isAnyTeamAdmin() || isPlatformAdmin()
+  const isAdmin = useIsTeamAdmin()
   const queryClient = useQueryClient()
 
   const [positions, setPositions] = useState<Record<string, string>>({})

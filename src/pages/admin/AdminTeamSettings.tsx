@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase'
 import { DAY_NAMES_NL } from '../../lib/utils'
 import { DEFAULT_POTJESCUP_RULES } from '../../lib/potjescup'
 import useTeamStore from '../../stores/useTeamStore'
-import useAuthStore from '../../stores/useAuthStore'
+import { useIsTeamOwner } from '../../lib/permissions'
 import type { Team } from '../../types/app'
 
 interface TeamSettingsForm {
@@ -36,8 +36,7 @@ const checkboxClass = 'w-4 h-4 rounded accent-[var(--color-secondary)]'
 
 export default function AdminTeamSettings(): React.JSX.Element {
   const { activeTeam, refreshTeam } = useTeamStore()
-  const { isPlatformAdmin, isTeamOwner } = useAuthStore()
-  const canManage = isPlatformAdmin() || isTeamOwner(activeTeam?.id ?? '')
+  const canManage = useIsTeamOwner()
   const queryClient = useQueryClient()
   const [form, setForm] = useState<TeamSettingsForm>({
     name: '',
