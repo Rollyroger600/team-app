@@ -5,6 +5,7 @@ import { changePin } from '../lib/auth'
 import { getTheme, setTheme, THEME_OPTIONS, type ThemeName } from '../lib/theme'
 import useAuthStore from '../stores/useAuthStore'
 import useTeamStore from '../stores/useTeamStore'
+import AddTeamByCode from '../components/ui/AddTeamByCode'
 
 interface PositionOption {
   value: string
@@ -129,6 +130,8 @@ export default function Settings() {
           })}
         </div>
       </div>
+
+      <AddTeamByCode />
 
       {/* Profile card */}
       <div className="rounded-xl p-4 border bg-surface border-border">
