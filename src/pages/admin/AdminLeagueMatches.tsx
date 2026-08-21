@@ -383,6 +383,11 @@ export default function AdminLeagueMatches(): React.JSX.Element {
       // Bewust de volledige registratienaam: useOpponentName() mapt `matches.opponent`
       // op `league_teams.team_name` om de korte naam te vinden.
       const opponent = opponentTeam.team_name
+      // De uitslag gaat mee. Zonder dit is een net (her)gegenereerde wedstrijd
+      // weer scoreloos, terwijl de poule hem al wel heeft — de trigger
+      // sync_league_score_to_match vuurt immers alleen op een UPDATE van
+      // league_matches, niet bij het aanmaken van de eigen wedstrijd.
+      const isPlayed = lm.score_home !== null && lm.score_away !== null
       const payload = {
         match_date: matchDate,
         match_time: lm.match_time,
@@ -390,6 +395,8 @@ export default function AdminLeagueMatches(): React.JSX.Element {
         opponent,
         registry_id: opponentTeam.registry_id,
         league_match_id: lm.id,
+        score_home: lm.score_home,
+        score_away: lm.score_away,
       }
 
       const linkedId = byLinkId.get(lm.id)
@@ -398,7 +405,11 @@ export default function AdminLeagueMatches(): React.JSX.Element {
 
       const { error } = targetId
         ? await supabase.from('matches').update(payload).eq('id', targetId)
-        : await supabase.from('matches').insert({ ...payload, team_id: teamId, status: 'upcoming' })
+        : await supabase.from('matches').insert({
+            ...payload,
+            team_id: teamId,
+            status: isPlayed ? 'completed' : 'upcoming',
+          })
 
       if (error) {
         // 23505 = de partiële unique index op matches(league_match_id). Betekent dat een

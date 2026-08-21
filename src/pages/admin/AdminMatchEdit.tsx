@@ -6,6 +6,14 @@ import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 
+/** Leeg veld -> NULL ("nog geen uitslag"), niet 0. */
+function parseScore(value: string): number | null {
+  const trimmed = value.trim()
+  if (trimmed === '') return null
+  const n = Number(trimmed)
+  return Number.isInteger(n) && n >= 0 ? n : null
+}
+
 interface MatchForm {
   opponent: string
   match_date: string
@@ -13,6 +21,11 @@ interface MatchForm {
   is_home: boolean
   location: string
   status: string
+  // Als tekst in het formulier, niet als number: een leeg veld moet "nog geen
+  // uitslag" (NULL) kunnen betekenen, en dat is met een number-input niet te
+  // onderscheiden van 0.
+  score_home: string
+  score_away: string
 }
 
 export default function AdminMatchEdit(): React.JSX.Element {
@@ -28,6 +41,8 @@ export default function AdminMatchEdit(): React.JSX.Element {
     is_home: true,
     location: '',
     status: 'upcoming',
+    score_home: '',
+    score_away: '',
   })
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
@@ -44,6 +59,8 @@ export default function AdminMatchEdit(): React.JSX.Element {
           is_home: data.is_home ?? true,
           location: data.location || '',
           status: data.status || 'upcoming',
+          score_home: data.score_home?.toString() ?? '',
+          score_away: data.score_away?.toString() ?? '',
         })
         setLoading(false)
       })
@@ -60,6 +77,8 @@ export default function AdminMatchEdit(): React.JSX.Element {
       ...form,
       team_id: activeTeam.id,
       match_time: form.match_time || null,
+      score_home: parseScore(form.score_home),
+      score_away: parseScore(form.score_away),
     }
 
     let result
@@ -211,6 +230,39 @@ export default function AdminMatchEdit(): React.JSX.Element {
               </select>
             </div>
           </div>
+
+          {form.status === 'completed' && (
+            <div>
+              <label className={labelClass}>Uitslag</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.score_home}
+                  onChange={(e) => handleChange('score_home', e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder={form.is_home ? 'ons' : 'zij'}
+                  aria-label={form.is_home ? 'Doelpunten eigen team' : 'Doelpunten tegenstander'}
+                  className={`${inputClass} text-center`}
+                  style={inputStyle}
+                />
+                <span className="text-text-muted font-semibold">–</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.score_away}
+                  onChange={(e) => handleChange('score_away', e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder={form.is_home ? 'zij' : 'ons'}
+                  aria-label={form.is_home ? 'Doelpunten tegenstander' : 'Doelpunten eigen team'}
+                  className={`${inputClass} text-center`}
+                  style={inputStyle}
+                />
+              </div>
+              <p className="text-xs text-text-subtle mt-1.5">
+                Links het thuisspelende team, dus {form.is_home ? 'wij' : 'de tegenstander'}. Leeg
+                laten als de uitslag nog niet bekend is.
+              </p>
+            </div>
+          )}
         </div>
 
         {error && (
