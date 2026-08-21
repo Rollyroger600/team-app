@@ -7,6 +7,9 @@ import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
 import { leagueTeamDisplayName, tint } from '../lib/utils'
 import { useOpponentName } from '../lib/opponents'
+import { useIsTeamOwner } from '../lib/permissions'
+import { compareByTiebreak, normalizeTiebreakOrder, type TiebreakId } from '../lib/standings'
+import TiebreakOrder from '../components/ui/TiebreakOrder'
 import React from 'react'
 
 interface TabDef {
@@ -776,6 +779,35 @@ function MiniStandings({ matches, teams }: MiniStandingsProps) {
   // verderop voor wie ze wil zien.
   const [detailed, setDetailed] = useState(false)
 
+  const { activeTeam, teamSettings, refreshTeam } = useTeamStore()
+  const isOwner = useIsTeamOwner()
+  const [savingOrder, setSavingOrder] = useState(false)
+  const [orderError, setOrderError] = useState('')
+
+  const tiebreakOrder = useMemo(
+    () => normalizeTiebreakOrder(teamSettings.tiebreak_order),
+    [teamSettings.tiebreak_order],
+  )
+
+  async function saveTiebreakOrder(next: TiebreakId[]) {
+    if (!activeTeam?.id) return
+    setSavingOrder(true)
+    setOrderError('')
+    const { error } = await supabase
+      .from('teams')
+      .update({ tiebreak_order: next })
+      .eq('id', activeTeam.id)
+    if (error) {
+      // De trigger enforce_team_owner_only_settings weigert dit voor iedereen
+      // behalve een Hoofdbeheerder; dan komt hier een ruwe Postgres-melding uit.
+      setOrderError('Opslaan lukte niet. Alleen een Hoofdbeheerder kan de volgorde wijzigen.')
+    } else {
+      // Ververst teamSettings, waarmee de stand meteen opnieuw sorteert.
+      await refreshTeam(activeTeam.id)
+    }
+    setSavingOrder(false)
+  }
+
   const standings = useMemo((): StandingRow[] => {
     const table: Record<string, StandingRow> = {}
     teams.forEach((t) => {
@@ -822,19 +854,13 @@ function MiniStandings({ matches, teams }: MiniStandingsProps) {
       }
     })
 
-    // Ranking: 1) punten, 2) gewonnen wedstrijden, 3) netto doelsaldo, 4) doelpunten
-    // voor, 5) onderling resultaat — in deze exacte volgorde, elk criterium beslist
-    // pas als alles ervoor gelijk is.
+    // Punten staan altijd voorop; wat daarna beslist is per team instelbaar
+    // (teams.tiebreak_order), omdat het per bond en sport verschilt.
     return Object.values(table).sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points
-      if (b.won !== a.won) return b.won - a.won
-      const gdA = a.gf - a.ga
-      const gdB = b.gf - b.ga
-      if (gdB !== gdA) return gdB - gdA
-      if (b.gf !== a.gf) return b.gf - a.gf
-      return headToHead(matches, a.id, b.id)
+      return compareByTiebreak(tiebreakOrder, a, b, (aId, bId) => headToHead(matches, aId, bId))
     })
-  }, [matches, teams])
+  }, [matches, teams, tiebreakOrder])
 
   if (standings.length === 0) return null
 
@@ -917,12 +943,29 @@ function MiniStandings({ matches, teams }: MiniStandingsProps) {
         </table>
       </div>
 
-      {detailed && (
-        <p className="px-4 py-2.5 border-t border-border text-[11px] leading-relaxed text-text-subtle">
-          G = gespeeld, W = gewonnen, D = gelijk, V = verloren, DV = doelpunten voor,
-          DT = doelpunten tegen, DS = doelsaldo, Pnt = punten
+      <p className="px-4 py-2.5 border-t border-border text-[11px] leading-relaxed text-text-subtle">
+        G = gespeeld, W = gewonnen, D = gelijk, V = verloren
+        {detailed && ', DV = doelpunten voor, DT = doelpunten tegen, DS = doelsaldo'}
+        , Pnt = punten
+      </p>
+
+      <div className="px-4 py-3 border-t border-border">
+        <p className="text-xs font-semibold mb-1">Bij een gelijk aantal punten</p>
+        <p className="text-[11px] leading-relaxed text-text-subtle mb-2.5">
+          Staan twee teams op evenveel punten, dan bepaalt het bovenste punt hieronder wie
+          er boven staat. Levert dat geen verschil op, dan telt het volgende punt, enzovoort.
+          {isOwner && ' Sleep aan de greep of gebruik de pijltjes om de volgorde aan te passen.'}
         </p>
-      )}
+
+        <TiebreakOrder
+          order={tiebreakOrder}
+          canEdit={isOwner}
+          onReorder={saveTiebreakOrder}
+          saving={savingOrder}
+        />
+
+        {orderError && <p className="text-danger text-[11px] mt-2">{orderError}</p>}
+      </div>
     </div>
   )
 }

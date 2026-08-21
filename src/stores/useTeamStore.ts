@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { DEFAULT_TIEBREAK_ORDER } from '../lib/standings'
 import { supabase } from '../lib/supabase'
 import type { Team, Club, TeamSettings } from '../types/app'
 
@@ -46,6 +47,7 @@ const useTeamStore = create<TeamState>((set, get) => ({
     fluitbeurten_relative_to_match: 'before',
     gathering_banner_enabled: true,
     competitie_enabled: true,
+    tiebreak_order: DEFAULT_TIEBREAK_ORDER,
   },
 
   setActiveTeam: async (team: Team | null, club: ClubWithRegistry | null) => {
@@ -66,6 +68,7 @@ const useTeamStore = create<TeamState>((set, get) => ({
         fluitbeurten_relative_to_match: (team?.fluitbeurten_relative_to_match as 'before' | 'after' | 'match_day') ?? 'before',
         gathering_banner_enabled: team?.gathering_banner_enabled ?? true,
         competitie_enabled: team?.competitie_enabled ?? true,
+        tiebreak_order: team?.tiebreak_order ?? DEFAULT_TIEBREAK_ORDER,
       }
     })
     // Colours no longer come from the club record — the player picks a theme in

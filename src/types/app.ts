@@ -53,6 +53,9 @@ export interface TeamSettings {
   // Stap 2: uit = geen poule-weergave. De eigen wedstrijdenlijst blijft altijd
   // staan, die hangt aan `matches` en niet aan een league.
   competitie_enabled: boolean
+  // Volgorde van de tiebreak-criteria bij gelijke punten. Ruw uit de database:
+  // altijd door normalizeTiebreakOrder() in src/lib/standings.ts halen voor gebruik.
+  tiebreak_order: string[]
 }
 
 // The boolean-valued subset of TeamSettings — used to type any "hide/gate this if

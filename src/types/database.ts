@@ -957,6 +957,7 @@ export type Database = {
         Row: {
           club_id: string | null
           competitie_enabled: boolean
+          tiebreak_order: string[]
           created_at: string | null
           fluitbeurten_day_of_week: number
           fluitbeurten_enabled: boolean
@@ -979,6 +980,7 @@ export type Database = {
         Insert: {
           club_id?: string | null
           competitie_enabled?: boolean
+          tiebreak_order?: string[]
           created_at?: string | null
           fluitbeurten_day_of_week?: number
           fluitbeurten_enabled?: boolean
@@ -1001,6 +1003,7 @@ export type Database = {
         Update: {
           club_id?: string | null
           competitie_enabled?: boolean
+          tiebreak_order?: string[]
           created_at?: string | null
           fluitbeurten_day_of_week?: number
           fluitbeurten_enabled?: boolean
