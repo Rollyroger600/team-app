@@ -20,6 +20,10 @@ interface TeamSettingsForm {
   gathering_rounding_minutes: number
   potjescup_enabled: boolean
   competitie_enabled: boolean
+  trainingen_enabled: boolean
+  training_default_weekday: number
+  training_default_time: string
+  training_interval_weeks: number
   potjescup_rules_text: string
   fluitbeurten_enabled: boolean
   fluitbeurten_mode: 'auto' | 'manual'
@@ -47,6 +51,10 @@ export default function AdminTeamSettings(): React.JSX.Element {
     gathering_rounding_minutes: 15,
     potjescup_enabled: true,
     competitie_enabled: true,
+    trainingen_enabled: false,
+    training_default_weekday: 2,
+    training_default_time: '20:00',
+    training_interval_weeks: 1,
     potjescup_rules_text: '',
     fluitbeurten_enabled: true,
     fluitbeurten_mode: 'auto',
@@ -78,6 +86,10 @@ export default function AdminTeamSettings(): React.JSX.Element {
         gathering_rounding_minutes: activeTeam.gathering_rounding_minutes ?? 15,
         potjescup_enabled: activeTeam.potjescup_enabled ?? true,
         competitie_enabled: activeTeam.competitie_enabled ?? true,
+        trainingen_enabled: activeTeam.trainingen_enabled ?? false,
+        training_default_weekday: activeTeam.training_default_weekday ?? 2,
+        training_default_time: (activeTeam.training_default_time ?? '20:00').slice(0, 5),
+        training_interval_weeks: activeTeam.training_interval_weeks ?? 1,
         // Nog niets opgeslagen? Start dan vanaf de huidige standaardtekst, zodat er
         // iets zinnigs staat om vanaf te bewerken i.p.v. een leeg vak.
         potjescup_rules_text: activeTeam.potjescup_rules_text || DEFAULT_POTJESCUP_RULES.join('\n\n'),
@@ -249,6 +261,56 @@ export default function AdminTeamSettings(): React.JSX.Element {
               Uit = geen poulestand en geen &quot;Hele poule&quot;-weergave. De eigen wedstrijden
               blijven gewoon staan, ook oefenwedstrijden.
             </p>
+          </div>
+
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.trainingen_enabled}
+                     onChange={(e) => handleChange('trainingen_enabled', e.target.checked)}
+                     className={checkboxClass} />
+              <span className="text-sm">Trainingen</span>
+            </label>
+            {form.trainingen_enabled && (
+              <div className="pl-6 space-y-2">
+                <p className="text-xs text-text-subtle">
+                  Dit is alleen de voorvulling van het generatiescherm in Admin &rarr; Trainingen.
+                  Het schema zelf zijn de trainingen die je daar aanmaakt.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={labelClass}>Standaard dag</label>
+                    <select value={form.training_default_weekday}
+                            onChange={(e) => handleChange('training_default_weekday', Number(e.target.value))}
+                            className={inputClass} style={inputStyle}>
+                      <option value={0}>zondag</option>
+                      <option value={1}>maandag</option>
+                      <option value={2}>dinsdag</option>
+                      <option value={3}>woensdag</option>
+                      <option value={4}>donderdag</option>
+                      <option value={5}>vrijdag</option>
+                      <option value={6}>zaterdag</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Standaard tijd</label>
+                    <input type="time" value={form.training_default_time}
+                           onChange={(e) => handleChange('training_default_time', e.target.value)}
+                           className={inputClass} style={inputStyle} />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Hoe vaak</label>
+                  <select value={form.training_interval_weeks}
+                          onChange={(e) => handleChange('training_interval_weeks', Number(e.target.value))}
+                          className={inputClass} style={inputStyle}>
+                    <option value={1}>Elke week</option>
+                    <option value={2}>Om de week</option>
+                    <option value={3}>Elke 3 weken</option>
+                    <option value={4}>Elke 4 weken</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
