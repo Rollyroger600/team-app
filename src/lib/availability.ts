@@ -32,6 +32,12 @@ export interface StatusDef {
   cell: string
   /** Only a team_admin / platform_admin may set this. */
   adminOnly?: boolean
+  /**
+   * Label voor een training in plaats van een wedstrijd. "Beschikbaar" slaat op
+   * een selectie; bij een training gaat het over komen of niet. Alleen gezet waar
+   * het echt anders leest -- de rest valt terug op `label`.
+   */
+  attendanceLabel?: string
 }
 
 export const STATUSES: StatusDef[] = [
@@ -39,6 +45,7 @@ export const STATUSES: StatusDef[] = [
     status: 'available',
     label: 'Beschikbaar',
     shortLabel: 'Beschikbaar',
+    attendanceLabel: 'Aanwezig',
     icon: CheckCircle,
     dot: 'bg-available',
     active: 'bg-available/20 border-available/50 text-success',
@@ -49,6 +56,7 @@ export const STATUSES: StatusDef[] = [
     status: 'unavailable',
     label: 'Niet beschikbaar',
     shortLabel: 'Niet',
+    attendanceLabel: 'Afwezig',
     icon: XCircle,
     dot: 'bg-unavailable',
     active: 'bg-unavailable/20 border-unavailable/50 text-danger',
@@ -80,7 +88,9 @@ export const STATUSES: StatusDef[] = [
   },
 ]
 
-/** The statuses a player may set for themselves. */
+/** The statuses a player may set for themselves. Geldt ook voor trainingen: die
+ *  kennen geen 'rostered_off' (uitgeroosterd worden slaat op een wedstrijd-
+ *  selectie), en dat is precies wat adminOnly hier al wegfiltert. */
 export const PLAYER_STATUSES: StatusDef[] = STATUSES.filter(s => !s.adminOnly)
 
 export function statusDef(status: string | null | undefined): StatusDef | undefined {
@@ -101,4 +111,22 @@ export function statusText(status: string | null | undefined): string {
 /** Label for a status, falling back to a caller-supplied default. */
 export function statusLabel(status: string | null | undefined, fallback = 'Onbekend'): string {
   return statusDef(status)?.label || fallback
+}
+
+/** Waar een scherm over wedstrijden én trainingen gaat. */
+export type EventKind = 'match' | 'training'
+
+/**
+ * Label voor een status, afhankelijk van waar het over gaat. Bewust hier en niet
+ * als tweede STATUSES-array: iconen, kleuren en matrixmarkers zijn identiek, en
+ * die twee keer onderhouden is precies wat deze module ooit kwam oplossen.
+ */
+export function statusLabelFor(
+  status: string | null | undefined,
+  kind: EventKind,
+  fallback = 'Onbekend',
+): string {
+  const def = statusDef(status)
+  if (!def) return fallback
+  return kind === 'training' ? (def.attendanceLabel ?? def.label) : def.label
 }

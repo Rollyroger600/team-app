@@ -831,6 +831,7 @@ export type Database = {
           notes: string | null
           session_date: string
           team_id: string
+          training_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -838,6 +839,7 @@ export type Database = {
           notes?: string | null
           session_date: string
           team_id: string
+          training_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -845,6 +847,7 @@ export type Database = {
           notes?: string | null
           session_date?: string
           team_id?: string
+          training_id?: string | null
         }
         Relationships: [
           {
@@ -1025,6 +1028,11 @@ export type Database = {
           club_id: string | null
           competitie_enabled: boolean
           tiebreak_order: string[]
+          trainingen_enabled: boolean
+          training_default_weekday: number | null
+          training_default_time: string | null
+          training_default_duration_minutes: number
+          training_interval_weeks: number
           created_at: string | null
           fluitbeurten_day_of_week: number
           fluitbeurten_enabled: boolean
@@ -1048,6 +1056,11 @@ export type Database = {
           club_id?: string | null
           competitie_enabled?: boolean
           tiebreak_order?: string[]
+          trainingen_enabled?: boolean
+          training_default_weekday?: number | null
+          training_default_time?: string | null
+          training_default_duration_minutes?: number
+          training_interval_weeks?: number
           created_at?: string | null
           fluitbeurten_day_of_week?: number
           fluitbeurten_enabled?: boolean
@@ -1071,6 +1084,11 @@ export type Database = {
           club_id?: string | null
           competitie_enabled?: boolean
           tiebreak_order?: string[]
+          trainingen_enabled?: boolean
+          training_default_weekday?: number | null
+          training_default_time?: string | null
+          training_default_duration_minutes?: number
+          training_interval_weeks?: number
           created_at?: string | null
           fluitbeurten_day_of_week?: number
           fluitbeurten_enabled?: boolean
@@ -1103,6 +1121,105 @@ export type Database = {
             columns: ["club_id"]
             isOneToOne: false
             referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_attendance: {
+        Row: {
+          id: string
+          overridden: boolean
+          player_id: string
+          responded_at: string | null
+          set_by: string | null
+          status: string
+          training_id: string
+        }
+        Insert: {
+          id?: string
+          overridden?: boolean
+          player_id: string
+          responded_at?: string | null
+          set_by?: string | null
+          status: string
+          training_id: string
+        }
+        Update: {
+          id?: string
+          overridden?: boolean
+          player_id?: string
+          responded_at?: string | null
+          set_by?: string | null
+          status?: string
+          training_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_attendance_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_attendance_set_by_fkey"
+            columns: ["set_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_attendance_training_id_fkey"
+            columns: ["training_id"]
+            isOneToOne: false
+            referencedRelation: "trainings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trainings: {
+        Row: {
+          created_at: string | null
+          end_time: string | null
+          generated: boolean
+          id: string
+          location: string | null
+          notes: string | null
+          start_time: string
+          status: string
+          team_id: string
+          training_date: string
+        }
+        Insert: {
+          created_at?: string | null
+          end_time?: string | null
+          generated?: boolean
+          id?: string
+          location?: string | null
+          notes?: string | null
+          start_time: string
+          status?: string
+          team_id: string
+          training_date: string
+        }
+        Update: {
+          created_at?: string | null
+          end_time?: string | null
+          generated?: boolean
+          id?: string
+          location?: string | null
+          notes?: string | null
+          start_time?: string
+          status?: string
+          team_id?: string
+          training_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trainings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]

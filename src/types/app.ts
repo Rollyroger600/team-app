@@ -56,6 +56,13 @@ export interface TeamSettings {
   // Volgorde van de tiebreak-criteria bij gelijke punten. Ruw uit de database:
   // altijd door normalizeTiebreakOrder() in src/lib/standings.ts halen voor gebruik.
   tiebreak_order: string[]
+  // Stap 3: trainingen. De standaarden vullen alleen het generatordialoog voor --
+  // het schema zelf zijn de gegenereerde `trainings`-rijen.
+  trainingen_enabled: boolean
+  training_default_weekday: number | null
+  training_default_time: string | null
+  training_default_duration_minutes: number
+  training_interval_weeks: number
 }
 
 // The boolean-valued subset of TeamSettings — used to type any "hide/gate this if

@@ -48,6 +48,11 @@ const useTeamStore = create<TeamState>((set, get) => ({
     gathering_banner_enabled: true,
     competitie_enabled: true,
     tiebreak_order: DEFAULT_TIEBREAK_ORDER,
+    trainingen_enabled: false,
+    training_default_weekday: null,
+    training_default_time: null,
+    training_default_duration_minutes: 90,
+    training_interval_weeks: 1,
   },
 
   setActiveTeam: async (team: Team | null, club: ClubWithRegistry | null) => {
@@ -69,6 +74,13 @@ const useTeamStore = create<TeamState>((set, get) => ({
         gathering_banner_enabled: team?.gathering_banner_enabled ?? true,
         competitie_enabled: team?.competitie_enabled ?? true,
         tiebreak_order: team?.tiebreak_order ?? DEFAULT_TIEBREAK_ORDER,
+        // Nieuwe feature: bewust default uit, zodat niemand er iets van ziet tot
+        // een Hoofdbeheerder hem aanzet.
+        trainingen_enabled: team?.trainingen_enabled ?? false,
+        training_default_weekday: team?.training_default_weekday ?? null,
+        training_default_time: team?.training_default_time ?? null,
+        training_default_duration_minutes: team?.training_default_duration_minutes ?? 90,
+        training_interval_weeks: team?.training_interval_weeks ?? 1,
       }
     })
     // Colours no longer come from the club record — the player picks a theme in
