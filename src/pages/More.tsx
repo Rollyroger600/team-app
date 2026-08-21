@@ -12,6 +12,7 @@ import useTeamStore from '../stores/useTeamStore'
 import { useIsTeamAdmin } from '../lib/permissions'
 import { useTrainings, formatTrainingDate, formatTime as formatTrainingTime, type Training } from '../lib/trainings'
 import { statusLabelFor, statusDot } from '../lib/availability'
+import KittyPanel from '../components/ui/KittyPanel'
 import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDate, formatTime } from '../lib/utils'
 import { useOpponentName } from '../lib/opponents'
@@ -454,6 +455,7 @@ export default function More() {
         {[
           { key: 'beschikbaarheid', label: 'Beschikbaarheid' },
           ...(teamSettings.fluitbeurten_enabled ? [{ key: 'fluitbeurten', label: 'Fluitbeurten' }] : []),
+          ...(teamSettings.kitty_enabled ? [{ key: 'kitty', label: teamSettings.kitty_name }] : []),
         ].map(t => (
           <button
             key={t.key}
@@ -521,6 +523,16 @@ export default function More() {
           )}
         </div>
       ))}
+
+      {/* Teamkas tab */}
+      {tab === 'kitty' && activeTeam && (
+        <KittyPanel
+          teamId={activeTeam.id}
+          kittyName={teamSettings.kitty_name}
+          expectedCents={teamSettings.kitty_expected_cents}
+          currentUserId={user?.id}
+        />
+      )}
 
       {/* Fluitbeurten tab */}
       {tab === 'fluitbeurten' && (umpireLoading ? (

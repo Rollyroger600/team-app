@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase'
 import { DAY_NAMES_NL } from '../../lib/utils'
 import { DEFAULT_POTJESCUP_RULES } from '../../lib/potjescup'
 import useTeamStore from '../../stores/useTeamStore'
+import { parseEuroToCents, centsToInput } from '../../lib/money'
 import { useIsTeamOwner } from '../../lib/permissions'
 import type { Team } from '../../types/app'
 
@@ -21,6 +22,9 @@ interface TeamSettingsForm {
   potjescup_enabled: boolean
   competitie_enabled: boolean
   trainingen_enabled: boolean
+  kitty_enabled: boolean
+  kitty_name: string
+  kitty_expected: string
   training_default_weekday: number
   training_default_time: string
   training_interval_weeks: number
@@ -35,7 +39,8 @@ interface TeamSettingsForm {
 // potjescup_rules_text is in de DB nullable (NULL = val terug op de hardcoded tekst),
 // maar in het formulier altijd een string (anders heeft de textarea geen controlled
 // value) — alleen bij het opslaan wordt een leeg veld weer naar NULL vertaald.
-type SavePayload = Omit<TeamSettingsForm, 'potjescup_rules_text'> & { potjescup_rules_text: string | null }
+type SavePayload = Omit<TeamSettingsForm, 'potjescup_rules_text' | 'kitty_expected'>
+  & { potjescup_rules_text: string | null; kitty_expected_cents: number }
 
 const checkboxClass = 'w-4 h-4 rounded accent-[var(--color-secondary)]'
 
@@ -52,6 +57,9 @@ export default function AdminTeamSettings(): React.JSX.Element {
     potjescup_enabled: true,
     competitie_enabled: true,
     trainingen_enabled: false,
+    kitty_enabled: false,
+    kitty_name: 'Bierpot',
+    kitty_expected: '0,00',
     training_default_weekday: 2,
     training_default_time: '20:00',
     training_interval_weeks: 1,
@@ -87,6 +95,9 @@ export default function AdminTeamSettings(): React.JSX.Element {
         potjescup_enabled: activeTeam.potjescup_enabled ?? true,
         competitie_enabled: activeTeam.competitie_enabled ?? true,
         trainingen_enabled: activeTeam.trainingen_enabled ?? false,
+        kitty_enabled: activeTeam.kitty_enabled ?? false,
+        kitty_name: activeTeam.kitty_name ?? 'Bierpot',
+        kitty_expected: centsToInput(activeTeam.kitty_expected_cents ?? 0),
         training_default_weekday: activeTeam.training_default_weekday ?? 2,
         training_default_time: (activeTeam.training_default_time ?? '20:00').slice(0, 5),
         training_interval_weeks: activeTeam.training_interval_weeks ?? 1,
@@ -134,6 +145,7 @@ export default function AdminTeamSettings(): React.JSX.Element {
 
     await saveMutation.mutateAsync({
       ...form,
+      kitty_expected_cents: parseEuroToCents(form.kitty_expected) ?? 0,
       gathering_lead_time: Number(form.gathering_lead_time),
       travel_buffer_minutes: Number(form.travel_buffer_minutes),
       match_squad_size: Number(form.match_squad_size),
@@ -261,6 +273,35 @@ export default function AdminTeamSettings(): React.JSX.Element {
               Uit = geen poulestand en geen &quot;Hele poule&quot;-weergave. De eigen wedstrijden
               blijven gewoon staan, ook oefenwedstrijden.
             </p>
+          </div>
+
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.kitty_enabled}
+                     onChange={(e) => handleChange('kitty_enabled', e.target.checked)}
+                     className={checkboxClass} />
+              <span className="text-sm">Teamkas</span>
+            </label>
+            {form.kitty_enabled && (
+              <div className="pl-6 space-y-2">
+                <div>
+                  <label className={labelClass}>Hoe heet de pot</label>
+                  <input type="text" value={form.kitty_name}
+                         onChange={(e) => handleChange('kitty_name', e.target.value)}
+                         placeholder="Bierpot" className={inputClass} style={inputStyle} maxLength={30} />
+                </div>
+                <div>
+                  <label className={labelClass}>Verwachte inleg per speler</label>
+                  <input type="text" inputMode="decimal" value={form.kitty_expected}
+                         onChange={(e) => handleChange('kitty_expected', e.target.value)}
+                         placeholder="200,00" className={inputClass} style={inputStyle} />
+                  <p className="text-xs text-text-subtle mt-1">
+                    Wat iedereen aan het begin stort. Wil je halverwege laten bijstorten, verhoog
+                    dit bedrag dan &mdash; wat er openstaat schuift vanzelf mee.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">

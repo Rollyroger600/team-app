@@ -781,6 +781,100 @@ export type Database = {
           },
         ]
       }
+      pot_transaction_shares: {
+        Row: {
+          id: string
+          player_id: string
+          share_cents: number
+          transaction_id: string
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          share_cents: number
+          transaction_id: string
+        }
+        Update: {
+          id?: string
+          player_id?: string
+          share_cents?: number
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pot_transaction_shares_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pot_transaction_shares_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "pot_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pot_transactions: {
+        Row: {
+          amount_cents: number
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          paid_by: string | null
+          team_id: string
+          transaction_date: string
+          type: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          paid_by?: string | null
+          team_id: string
+          transaction_date?: string
+          type: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          paid_by?: string | null
+          team_id?: string
+          transaction_date?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pot_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pot_transactions_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pot_transactions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       potjescup_scores: {
         Row: {
           id: string
@@ -1033,6 +1127,9 @@ export type Database = {
           training_default_time: string | null
           training_default_duration_minutes: number
           training_interval_weeks: number
+          kitty_enabled: boolean
+          kitty_name: string
+          kitty_expected_cents: number
           created_at: string | null
           fluitbeurten_day_of_week: number
           fluitbeurten_enabled: boolean
@@ -1061,6 +1158,9 @@ export type Database = {
           training_default_time?: string | null
           training_default_duration_minutes?: number
           training_interval_weeks?: number
+          kitty_enabled?: boolean
+          kitty_name?: string
+          kitty_expected_cents?: number
           created_at?: string | null
           fluitbeurten_day_of_week?: number
           fluitbeurten_enabled?: boolean
@@ -1089,6 +1189,9 @@ export type Database = {
           training_default_time?: string | null
           training_default_duration_minutes?: number
           training_interval_weeks?: number
+          kitty_enabled?: boolean
+          kitty_name?: string
+          kitty_expected_cents?: number
           created_at?: string | null
           fluitbeurten_day_of_week?: number
           fluitbeurten_enabled?: boolean

@@ -38,6 +38,7 @@ const AdminUmpire = lazy(() => import('./pages/admin/AdminUmpire'))
 const AdminAttendance = lazy(() => import('./pages/admin/AdminAttendance'))
 const AdminPotjescup = lazy(() => import('./pages/admin/AdminPotjescup'))
 const AdminTrainings = lazy(() => import('./pages/admin/AdminTrainings'))
+const AdminKitty = lazy(() => import('./pages/admin/AdminKitty'))
 const AdminMatchGoals = lazy(() => import('./pages/admin/AdminMatchGoals'))
 const AdminAnnouncements = lazy(() => import('./pages/admin/AdminAnnouncements'))
 const AdminTeamSettings = lazy(() => import('./pages/admin/AdminTeamSettings'))
@@ -97,6 +98,7 @@ export default function App() {
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/players" element={<AdminPlayers />} />
               <Route path="/admin/trainings" element={<AdminTrainings />} />
+              <Route path="/admin/kitty" element={<AdminKitty />} />
               <Route path="/admin/matches/new" element={<AdminMatchEdit />} />
               <Route path="/admin/matches/:id/edit" element={<AdminMatchEdit />} />
               <Route path="/admin/matches/:id/roster" element={<AdminRoster />} />

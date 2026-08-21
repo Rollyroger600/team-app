@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Users, Calendar, Trophy, Flag, MessageSquare, Settings, BarChart2, PlusCircle, LogOut, Medal, CalendarClock, Dumbbell } from 'lucide-react'
+import { Users, Calendar, Trophy, Flag, MessageSquare, Settings, BarChart2, PlusCircle, LogOut, Medal, CalendarClock, Dumbbell, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
@@ -49,6 +49,14 @@ const adminSections: AdminSection[] = [
     to: '/admin/trainings',
     color: 'bg-chart-3/20 text-chart-3',
     flag: 'trainingen_enabled',
+  },
+  {
+    title: 'Teamkas',
+    description: 'Stortingen en uitgaven boeken',
+    icon: Wallet,
+    to: '/admin/kitty',
+    color: 'bg-chart-5/20 text-chart-5',
+    flag: 'kitty_enabled',
   },
   {
     title: 'Aanwezigheid',
