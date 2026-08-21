@@ -1,7 +1,7 @@
 import React from 'react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle, Shield, KeyRound, Crown, Lock, LogIn, MoreVertical } from 'lucide-react'
+import { ArrowLeft, Users, UserPlus, RotateCcw, Check, AlertCircle, Shield, KeyRound, Crown, Lock, LogIn, MoreVertical, Share2, RefreshCw } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import PageLoader from '../../components/ui/PageLoader'
 import EmptyState from '../../components/ui/EmptyState'
@@ -12,6 +12,8 @@ import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
 import { useIsTeamOwner } from '../../lib/permissions'
 import InviteManager from '../../components/ui/InviteManager'
+import { useAccessCodes, shareInvite, regenerateCode, type AccessCode } from '../../lib/invites'
+import { formatCode } from '../../lib/accessCodes'
 import type { Profile } from '../../types/app'
 
 interface PlayerMembership {
@@ -54,6 +56,7 @@ export default function AdminPlayers(): React.JSX.Element {
   const [impersonating, setImpersonating] = useState<string | null>(null)
   const [impersonateErrors, setImpersonateErrors] = useState<Record<string, string>>({})
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null)
+  const [linkFeedback, setLinkFeedback] = useState<Record<string, string>>({})
 
   // Hoofdbeheerder mag hier net als de platform-admin komen én, sinds 2026-08-16, ook
   // zelf andere hoofdbeheerders aanwijzen/degraderen binnen het eigen team — zie de
@@ -83,6 +86,37 @@ export default function AdminPlayers(): React.JSX.Element {
     },
     enabled: !!activeTeam?.id && canManage,
   })
+
+  // De persoonlijke links horen bij de speler zelf, niet in een tweede lijst met
+  // dezelfde namen eronder. InviteManager toont daarom alleen nog openstaande
+  // uitnodigingen; de link van een actief lid staat in zijn eigen rij.
+  const { data: accessCodes = [] } = useAccessCodes(activeTeam?.id, canManage)
+  const codeByPlayer: Record<string, AccessCode> = {}
+  for (const c of accessCodes) if (c.player_id) codeByPlayer[c.player_id] = c
+
+  function flashLink(playerId: string, message: string) {
+    setLinkFeedback(f => ({ ...f, [playerId]: message }))
+    setTimeout(() => setLinkFeedback(f => {
+      const next = { ...f }
+      delete next[playerId]
+      return next
+    }), 2500)
+  }
+
+  async function handleShareLink(c: AccessCode, playerId: string) {
+    const result = await shareInvite(c, activeTeam?.name ?? null)
+    flashLink(playerId, result === 'gedeeld' ? 'Gedeeld' : result === 'gekopieerd' ? 'Link gekopieerd' : 'Delen niet gelukt')
+  }
+
+  async function handleNewLink(c: AccessCode, playerId: string, playerName: string) {
+    // Bevestigen: de oude link werkt hierna niet meer, en dat merkt de speler pas
+    // als hij hem probeert te gebruiken.
+    if (!window.confirm(`Nieuwe persoonlijke link voor ${playerName}? De oude link werkt daarna niet meer en je moet de nieuwe opnieuw delen.`)) return
+    const { error } = await regenerateCode(c.id)
+    if (error) { flashLink(playerId, 'Mislukt'); return }
+    queryClient.invalidateQueries({ queryKey: ['accessCodes', activeTeam?.id] })
+    flashLink(playerId, 'Nieuwe link gemaakt')
+  }
 
   const statusMap: Record<string, PlayerStatus> = {}
   for (const s of statuses) statusMap[s.player_id] = s
@@ -315,6 +349,14 @@ export default function AdminPlayers(): React.JSX.Element {
                   {p?.full_name && p.display_name && p.display_name !== p.full_name && (
                     <p className="text-xs text-text-muted truncate">{p.full_name}</p>
                   )}
+                  {canManage && codeByPlayer[membership.player_id] && (
+                    <p className="text-[11px] font-mono text-text-subtle truncate">
+                      {formatCode(codeByPlayer[membership.player_id].code)}
+                      {linkFeedback[membership.player_id] && (
+                        <span className="ml-1.5 font-sans text-success">{linkFeedback[membership.player_id]}</span>
+                      )}
+                    </p>
+                  )}
                   {/* Feedback berichten */}
                   {pinResult && (
                     <p className={`text-xs mt-0.5 ${pinResult.ok ? 'text-success' : 'text-danger'}`}>
@@ -335,6 +377,19 @@ export default function AdminPlayers(): React.JSX.Element {
                     : status.has_set_pin
                       ? <span className="flex-shrink-0" title="PIN ingesteld"><Check size={14} className="text-success" /></span>
                       : <span className="flex-shrink-0" title="PIN nog niet ingesteld"><AlertCircle size={14} className="text-orange-400" /></span>
+                )}
+
+                {/* Link delen — bewust direct zichtbaar en niet in het menu; dit is de
+                    actie die je in de praktijk het vaakst nodig hebt. */}
+                {canManage && codeByPlayer[membership.player_id] && (
+                  <button
+                    onClick={() => handleShareLink(codeByPlayer[membership.player_id], membership.player_id)}
+                    aria-label={`Persoonlijke link van ${name} delen`}
+                    title="Persoonlijke link delen"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-secondary text-secondary-text"
+                  >
+                    <Share2 size={14} />
+                  </button>
                 )}
 
                 {/* Acties-menu — alleen de platform-admin */}
@@ -390,6 +445,15 @@ export default function AdminPlayers(): React.JSX.Element {
                               {changingRole === membership.player_id
                                 ? 'Bezig...'
                                 : membership.role === 'team_owner' ? 'Hoofdbeheerder verwijderen' : 'Maak hoofdbeheerder'}
+                            </button>
+                          )}
+                          {codeByPlayer[membership.player_id] && (
+                            <button
+                              onClick={() => { setOpenMenuFor(null); handleNewLink(codeByPlayer[membership.player_id], membership.player_id, name) }}
+                              className="w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 hover:bg-surface-2 text-text border-t border-border"
+                            >
+                              <RefreshCw size={15} className="text-text-muted flex-shrink-0" />
+                              Nieuwe persoonlijke link
                             </button>
                           )}
                           <button

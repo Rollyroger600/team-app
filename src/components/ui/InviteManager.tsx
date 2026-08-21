@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Share2, Link2, RefreshCw, Trash2, UserPlus, Check, AlertCircle, Clock } from 'lucide-react'
+import { Share2, Link2, RefreshCw, Trash2, UserPlus, AlertCircle, Clock } from 'lucide-react'
 import {
   useAccessCodes,
   createInvite,
@@ -15,11 +15,11 @@ import { formatCode } from '../../lib/accessCodes'
 import { tint } from '../../lib/utils'
 
 /**
- * Uitnodigingen en persoonlijke links, in Admin → Spelers.
+ * Openstaande uitnodigingen, boven de spelerslijst in Admin → Spelers.
  *
- * Twee groepen op één scherm: openstaande uitnodigingen (nog niet verzilverd) en
- * de links van mensen die er al in zitten. Die tweede groep is er omdat de vraag
- * in de praktijk "ik ben mijn link kwijt" is, niet "nodig mij uit".
+ * Alleen codes die nog niet verzilverd zijn. De link van iemand die er al in zit
+ * hoort bij zijn eigen rij in de spelerslijst -- twee lijsten met dezelfde namen
+ * onder elkaar was niet te overzien.
  */
 
 interface InviteManagerProps {
@@ -47,7 +47,6 @@ export default function InviteManager({ teamId, teamName, currentUserId }: Invit
   const [feedback, setFeedback] = useState<Record<string, string>>({})
 
   const pending = codes.filter(isPending)
-  const active = codes.filter(c => c.activated_at)
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ['accessCodes', teamId] })
@@ -109,7 +108,7 @@ export default function InviteManager({ teamId, teamName, currentUserId }: Invit
 
   const inputClass = 'w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-secondary-soft bg-surface-2 border-border text-text'
 
-  function Row({ c, showRevoke }: { c: AccessCode; showRevoke: boolean }) {
+  function Row({ c }: { c: AccessCode }) {
     const expired = isExpired(c)
     return (
       <div className="flex items-center gap-2 py-2.5 border-t border-border first:border-t-0">
@@ -146,16 +145,14 @@ export default function InviteManager({ teamId, teamName, currentUserId }: Invit
         >
           <RefreshCw size={14} />
         </button>
-        {showRevoke && (
-          <button
-            type="button"
-            onClick={() => handleRevoke(c)}
-            aria-label={`Uitnodiging voor ${c.display_name} intrekken`}
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-danger hover:bg-unavailable/10"
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => handleRevoke(c)}
+          aria-label={`Uitnodiging voor ${c.display_name} intrekken`}
+          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-danger hover:bg-unavailable/10"
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
     )
   }
@@ -178,9 +175,8 @@ export default function InviteManager({ teamId, teamName, currentUserId }: Invit
       </div>
 
       <p className="text-[11px] leading-relaxed text-text-subtle">
-        Iedereen logt in via zijn eigen link. De link zegt wie je bent; je pincode blijft
-        het geheim. Kwijt of in de verkeerde groepsapp beland? Maak een nieuwe — de oude
-        werkt dan niet meer.
+        Nodig iemand uit met een persoonlijke link. Hij kiest zelf een pincode en komt
+        meteen in dit team. De link zegt wie je bent; de pincode blijft het geheim.
       </p>
 
       {showForm && (
@@ -234,21 +230,15 @@ export default function InviteManager({ teamId, teamName, currentUserId }: Invit
           <p className="flex items-center gap-1.5 text-xs font-semibold text-text-muted mb-1">
             <Clock size={12} /> Nog niet gebruikt ({pending.length})
           </p>
-          {pending.map(c => <Row key={c.id} c={c} showRevoke />)}
+          {pending.map(c => <Row key={c.id} c={c} />)}
         </div>
       )}
 
-      {!isLoading && active.length > 0 && (
-        <div>
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-text-muted mb-1">
-            <Check size={12} /> In gebruik ({active.length})
-          </p>
-          {active.map(c => <Row key={c.id} c={c} showRevoke={false} />)}
-        </div>
-      )}
-
-      {!isLoading && codes.length === 0 && (
-        <p className="text-xs text-text-muted">Nog geen links. Nodig iemand uit om te beginnen.</p>
+      {!isLoading && pending.length === 0 && (
+        <p className="text-xs text-text-muted">
+          Geen openstaande uitnodigingen. De link van wie er al in zit staat bij de speler
+          zelf, hieronder.
+        </p>
       )}
     </div>
   )
