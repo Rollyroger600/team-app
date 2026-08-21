@@ -655,6 +655,218 @@ async function changeRole(body: Record<string, unknown>, authHeader: string | nu
   return json({ ok: true })
 }
 
+// ── Toegangscodes ─────────────────────────────────────────────────────────────
+//
+// Een code is een IDENTIFIER, geen geheim: hij zegt wie je bent, de PIN blijft het
+// bewijs dát je het bent. Daarom mogen resolve en activate zonder inlog, en levert
+// een geldige code op zichzelf nooit een sessie op.
+
+interface AccessCodeRow {
+  id: string
+  team_id: string
+  code: string
+  display_name: string
+  jersey_number: number | null
+  role: string
+  player_id: string | null
+  activated_at: string | null
+  revoked_at: string | null
+  invite_expires_at: string | null
+}
+
+/** Haalt de rij op en zegt waarom hij eventueel niet bruikbaar is. */
+async function loadAccessCode(code: unknown): Promise<
+  { row: AccessCodeRow } | { error: string; status: number }
+> {
+  if (typeof code !== 'string' || code.trim() === '') {
+    return { error: 'Geen code opgegeven', status: 400 }
+  }
+  // Streepjes en spaties zijn presentatie (ABCDE-FGHJK), geen deel van de code.
+  const normalized = code.toUpperCase().replace(/[^A-Z0-9]/g, '')
+
+  const svc = adminClient()
+  const { data } = await svc
+    .from('team_access_codes')
+    .select('id, team_id, code, display_name, jersey_number, role, player_id, activated_at, revoked_at, invite_expires_at')
+    .eq('code', normalized)
+    .maybeSingle()
+
+  // Bewust dezelfde melding voor 'bestaat niet' en 'ingetrokken': anders is dit
+  // een orakel waarmee je kunt aftasten welke codes ooit hebben bestaan.
+  if (!data) return { error: 'Deze link is niet (meer) geldig', status: 404 }
+  const row = data as AccessCodeRow
+  if (row.revoked_at) return { error: 'Deze link is niet (meer) geldig', status: 404 }
+
+  // Verlopen geldt alleen voor een uitnodiging die nog niet verzilverd is; een
+  // geactiveerde code is een vaste inlogroute en verloopt niet.
+  if (!row.activated_at && row.invite_expires_at && new Date(row.invite_expires_at) < new Date()) {
+    return { error: 'Deze uitnodiging is verlopen. Vraag je beheerder om een nieuwe link.', status: 410 }
+  }
+  return { row }
+}
+
+/**
+ * resolve_access_code — publiek. Code → wie je bent en bij welk team.
+ * Geeft NOOIT een lijst van andere spelers terug; dat is precies het lek dat deze
+ * hele stap dichtzet.
+ */
+async function resolveAccessCode(body: Record<string, unknown>) {
+  const result = await loadAccessCode(body.code)
+  if ('error' in result) return json({ error: result.error }, result.status)
+  const row = result.row
+
+  const svc = adminClient()
+  const { data: team } = await svc
+    .from('teams')
+    .select('id, name, clubs(name)')
+    .eq('id', row.team_id)
+    .single()
+
+  // has_set_pin bepaalt of de speler een PIN moet kiezen of invoeren.
+  let hasSetPin = false
+  if (row.player_id) {
+    const { data: creds } = await svc
+      .from('player_credentials')
+      .select('has_set_pin')
+      .eq('player_id', row.player_id)
+      .maybeSingle()
+    hasSetPin = creds?.has_set_pin === true
+  }
+
+  return json({
+    code: row.code,
+    display_name: row.display_name,
+    team_id: row.team_id,
+    team_name: (team as { name?: string } | null)?.name ?? null,
+    club_name: (team as { clubs?: { name?: string } } | null)?.clubs?.name ?? null,
+    activated: !!row.activated_at,
+    player_id: row.player_id,
+    has_set_pin: hasSetPin,
+  })
+}
+
+/**
+ * activate_access_code — publiek. Code + gekozen PIN → account, membership, sessie.
+ *
+ * Alleen voor een code die nog niet geactiveerd is. Een al geactiveerde code valt
+ * terug op de gewone PIN-login (set_pin/login), want daar hoort het account al bij
+ * iemand en zou activeren een overname zijn.
+ */
+async function activateAccessCode(body: Record<string, unknown>) {
+  const { pin } = body
+  const result = await loadAccessCode(body.code)
+  if ('error' in result) return json({ error: result.error }, result.status)
+  const row = result.row
+
+  if (row.activated_at || row.player_id) {
+    return json({ error: 'Deze link is al in gebruik. Log in met je PIN.', already_activated: true }, 409)
+  }
+  if (typeof pin !== 'string' || !/^\d{4,6}$/.test(pin)) {
+    return json({ error: 'PIN moet 4 tot 6 cijfers bevatten' }, 400)
+  }
+
+  const svc = adminClient()
+  const provisioned = await provisionPlayer(svc, {
+    full_name: row.display_name,
+    display_name: row.display_name,
+    jersey_number: row.jersey_number ?? undefined,
+  })
+  if ('error' in provisioned) return json({ error: provisioned.error }, 500)
+
+  const { error: membershipError } = await svc.from('team_memberships').upsert({
+    team_id:       row.team_id,
+    player_id:     provisioned.playerId,
+    role:          row.role,
+    display_name:  row.display_name,
+    jersey_number: row.jersey_number,
+    active:        true,
+  }, { onConflict: 'team_id,player_id' })
+  if (membershipError) {
+    await svc.auth.admin.deleteUser(provisioned.playerId)
+    return json({ error: 'Kon lidmaatschap niet aanmaken: ' + membershipError.message }, 500)
+  }
+
+  // De code claimen vóór de PIN wordt gezet: als twee mensen dezelfde link tegelijk
+  // openen, verliest de tweede hier en niet pas na het kiezen van een PIN.
+  const { data: claimed } = await svc
+    .from('team_access_codes')
+    .update({ player_id: provisioned.playerId, activated_at: new Date().toISOString() })
+    .eq('id', row.id)
+    .is('player_id', null)
+    .select('id')
+    .maybeSingle()
+  if (!claimed) {
+    await svc.from('team_memberships').delete()
+      .eq('team_id', row.team_id).eq('player_id', provisioned.playerId)
+    await svc.auth.admin.deleteUser(provisioned.playerId)
+    return json({ error: 'Deze link is zojuist al gebruikt. Log in met je PIN.', already_activated: true }, 409)
+  }
+
+  const pinHash = await bcrypt.hash(pin, 10)
+  const { data: creds, error: credError } = await svc
+    .from('player_credentials')
+    .update({ pin_hash: pinHash, has_set_pin: true })
+    .eq('player_id', provisioned.playerId)
+    .select('internal_email, internal_password')
+    .single()
+  if (credError || !creds) return json({ error: 'Kon PIN niet opslaan' }, 500)
+
+  const { data: session, error: signInError } = await svc.auth.signInWithPassword({
+    email:    creds.internal_email,
+    password: creds.internal_password,
+  })
+  if (signInError) return json({ error: signInError.message }, 500)
+
+  return json({ session: session.session, player_id: provisioned.playerId, team_id: row.team_id })
+}
+
+/**
+ * link_access_code — ingelogd. Koppelt een openstaande code aan je bestaande
+ * profiel, zodat je in een tweede team komt zonder tweede account.
+ *
+ * Dit is de multi-team-route: precies wat "welke Hidde is welke" oplost, want de
+ * code hangt aan één rosterplek en niet aan een naam.
+ */
+async function linkAccessCode(body: Record<string, unknown>, authHeader: string | null) {
+  const caller = await resolveCaller(authHeader)
+  if (!caller) return json({ error: 'Niet geauthenticeerd' }, 401)
+
+  const result = await loadAccessCode(body.code)
+  if ('error' in result) return json({ error: result.error }, result.status)
+  const row = result.row
+
+  if (row.player_id && row.player_id !== caller.user.id) {
+    return json({ error: 'Deze link hoort bij iemand anders' }, 409)
+  }
+  if (row.player_id === caller.user.id) {
+    return json({ ok: true, team_id: row.team_id, already_linked: true })
+  }
+
+  const svc = adminClient()
+  const { error: membershipError } = await svc.from('team_memberships').upsert({
+    team_id:       row.team_id,
+    player_id:     caller.user.id,
+    role:          row.role,
+    display_name:  row.display_name,
+    jersey_number: row.jersey_number,
+    active:        true,
+  }, { onConflict: 'team_id,player_id' })
+  if (membershipError) {
+    return json({ error: 'Kon lidmaatschap niet aanmaken: ' + membershipError.message }, 500)
+  }
+
+  const { data: claimed } = await svc
+    .from('team_access_codes')
+    .update({ player_id: caller.user.id, activated_at: new Date().toISOString() })
+    .eq('id', row.id)
+    .is('player_id', null)
+    .select('id')
+    .maybeSingle()
+  if (!claimed) return json({ error: 'Deze link is zojuist al gebruikt' }, 409)
+
+  return json({ ok: true, team_id: row.team_id })
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -677,6 +889,9 @@ Deno.serve(async (req) => {
       case 'change_role':           return changeRole(body, authHeader)
       case 'impersonate':           return impersonate(body, authHeader)
       case 'set_captain':           return setCaptain(body, authHeader)
+      case 'resolve_access_code':   return resolveAccessCode(body)
+      case 'activate_access_code':  return activateAccessCode(body)
+      case 'link_access_code':      return linkAccessCode(body, authHeader)
       default:
         return json({ error: `Onbekende actie: ${action}` }, 400)
     }
