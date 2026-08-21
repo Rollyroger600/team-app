@@ -12,7 +12,7 @@ const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
  * rejected by the edge function as "Niet geauthenticeerd" even though
  * the user is still logged in.
  */
-async function getFreshAccessToken(): Promise<string | null> {
+export async function getFreshAccessToken(): Promise<string | null> {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return null
   const expiresAtMs = (session.expires_at ?? 0) * 1000

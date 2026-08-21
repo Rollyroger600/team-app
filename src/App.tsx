@@ -14,6 +14,7 @@ import PageLoader from './components/ui/PageLoader'
 // Pages — lazy-loaded so a visit only downloads the page actually opened
 // (the whole app used to ship as one ~650KB bundle; see CLAUDE.md).
 const Login = lazy(() => import('./pages/Login'))
+const Invite = lazy(() => import('./pages/Invite'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Matches = lazy(() => import('./pages/Matches'))
 const MatchDetail = lazy(() => import('./pages/MatchDetail'))
@@ -70,6 +71,8 @@ export default function App() {
       <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/* Persoonlijke uitnodigingslink. Publiek: de code zegt wie je bent, de PIN blijft het geheim. */}
+        <Route path="/i/:code" element={<Invite />} />
         <Route path="/debug" element={<Debug />} />
 
         <Route element={<ProtectedRoute />}>

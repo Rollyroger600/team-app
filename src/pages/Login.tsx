@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { AlertCircle, ChevronLeft } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import {
   getPlayersForLogin,
   getPlayersForLoginBySlug,
@@ -10,8 +10,9 @@ import {
 } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { storeActiveTeamId } from '../lib/activeTeam'
+import { readStoredCode } from '../lib/accessCodes'
+import { PinInput, ErrorBox } from '../components/ui/PinInput'
 import useAuthStore from '../stores/useAuthStore'
-import React from 'react'
 
 type Step = 'team' | 'name' | 'pin' | 'setup_pin'
 
@@ -39,8 +40,21 @@ export default function Login() {
   const [confirmPin, setConfirmPin] = useState('')
   const [pinStep, setPinStep] = useState<'enter' | 'confirm'>('enter')
 
-  // ── On mount: check for slug params, env defaults, or load clubs ──────────
+  // ── On mount: onthouden code, dan slugs, dan de gewone kiezer ─────────────
+  //
+  // De code-tak staat vóór de slug-tak, want `.env.example` levert
+  // VITE_DEFAULT_*_SLUG mee en die zou anders altijd winnen.
+  //
+  // De club/team/naam-kiezer blijft bewust bestaan als terugval. Pas als iedereen
+  // een keer via zijn eigen link binnen is gekomen kan die eruit (1-S-b) — anders
+  // staat wie zijn link kwijt is midden in het seizoen buiten.
   useEffect(() => {
+    const storedCode = readStoredCode()
+    if (storedCode) {
+      navigate(`/i/${storedCode}`, { replace: true })
+      return
+    }
+
     const clubSlug = searchParams.get('club') || import.meta.env.VITE_DEFAULT_CLUB_SLUG
     const teamSlug = searchParams.get('team') || import.meta.env.VITE_DEFAULT_TEAM_SLUG
 
@@ -373,89 +387,6 @@ export default function Login() {
 
         </div>
       </div>
-    </div>
-  )
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-interface PinInputProps {
-  value: string
-  onChange: (v: string) => void
-  onComplete: (v: string) => void
-  loading: boolean
-}
-
-function PinInput({ value, onChange, onComplete, loading }: PinInputProps) {
-  function handleKey(d: number | 'del') {
-    if (loading) return
-    if (d === 'del') {
-      onChange(value.slice(0, -1))
-      return
-    }
-    const next = value + String(d)
-    if (next.length > 6) return
-    onChange(next)
-    // Pass the fresh value directly — avoids relying on a closure over
-    // state that hasn't re-rendered yet.
-    if (next.length === 6) onComplete(next)
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* PIN dots */}
-      <div className="flex justify-center gap-3">
-        {[0, 1, 2, 3, 4, 5].map(i => (
-          <div
-            key={i}
-            className={`w-3 h-3 rounded-full border-2 transition-all ${
-              i < value.length
-                ? 'bg-secondary-soft border-secondary-soft'
-                : 'border-border bg-transparent'
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Numpad */}
-      <div className="grid grid-cols-3 gap-2">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => (
-          <button
-            key={d}
-            onClick={() => handleKey(d)}
-            className="py-4 rounded-xl text-lg font-semibold transition-colors bg-surface-2 hover:bg-border text-text active:scale-95"
-          >
-            {d}
-          </button>
-        ))}
-        {/* empty slot */}
-        <div />
-        <button
-          onClick={() => handleKey(0)}
-          className="py-4 rounded-xl text-lg font-semibold transition-colors bg-surface-2 hover:bg-border text-text active:scale-95"
-        >
-          0
-        </button>
-        <button
-          onClick={() => handleKey('del')}
-          className="py-4 rounded-xl text-lg font-semibold transition-colors bg-surface-2 hover:bg-border text-text active:scale-95"
-        >
-          ⌫
-        </button>
-      </div>
-    </div>
-  )
-}
-
-interface ErrorBoxProps {
-  children: React.ReactNode
-}
-
-function ErrorBox({ children }: ErrorBoxProps) {
-  return (
-    <div className="flex items-center gap-2 text-sm text-danger bg-unavailable/10 border border-unavailable/20 rounded-lg px-3 py-2">
-      <AlertCircle size={14} className="flex-shrink-0" />
-      {children}
     </div>
   )
 }
