@@ -144,3 +144,44 @@ export async function generateTrainings(
   const aangemaakt = data?.length ?? 0
   return { aangemaakt, bestond: dates.length - aangemaakt }
 }
+
+/**
+ * Het venster dat op Home getoond wordt: van vandaag tot en met zondag van deze
+ * week.
+ *
+ * Twee dingen die makkelijk fout gaan. JS telt zondag als dag 0, terwijl een
+ * Nederlandse week op maandag begint — vandaar de `(getDay() + 6) % 7`. En de
+ * ondergrens is *vandaag*, niet maandag: een training die geweest is hoort van
+ * Home af, ook als hij deze week viel. Op maandag valt het venster dus vanzelf
+ * samen met de hele nieuwe week.
+ */
+export function homeWeekRange(now: Date = new Date()): { from: string; to: string } {
+  const zondag = new Date(now)
+  const dagenTotZondag = 6 - ((now.getDay() + 6) % 7)
+  zondag.setDate(zondag.getDate() + dagenTotZondag)
+  return { from: toISODate(now), to: toISODate(zondag) }
+}
+
+/**
+ * Trainingen voor de Home-kaart: deze week, vanaf vandaag, niet afgelast.
+ * Aparte query key van useTrainings() zodat Home niet de hele historie ophaalt.
+ */
+export function useHomeTrainings(teamId: string | undefined, enabled = true) {
+  const { from, to } = homeWeekRange()
+  return useQuery<Training[]>({
+    queryKey: ['homeTrainings', teamId, from, to],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('trainings')
+        .select(TRAINING_SELECT)
+        .eq('team_id', teamId!)
+        .eq('status', 'scheduled')
+        .gte('training_date', from)
+        .lte('training_date', to)
+        .order('training_date', { ascending: true })
+        .order('start_time', { ascending: true })
+      return (data as unknown as Training[]) || []
+    },
+    enabled: !!teamId && enabled,
+  })
+}

@@ -12,6 +12,8 @@ import useTeamStore from '../stores/useTeamStore'
 import { useRealtimeInvalidate } from '../lib/realtime'
 import { formatDate, formatTime } from '../lib/utils'
 import { PLAYER_STATUSES } from '../lib/availability'
+import { useHomeTrainings } from '../lib/trainings'
+import TrainingCard from '../components/ui/TrainingCard'
 import { useOpponentName } from '../lib/opponents'
 import { formatGatheringDisplay } from '../lib/gathering'
 import { groupDuties } from '../components/ui/UmpireCard'
@@ -157,6 +159,13 @@ export default function Dashboard() {
     enabled: !!activeTeam?.id && teamSettings.fluitbeurten_enabled,
   })
 
+  // Trainingen van deze week, vanaf vandaag. Query is ook gegate op de toggle:
+  // zonder dat haalt elk team zonder trainingen alsnog elke keer een lege lijst op.
+  const { data: homeTrainings = [] } = useHomeTrainings(
+    activeTeam?.id,
+    teamSettings.trainingen_enabled,
+  )
+
   // Podiums (Topscorer / MVP) — shares the same query/cache as the Stats page
   const { data: teamStats } = useTeamStats(activeTeam?.id)
   const topscorers = topByGoals(teamStats?.players || [])
@@ -285,6 +294,16 @@ export default function Dashboard() {
         <div className="rounded-xl p-6 border text-center bg-surface border-border">
           <Calendar size={32} className="mx-auto mb-2 text-text-faint" />
           <p className="text-text-muted">Geen aankomende wedstrijden</p>
+        </div>
+      )}
+
+      {/* Trainingen deze week — een training die geweest is valt vanzelf uit het
+          venster, en op maandag staat de nieuwe week er weer. */}
+      {teamSettings.trainingen_enabled && homeTrainings.length > 0 && user && activeTeam && (
+        <div className="space-y-3">
+          {homeTrainings.map(t => (
+            <TrainingCard key={t.id} training={t} teamId={activeTeam.id} playerId={user.id} />
+          ))}
         </div>
       )}
 
