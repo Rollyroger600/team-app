@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
-import { leagueTeamDisplayName } from '../lib/utils'
+import { leagueTeamDisplayName, tint } from '../lib/utils'
 import { useOpponentName } from '../lib/opponents'
 import React from 'react'
 
@@ -772,6 +772,10 @@ interface MiniStandingsProps {
 }
 
 function MiniStandings({ matches, teams }: MiniStandingsProps) {
+  // Standaard de compacte stand; doelpunten voor/tegen en doelsaldo staan een tik
+  // verderop voor wie ze wil zien.
+  const [detailed, setDetailed] = useState(false)
+
   const standings = useMemo((): StandingRow[] => {
     const table: Record<string, StandingRow> = {}
     teams.forEach((t) => {
@@ -834,47 +838,91 @@ function MiniStandings({ matches, teams }: MiniStandingsProps) {
 
   if (standings.length === 0) return null
 
+  // Uitgeklapt komen er drie kolommen bij, dus tien in totaal. Op een telefoon
+  // moet dat passen: kleinere letter, smallere celpadding en een teamnaam die
+  // mag afkappen. De wrapper mag horizontaal scrollen als het tóch niet past --
+  // de pagina zelf hoort nooit mee te schuiven.
+  const cell = detailed ? 'px-1 py-2' : 'px-2 py-2.5'
+  const nameCell = detailed ? 'px-2 py-2' : 'px-3 py-2.5'
+
   return (
     <div className="rounded-xl border overflow-hidden bg-surface border-border">
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
         <h3 className="font-semibold text-sm">Stand</h3>
+        <button
+          type="button"
+          onClick={() => setDetailed((v) => !v)}
+          aria-expanded={detailed}
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors text-secondary-soft hover:bg-surface-2"
+        >
+          Doelsaldo
+          {detailed ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        </button>
       </div>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="text-text-muted bg-surface-2">
-            <th className="text-left px-3 py-2 font-medium w-6">#</th>
-            <th className="text-left px-3 py-2 font-medium">Team</th>
-            <th className="text-center px-2 py-2 font-medium">G</th>
-            <th className="text-center px-2 py-2 font-medium">W</th>
-            <th className="text-center px-2 py-2 font-medium">D</th>
-            <th className="text-center px-2 py-2 font-medium">V</th>
-            <th className="text-center px-2 py-2 font-medium">Pnt</th>
-          </tr>
-        </thead>
-        <tbody>
-          {standings.map((row, i) => (
-            <tr
-              key={row.id}
-              className="border-t border-border"
-              style={{
-                backgroundColor: row.is_own_team ? 'rgba(245,158,11,0.08)' : 'transparent',
-              }}
-            >
-              <td className="px-3 py-2.5 text-text-muted">
-                {i + 1}
-              </td>
-              <td className={`px-3 py-2.5 font-medium ${row.is_own_team ? 'text-secondary-soft' : ''}`}>
-                {row.name}
-              </td>
-              <td className="text-center px-2 py-2.5 text-text-muted">{row.played}</td>
-              <td className="text-center px-2 py-2.5 text-text-muted">{row.won}</td>
-              <td className="text-center px-2 py-2.5 text-text-muted">{row.drawn}</td>
-              <td className="text-center px-2 py-2.5 text-text-muted">{row.lost}</td>
-              <td className="text-center px-2 py-2.5 font-bold">{row.points}</td>
+
+      <div className="overflow-x-auto">
+        <table className={`w-full ${detailed ? 'text-[11px]' : 'text-xs'}`}>
+          <thead>
+            <tr className="text-text-muted bg-surface-2">
+              <th className={`text-left ${nameCell} font-medium w-6`}>#</th>
+              <th className={`text-left ${nameCell} font-medium`}>Team</th>
+              <th className={`text-center ${cell} font-medium`}>G</th>
+              <th className={`text-center ${cell} font-medium`}>W</th>
+              <th className={`text-center ${cell} font-medium`}>D</th>
+              <th className={`text-center ${cell} font-medium`}>V</th>
+              {detailed && (
+                <>
+                  <th className={`text-center ${cell} font-medium`}>DV</th>
+                  <th className={`text-center ${cell} font-medium`}>DT</th>
+                  <th className={`text-center ${cell} font-medium`}>DS</th>
+                </>
+              )}
+              <th className={`text-center ${cell} font-medium`}>Pnt</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {standings.map((row, i) => {
+              const gd = row.gf - row.ga
+              return (
+                <tr
+                  key={row.id}
+                  className="border-t border-border"
+                  style={{
+                    backgroundColor: row.is_own_team ? tint('--color-secondary', 8) : 'transparent',
+                  }}
+                >
+                  <td className={`${nameCell} text-text-muted`}>{i + 1}</td>
+                  <td className={`${nameCell} font-medium ${detailed ? 'max-w-[7rem] truncate' : ''} ${row.is_own_team ? 'text-secondary-soft' : ''}`}>
+                    {row.name}
+                  </td>
+                  <td className={`text-center ${cell} text-text-muted`}>{row.played}</td>
+                  <td className={`text-center ${cell} text-text-muted`}>{row.won}</td>
+                  <td className={`text-center ${cell} text-text-muted`}>{row.drawn}</td>
+                  <td className={`text-center ${cell} text-text-muted`}>{row.lost}</td>
+                  {detailed && (
+                    <>
+                      <td className={`text-center ${cell} text-text-muted`}>{row.gf}</td>
+                      <td className={`text-center ${cell} text-text-muted`}>{row.ga}</td>
+                      {/* Teken expliciet, zodat +1 en -1 niet op elkaar lijken. */}
+                      <td className={`text-center ${cell} text-text-muted tabular-nums`}>
+                        {gd > 0 ? `+${gd}` : gd}
+                      </td>
+                    </>
+                  )}
+                  <td className={`text-center ${cell} font-bold`}>{row.points}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {detailed && (
+        <p className="px-4 py-2.5 border-t border-border text-[11px] leading-relaxed text-text-subtle">
+          G = gespeeld, W = gewonnen, D = gelijk, V = verloren, DV = doelpunten voor,
+          DT = doelpunten tegen, DS = doelsaldo, Pnt = punten
+        </p>
+      )}
     </div>
   )
 }
