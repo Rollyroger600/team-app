@@ -11,6 +11,7 @@ import { createPlayer, resetPlayerPin, changePlayerRole, setPlayerCaptain, getPl
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
 import { useIsTeamOwner } from '../../lib/permissions'
+import InviteManager from '../../components/ui/InviteManager'
 import type { Profile } from '../../types/app'
 
 interface PlayerMembership {
@@ -38,7 +39,7 @@ interface ActionResult {
 export default function AdminPlayers(): React.JSX.Element {
   const navigate = useNavigate()
   const { activeTeam } = useTeamStore()
-  const { loadProfile } = useAuthStore()
+  const { loadProfile, profile } = useAuthStore()
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState<AddForm>({ full_name: '', display_name: '', jersey_number: '' })
@@ -203,6 +204,15 @@ export default function AdminPlayers(): React.JSX.Element {
         <span className="flex items-center gap-1"><AlertCircle size={12} className="text-orange-400" /> PIN niet ingesteld</span>
         <span className="flex items-center gap-1"><Lock size={12} className="text-danger" /> Geblokkeerd</span>
       </div>
+
+      {/* Persoonlijke links */}
+      {canManage && activeTeam?.id && (
+        <InviteManager
+          teamId={activeTeam.id}
+          teamName={activeTeam.name}
+          currentUserId={profile?.id ?? null}
+        />
+      )}
 
       {/* Speler toevoegen */}
       {showAdd && (

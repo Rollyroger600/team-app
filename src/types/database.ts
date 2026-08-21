@@ -901,6 +901,73 @@ export type Database = {
         }
         Relationships: []
       }
+      team_access_codes: {
+        Row: {
+          activated_at: string | null
+          code: string
+          created_at: string | null
+          created_by: string | null
+          display_name: string
+          id: string
+          invite_expires_at: string | null
+          jersey_number: number | null
+          player_id: string | null
+          revoked_at: string | null
+          role: string
+          team_id: string
+        }
+        Insert: {
+          activated_at?: string | null
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          display_name: string
+          id?: string
+          invite_expires_at?: string | null
+          jersey_number?: number | null
+          player_id?: string | null
+          revoked_at?: string | null
+          role?: string
+          team_id: string
+        }
+        Update: {
+          activated_at?: string | null
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          display_name?: string
+          id?: string
+          invite_expires_at?: string | null
+          jersey_number?: number | null
+          player_id?: string | null
+          revoked_at?: string | null
+          role?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_access_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_access_codes_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_access_codes_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_memberships: {
         Row: {
           active: boolean | null
@@ -1168,6 +1235,7 @@ export type Database = {
       }
     }
     Functions: {
+      generate_access_code: { Args: never; Returns: string }
       get_team_players_for_login: {
         Args: { p_team_id: string }
         Returns: {

@@ -134,3 +134,14 @@ WHERE tm.active
     SELECT 1 FROM team_access_codes tac
     WHERE tac.team_id = tm.team_id AND tac.player_id = tm.player_id
   );
+
+-- Een ingelogde beheerder moet zelf een code kunnen laten maken (uitnodigen,
+-- vernieuwen). De functie geeft alleen een verse willekeurige string terug en
+-- nooit gegevens, dus EXECUTE is hier onschadelijk; wie een rij mág toevoegen
+-- regelt de RLS-policy hierboven. anon houdt geen rechten.
+GRANT EXECUTE ON FUNCTION public.generate_access_code() TO authenticated;
+
+-- Als kolomstandaard, zodat de client bij een INSERT helemaal geen code hoeft mee
+-- te geven. Zo blijft de generatie op één plek en kan er geen tweede, afwijkende
+-- implementatie in de frontend ontstaan.
+ALTER TABLE team_access_codes ALTER COLUMN code SET DEFAULT generate_access_code();
