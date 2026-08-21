@@ -10,7 +10,7 @@ import {
 } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { storeActiveTeamId } from '../lib/activeTeam'
-import { readStoredCode } from '../lib/accessCodes'
+import { readStoredCode, normalizeCode, formatCode, resolveAccessCode } from '../lib/accessCodes'
 import { PinInput, ErrorBox } from '../components/ui/PinInput'
 import useAuthStore from '../stores/useAuthStore'
 
@@ -39,6 +39,14 @@ export default function Login() {
   const [pin, setPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
   const [pinStep, setPinStep] = useState<'enter' | 'confirm'>('enter')
+
+  // Code-invoer: de weg terug voor wie geen namenlijst heeft (of straks, na 1-S-b,
+  // wanneer die er niet meer is). Vooral nodig voor de homescherm-app op iOS: die
+  // heeft een eigen opslag, dus een link die je in Safari opent bereikt hem nooit.
+  const [showCode, setShowCode] = useState(false)
+  const [codeInput, setCodeInput] = useState('')
+  const [codeError, setCodeError] = useState('')
+  const [codeBusy, setCodeBusy] = useState(false)
 
   // ── On mount: onthouden code, dan slugs, dan de gewone kiezer ─────────────
   //
@@ -192,6 +200,20 @@ export default function Login() {
     setLoading(false)
     if (result.error) { setError(result.error); return }
     if (result.session) await finishLogin()
+  }
+
+  async function handleCodeSubmit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault()
+    const code = normalizeCode(codeInput)
+    if (code.length !== 10) return
+    setCodeBusy(true)
+    setCodeError('')
+    // Eerst oplossen in plaats van meteen doorsturen: een typefout hoort hier een
+    // melding te geven, niet een sprong naar een foutpagina en weer terug.
+    const result = await resolveAccessCode(code)
+    setCodeBusy(false)
+    if (result.error) { setCodeError(result.error); return }
+    navigate(`/i/${code}`)
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -381,6 +403,59 @@ export default function Login() {
                 >
                   ← Andere pincode kiezen
                 </button>
+              )}
+            </div>
+          )}
+
+          {/* Persoonlijke code — alleen zolang je jezelf nog niet gekozen hebt. */}
+          {(step === 'team' || step === 'name') && (
+            <div className="mt-5 pt-4 border-t border-border">
+              {!showCode ? (
+                <button
+                  onClick={() => { setShowCode(true); setCodeError('') }}
+                  className="w-full text-xs text-text-muted hover:text-text"
+                >
+                  Ik heb een persoonlijke link of code
+                </button>
+              ) : (
+                <form onSubmit={handleCodeSubmit} className="space-y-2">
+                  <label className="block text-xs font-medium text-text-muted">
+                    Persoonlijke code
+                  </label>
+                  <input
+                    type="text"
+                    value={codeInput}
+                    onChange={(e) => { setCodeInput(e.target.value); setCodeError('') }}
+                    placeholder="ABCDE-FGHJK"
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    autoFocus
+                    className="w-full px-3 py-2.5 rounded-xl border text-sm font-mono tracking-wider outline-none transition-colors focus:border-secondary-soft bg-surface-2 border-border text-text"
+                  />
+                  {normalizeCode(codeInput).length > 0 && normalizeCode(codeInput).length < 10 && (
+                    <p className="text-[11px] text-text-subtle">
+                      Nog {10 - normalizeCode(codeInput).length} teken
+                      {10 - normalizeCode(codeInput).length === 1 ? '' : 's'} te gaan
+                      {normalizeCode(codeInput).length >= 5 && ` — ${formatCode(normalizeCode(codeInput))}`}
+                    </p>
+                  )}
+                  {codeError && <ErrorBox>{codeError}</ErrorBox>}
+                  <button
+                    type="submit"
+                    disabled={normalizeCode(codeInput).length !== 10 || codeBusy}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 bg-secondary text-secondary-text"
+                  >
+                    {codeBusy ? 'Bezig...' : 'Verder'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowCode(false); setCodeInput(''); setCodeError('') }}
+                    className="w-full text-xs text-text-muted"
+                  >
+                    Toch mijn naam kiezen
+                  </button>
+                </form>
               )}
             </div>
           )}
