@@ -50,6 +50,9 @@ export interface TeamSettings {
   // zie dutyDateFor() in lib/utils.ts.
   fluitbeurten_relative_to_match: 'before' | 'after' | 'match_day'
   gathering_banner_enabled: boolean
+  // Stap 2: uit = geen poule-weergave. De eigen wedstrijdenlijst blijft altijd
+  // staan, die hangt aan `matches` en niet aan een league.
+  competitie_enabled: boolean
 }
 
 // The boolean-valued subset of TeamSettings — used to type any "hide/gate this if

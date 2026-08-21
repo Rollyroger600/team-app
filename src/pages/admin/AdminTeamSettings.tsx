@@ -19,6 +19,7 @@ interface TeamSettingsForm {
   match_squad_size: number
   gathering_rounding_minutes: number
   potjescup_enabled: boolean
+  competitie_enabled: boolean
   potjescup_rules_text: string
   fluitbeurten_enabled: boolean
   fluitbeurten_mode: 'auto' | 'manual'
@@ -45,6 +46,7 @@ export default function AdminTeamSettings(): React.JSX.Element {
     match_squad_size: 16,
     gathering_rounding_minutes: 15,
     potjescup_enabled: true,
+    competitie_enabled: true,
     potjescup_rules_text: '',
     fluitbeurten_enabled: true,
     fluitbeurten_mode: 'auto',
@@ -75,6 +77,7 @@ export default function AdminTeamSettings(): React.JSX.Element {
         match_squad_size: activeTeam.match_squad_size ?? 16,
         gathering_rounding_minutes: activeTeam.gathering_rounding_minutes ?? 15,
         potjescup_enabled: activeTeam.potjescup_enabled ?? true,
+        competitie_enabled: activeTeam.competitie_enabled ?? true,
         // Nog niets opgeslagen? Start dan vanaf de huidige standaardtekst, zodat er
         // iets zinnigs staat om vanaf te bewerken i.p.v. een leeg vak.
         potjescup_rules_text: activeTeam.potjescup_rules_text || DEFAULT_POTJESCUP_RULES.join('\n\n'),
@@ -234,6 +237,19 @@ export default function AdminTeamSettings(): React.JSX.Element {
 
         <div className="rounded-xl p-4 border space-y-4 bg-surface border-border">
           <h2 className="font-semibold text-sm text-text-soft uppercase tracking-wide">Functies</h2>
+
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.competitie_enabled}
+                     onChange={(e) => handleChange('competitie_enabled', e.target.checked)}
+                     className={checkboxClass} />
+              <span className="text-sm">Competitie</span>
+            </label>
+            <p className="pl-6 text-xs text-text-subtle">
+              Uit = geen poulestand en geen &quot;Hele poule&quot;-weergave. De eigen wedstrijden
+              blijven gewoon staan, ook oefenwedstrijden.
+            </p>
+          </div>
 
           <div className="space-y-3">
             <label className="flex items-center gap-2 cursor-pointer">

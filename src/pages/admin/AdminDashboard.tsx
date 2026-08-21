@@ -4,13 +4,25 @@ import { Users, Calendar, Trophy, Flag, MessageSquare, Settings, BarChart2, Plus
 import type { LucideIcon } from 'lucide-react'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
+import { useIsTeamOwner } from '../../lib/permissions'
+import type { BooleanSettingKey } from '../../types/app'
 
 interface AdminSection {
   title: string
   description: string
   icon: LucideIcon
   to: string
+  // Icon chip. Colours come from --color-* tokens only; a raw Tailwind class
+  // (text-pink-400 and friends) only looks right in one of the three themes.
+  // chart-1..5 are the app's five neutral hues -- reused here because the tiles
+  // need exactly that: distinguishable, theme-aware, and not status colours.
   color: string
+  // Hide the tile when this team setting is off. Same mechanism as BottomNav's
+  // navItems[].flag and More.tsx's tab array.
+  flag?: BooleanSettingKey
+  // Hoofdbeheerder-only. Matches what the enforce_team_owner_only_settings
+  // trigger enforces server-side -- this only removes the tile.
+  ownerOnly?: boolean
 }
 
 const adminSections: AdminSection[] = [
@@ -19,7 +31,8 @@ const adminSections: AdminSection[] = [
     description: 'Competitie scores',
     icon: BarChart2,
     to: '/admin/league/results',
-    color: 'bg-pink-500/20 text-pink-400',
+    color: 'bg-chart-5/20 text-chart-5',
+    flag: 'competitie_enabled',
   },
   {
     title: 'Potjescup',
@@ -27,20 +40,21 @@ const adminSections: AdminSection[] = [
     icon: Medal,
     to: '/admin/potjescup',
     color: 'bg-warning/20 text-warning',
+    flag: 'potjescup_enabled',
   },
   {
     title: 'Aanwezigheid',
     description: 'Overzicht per speler, per wedstrijd',
     icon: CalendarClock,
     to: '/admin/attendance',
-    color: 'bg-cyan-500/20 text-cyan-400',
+    color: 'bg-chart-3/20 text-chart-3',
   },
   {
     title: 'Bericht plaatsen',
     description: 'Aankondigingen versturen',
     icon: MessageSquare,
     to: '/admin/announcements/new',
-    color: 'bg-teal-500/20 text-teal-400',
+    color: 'bg-chart-4/20 text-chart-4',
   },
   {
     title: 'Spelers',
@@ -62,20 +76,23 @@ const adminSections: AdminSection[] = [
     icon: Trophy,
     to: '/admin/league',
     color: 'bg-secondary/20 text-secondary-soft',
+    flag: 'competitie_enabled',
   },
   {
     title: 'Comp. wedstrijden',
     description: 'Wedstrijden importeren',
     icon: Calendar,
     to: '/admin/league/matches',
-    color: 'bg-purple-500/20 text-purple-400',
+    color: 'bg-chart-1/20 text-chart-1',
+    flag: 'competitie_enabled',
   },
   {
     title: 'Fluitbeurten',
     description: 'Umpire schema beheren',
     icon: Flag,
     to: '/admin/umpire',
-    color: 'bg-orange-500/20 text-orange-400',
+    color: 'bg-chart-2/20 text-chart-2',
+    flag: 'fluitbeurten_enabled',
   },
   {
     title: 'Team instellingen',
@@ -83,12 +100,18 @@ const adminSections: AdminSection[] = [
     icon: Settings,
     to: '/admin/settings',
     color: 'bg-text-subtle/20 text-text-muted',
+    ownerOnly: true,
   },
 ]
 
 export default function AdminDashboard(): React.JSX.Element {
-  const { activeTeam } = useTeamStore()
+  const { activeTeam, teamSettings } = useTeamStore()
   const { user, profile, signOut } = useAuthStore()
+  const isOwner = useIsTeamOwner()
+
+  const sections = adminSections.filter(
+    (s) => (!s.flag || teamSettings[s.flag]) && (!s.ownerOnly || isOwner)
+  )
 
   return (
     <div className="p-4 space-y-4 pb-8">
@@ -114,7 +137,7 @@ export default function AdminDashboard(): React.JSX.Element {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {adminSections.map(({ title, description, icon: Icon, to, color }) => (
+        {sections.map(({ title, description, icon: Icon, to, color }) => (
           <Link
             key={to}
             to={to}

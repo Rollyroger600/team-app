@@ -1,13 +1,12 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Trophy, Calendar, PlusCircle, ChevronRight, ChevronDown, ChevronUp, Target, Plus, Trash2 } from 'lucide-react'
+import { Trophy, Calendar, PlusCircle, ChevronDown, ChevronUp, Target, Plus, Trash2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
 import { leagueTeamDisplayName } from '../lib/utils'
 import { useOpponentName } from '../lib/opponents'
-import { statusDef } from '../lib/availability'
 import React from 'react'
 
 interface TabDef {
@@ -881,7 +880,7 @@ function MiniStandings({ matches, teams }: MiniStandingsProps) {
 }
 
 export default function Matches() {
-  const { activeTeam } = useTeamStore()
+  const { activeTeam, teamSettings } = useTeamStore()
   const { isTeamAdmin, isPlatformAdmin } = useAuthStore()
   const isAdmin = isTeamAdmin(activeTeam?.id ?? '') || isPlatformAdmin()
 
@@ -889,15 +888,21 @@ export default function Matches() {
   const [ownOnly, setOwnOnly] = useState(true)
 
   const { data, isLoading: loading } = useQuery<MatchesQueryData>({
-    queryKey: ['matches', activeTeam?.id],
+    // De toggle hoort in de key: anders blijft de oude, mét-poule uitkomst in de
+    // cache staan als een Hoofdbeheerder de competitie uitzet.
+    queryKey: ['matches', activeTeam?.id, teamSettings.competitie_enabled],
     queryFn: async (): Promise<MatchesQueryData> => {
-      const { data: leagueData } = await supabase
-        .from('leagues')
-        .select('*')
-        .eq('team_id', activeTeam!.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      // Met de competitie-toggle uit wordt de poule niet eens opgehaald; het scherm
+      // valt dan door naar exact dezelfde tak als een team dat geen poule heeft.
+      const { data: leagueData } = teamSettings.competitie_enabled
+        ? await supabase
+            .from('leagues')
+            .select('*')
+            .eq('team_id', activeTeam!.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null }
 
       // Own matches are loaded regardless of whether a league exists — a team can
       // play only friendlies, and even a team with a poule has fixtures that have
@@ -971,6 +976,9 @@ export default function Matches() {
     enabled: !!activeTeam?.id,
   })
 
+  // Met de competitie-toggle uit gedraagt het scherm zich exact als een team
+  // zonder poule: geen stand, geen "Hele poule"-tab, geen league-header. De
+  // gegevens worden nog wel geladen, zodat aanzetten meteen weer werkt.
   const league = data?.league || null
   const leagueTeams = data?.leagueTeams || []
   const matches = data?.matches || []
@@ -1022,31 +1030,22 @@ export default function Matches() {
     [matches, today]
   )
 
-  const resultsMatches = useMemo(() => {
-    const all = matches
+  // The three lists below only ever render in the "Hele poule" view, so they no
+  // longer need an ownOnly branch — the own-team side is fed from `matches`.
+  const resultsMatches = useMemo(
+    () => matches
       .filter((m) => m.match_date < today && m.score_home !== null)
-      .sort((a, b) => (a.match_date < b.match_date ? 1 : -1))
-    if (ownOnly) return all.filter(m => m.home_team?.is_own_team || m.away_team?.is_own_team)
-    return all
-  }, [matches, today, ownOnly])
+      .sort((a, b) => (a.match_date < b.match_date ? 1 : -1)),
+    [matches, today]
+  )
 
-  // Overzicht: next own match (ownOnly) OR 2-week window (alle poule)
+  // Overzicht, poule view: everything in the next two weeks.
   const overzichtMatches = useMemo(() => {
-    if (ownOnly) {
-      const next = upcomingMatches.find(m => m.home_team?.is_own_team || m.away_team?.is_own_team)
-      return next ? [next] : []
-    }
     const twoWeeksOut = new Date()
     twoWeeksOut.setDate(twoWeeksOut.getDate() + 14)
     const twoWeeksStr = twoWeeksOut.toISOString().split('T')[0]
     return matches.filter((m) => m.match_date >= today && m.match_date <= twoWeeksStr)
-  }, [matches, upcomingMatches, today, ownOnly])
-
-  // Programma: filtered by ownOnly
-  const programmaMatchesFiltered = useMemo(() => {
-    if (ownOnly) return upcomingMatches.filter(m => m.home_team?.is_own_team || m.away_team?.is_own_team)
-    return upcomingMatches
-  }, [upcomingMatches, ownOnly])
+  }, [matches, today])
 
   function groupByDate<T extends { match_date: string }>(list: T[]): Record<string, T[]> {
     const groups: Record<string, T[]> = {}
@@ -1057,7 +1056,7 @@ export default function Matches() {
     return groups
   }
 
-  const programmaGroups = groupByDate(programmaMatchesFiltered)
+  const programmaGroups = groupByDate(upcomingMatches)
   const uitslagenGroups = groupByDate(resultsMatches)
   const overzichtGroups = groupByDate(overzichtMatches)
 
@@ -1147,7 +1146,7 @@ export default function Matches() {
                   Object.entries(overzichtGroups)
                     .sort(([a], [b]) => (a < b ? -1 : 1))
                     .map(([date, group]) => (
-                      <MatchGroup key={date} dateStr={date} matches={group} logoMap={logoMap} ownMatchMap={ownMatchMap} />
+                      <MatchGroup key={date} dateStr={date} matches={group} logoMap={logoMap} />
                     ))
                 ) : (
                   <EmptyMatches label="Geen wedstrijden de komende twee weken" />
@@ -1173,7 +1172,7 @@ export default function Matches() {
                       <OwnMatchGroup key={date} dateStr={date} matches={group} {...ownGroupProps} />
                     ))
                 )
-              ) : programmaMatchesFiltered.length === 0 ? (
+              ) : upcomingMatches.length === 0 ? (
                 <EmptyMatches label="Geen aankomende wedstrijden" isAdmin={isAdmin} />
               ) : (
                 Object.entries(programmaGroups)

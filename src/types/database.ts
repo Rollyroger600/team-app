@@ -956,6 +956,7 @@ export type Database = {
       teams: {
         Row: {
           club_id: string | null
+          competitie_enabled: boolean
           created_at: string | null
           fluitbeurten_day_of_week: number
           fluitbeurten_enabled: boolean
@@ -977,6 +978,7 @@ export type Database = {
         }
         Insert: {
           club_id?: string | null
+          competitie_enabled?: boolean
           created_at?: string | null
           fluitbeurten_day_of_week?: number
           fluitbeurten_enabled?: boolean
@@ -998,6 +1000,7 @@ export type Database = {
         }
         Update: {
           club_id?: string | null
+          competitie_enabled?: boolean
           created_at?: string | null
           fluitbeurten_day_of_week?: number
           fluitbeurten_enabled?: boolean
@@ -1162,7 +1165,6 @@ export type Database = {
       }
     }
     Functions: {
-      check_email_exists: { Args: { p_email: string }; Returns: boolean }
       get_team_players_for_login: {
         Args: { p_team_id: string }
         Returns: {
