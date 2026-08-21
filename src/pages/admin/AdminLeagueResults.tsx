@@ -25,7 +25,7 @@ interface ScoreRowProps {
   match: LeagueMatch
   teamNames: Record<string, string>
   ownTeamId: string | null
-  onSave: (id: string, scoreHome: number, scoreAway: number) => void
+  onSave: (id: string, scoreHome: number | null, scoreAway: number | null) => void
 }
 
 function ScoreRow({ match, teamNames, ownTeamId, onSave }: ScoreRowProps): React.JSX.Element {
@@ -40,26 +40,37 @@ function ScoreRow({ match, teamNames, ownTeamId, onSave }: ScoreRowProps): React
   const isOwnAway = match.away_team_id === ownTeamId
 
   const hasScore = home !== '' && away !== ''
+  // Allebei leeg = de uitslag wissen. Dat moet kunnen: een verkeerd ingevoerde
+  // uitslag was hiervoor onomkeerbaar, want de opslagknop stond dan uit. Eén veld
+  // leeg is nog steeds geen geldige uitslag.
+  const isCleared = home === '' && away === ''
+  const canSave = hasScore || isCleared
   const isDirty =
     String(home) !== String(match.score_home ?? '') ||
     String(away) !== String(match.score_away ?? '')
 
   async function handleSave(): Promise<void> {
-    if (!hasScore) return
+    if (!canSave) return
     setSaving(true)
+    const scoreHome = isCleared ? null : parseInt(String(home), 10)
+    const scoreAway = isCleared ? null : parseInt(String(away), 10)
     const { error } = await supabase
       .from('league_matches')
       .update({
-        score_home: parseInt(String(home), 10),
-        score_away: parseInt(String(away), 10),
-        status: 'completed',
+        score_home: scoreHome,
+        score_away: scoreAway,
+        // Zonder uitslag is de wedstrijd niet gespeeld, dus telt hij ook niet mee
+        // in de stand. Een afgelaste wedstrijd blijft afgelast.
+        status: isCleared
+          ? (match.status === 'cancelled' ? 'cancelled' : 'upcoming')
+          : 'completed',
       })
       .eq('id', match.id)
     setSaving(false)
     if (!error) {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
-      onSave(match.id, parseInt(String(home), 10), parseInt(String(away), 10))
+      onSave(match.id, scoreHome, scoreAway)
     }
   }
 
@@ -101,10 +112,10 @@ function ScoreRow({ match, teamNames, ownTeamId, onSave }: ScoreRowProps): React
 
       <button
         onClick={handleSave}
-        disabled={!hasScore || !isDirty || saving}
+        disabled={!canSave || !isDirty || saving}
         className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-20"
         style={{
-          backgroundColor: saved ? tint('--color-available', 20) : isDirty && hasScore ? 'var(--color-secondary)' : 'transparent',
+          backgroundColor: saved ? tint('--color-available', 20) : isDirty && canSave ? 'var(--color-secondary)' : 'transparent',
         }}
       >
         <Check size={13} color={saved ? 'var(--color-available)' : 'var(--color-secondary-text)'} strokeWidth={3} />
@@ -119,7 +130,7 @@ interface MatchdayGroupProps {
   matches: LeagueMatch[]
   teamNames: Record<string, string>
   ownTeamId: string | null
-  onSave: (id: string, scoreHome: number, scoreAway: number) => void
+  onSave: (id: string, scoreHome: number | null, scoreAway: number | null) => void
 }
 
 function MatchdayGroup({ matchday, matches, teamNames, ownTeamId, onSave }: MatchdayGroupProps): React.JSX.Element {
@@ -204,13 +215,22 @@ export default function AdminLeagueResults(): React.JSX.Element {
   const teamNames = data?.teamNames || {}
   const ownTeamId = data?.ownTeamId || null
 
-  const handleSave = useCallback((id: string, scoreHome: number, scoreAway: number) => {
+  const handleSave = useCallback((id: string, scoreHome: number | null, scoreAway: number | null) => {
     queryClient.setQueryData(['adminLeagueResults', teamId], (old: LeagueResultsQueryData | undefined) => {
       if (!old) return old
       return {
         ...old,
         matches: old.matches.map((m) =>
-          m.id === id ? { ...m, score_home: scoreHome, score_away: scoreAway, status: 'completed' } : m
+          m.id === id
+            ? {
+                ...m,
+                score_home: scoreHome,
+                score_away: scoreAway,
+                status: scoreHome === null
+                  ? (m.status === 'cancelled' ? 'cancelled' : 'upcoming')
+                  : 'completed',
+              }
+            : m
         ),
       }
     })
