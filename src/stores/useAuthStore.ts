@@ -7,7 +7,6 @@ interface AuthState {
   user: User | null
   profile: Profile | null
   memberships: TeamMembership[]
-  clubAdminClubIds: string[]
   loading: boolean
   initialized: boolean
   profileLoaded: boolean
@@ -24,7 +23,6 @@ const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
   memberships: [],
-  clubAdminClubIds: [],
   loading: true,
   initialized: false,
   profileLoaded: false,
@@ -45,43 +43,46 @@ const useAuthStore = create<AuthState>((set, get) => ({
       if (event === 'SIGNED_IN' && session?.user) {
         setTimeout(() => { get().loadProfile(session.user) }, 0)
       } else if (event === 'SIGNED_OUT') {
-        set({ user: null, profile: null, memberships: [], clubAdminClubIds: [], profileLoaded: false })
+        set({ user: null, profile: null, memberships: [], profileLoaded: false })
       }
     })
   },
 
   loadProfile: async (user: User) => {
     set({ user })
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
 
-    // active + joined_at zijn allebei nodig: zonder de filter kan een oude/gearchiveerde
-    // membership het actieve team worden, en zonder ORDER BY geeft Postgres de rijen in
-    // fysieke volgorde terug (die na een UPDATE kan verschuiven). Zie resolveActiveMembership()
-    // in src/lib/activeTeam.ts. Let op: joined_at is de echte kolom — .order('created_at')
-    // geeft hier stil een lege lijst terug.
-    const { data: memberships } = await supabase
-      .from('team_memberships')
-      .select('*, teams(*, clubs(*, clubs_registry(primary_color, secondary_color, logo_url)))')
-      .eq('player_id', user.id)
-      .eq('active', true)
-      .order('joined_at', { ascending: true })
-
-    const { data: clubMemberships } = await supabase
-      .from('club_memberships')
-      .select('club_id, role')
-      .eq('player_id', user.id)
-      .eq('role', 'club_admin')
-
-    const clubAdminClubIds = (clubMemberships ?? []).map(cm => cm.club_id)
+    // Deze twee query's hangen niet van elkaar af, dus ze gaan tegelijk. Ze
+    // stonden achter elkaar en dat kostte op productie ~800 ms op élke start:
+    // niets op het scherm kan laden voordat dit klaar is, want het actieve team
+    // komt hieruit.
+    //
+    // De derde query die hier stond -- club_memberships voor clubAdminClubIds --
+    // is weg. Het club_admin-niveau is sinds 2026-07-25 samengevouwen in
+    // platform_admin en verleent niets meer; de waarde werd alleen op /debug
+    // getoond. Hij kostte gemeten 651 ms op het kritieke pad. Debug.tsx haalt hem
+    // nu zelf op wanneer die pagina geopend wordt.
+    const [profileRes, membershipsRes] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single(),
+      // active + joined_at zijn allebei nodig: zonder de filter kan een oude/gearchiveerde
+      // membership het actieve team worden, en zonder ORDER BY geeft Postgres de rijen in
+      // fysieke volgorde terug (die na een UPDATE kan verschuiven). Zie resolveActiveMembership()
+      // in src/lib/activeTeam.ts. Let op: joined_at is de echte kolom — .order('created_at')
+      // geeft hier stil een lege lijst terug.
+      supabase
+        .from('team_memberships')
+        .select('*, teams(*, clubs(*, clubs_registry(primary_color, secondary_color, logo_url)))')
+        .eq('player_id', user.id)
+        .eq('active', true)
+        .order('joined_at', { ascending: true }),
+    ])
 
     set({
-      profile: profile as Profile | null,
-      memberships: (memberships as unknown as TeamMembership[]) || [],
-      clubAdminClubIds,
+      profile: profileRes.data as Profile | null,
+      memberships: (membershipsRes.data as unknown as TeamMembership[]) || [],
       profileLoaded: true,
     })
   },
@@ -120,7 +121,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut()
-    set({ user: null, profile: null, memberships: [], clubAdminClubIds: [], profileLoaded: false })
+    set({ user: null, profile: null, memberships: [], profileLoaded: false })
   }
 }))
 
