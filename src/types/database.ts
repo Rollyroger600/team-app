@@ -1210,6 +1210,7 @@ export type Database = {
           training_interval_weeks: number
           kitty_enabled: boolean
           kitty_name: string
+          kitty_visible_to_players: boolean
           kitty_expected_cents: number
           created_at: string | null
           fluitbeurten_day_of_week: number
@@ -1241,6 +1242,7 @@ export type Database = {
           training_interval_weeks?: number
           kitty_enabled?: boolean
           kitty_name?: string
+          kitty_visible_to_players?: boolean
           kitty_expected_cents?: number
           created_at?: string | null
           fluitbeurten_day_of_week?: number
@@ -1272,6 +1274,7 @@ export type Database = {
           training_interval_weeks?: number
           kitty_enabled?: boolean
           kitty_name?: string
+          kitty_visible_to_players?: boolean
           kitty_expected_cents?: number
           created_at?: string | null
           fluitbeurten_day_of_week?: number

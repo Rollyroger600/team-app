@@ -23,6 +23,7 @@ interface TeamSettingsForm {
   trainingen_enabled: boolean
   kitty_enabled: boolean
   kitty_name: string
+  kitty_visible_to_players: boolean
   training_default_weekday: number
   training_default_time: string
   training_interval_weeks: number
@@ -56,6 +57,7 @@ export default function AdminTeamSettings(): React.JSX.Element {
     trainingen_enabled: false,
     kitty_enabled: false,
     kitty_name: 'Bierpot',
+    kitty_visible_to_players: false,
     training_default_weekday: 2,
     training_default_time: '20:00',
     training_interval_weeks: 1,
@@ -93,6 +95,7 @@ export default function AdminTeamSettings(): React.JSX.Element {
         trainingen_enabled: activeTeam.trainingen_enabled ?? false,
         kitty_enabled: activeTeam.kitty_enabled ?? false,
         kitty_name: activeTeam.kitty_name ?? 'Bierpot',
+        kitty_visible_to_players: activeTeam.kitty_visible_to_players ?? false,
         training_default_weekday: activeTeam.training_default_weekday ?? 2,
         training_default_time: (activeTeam.training_default_time ?? '20:00').slice(0, 5),
         training_interval_weeks: activeTeam.training_interval_weeks ?? 1,
@@ -288,6 +291,16 @@ export default function AdminTeamSettings(): React.JSX.Element {
                   De bedragen zet je per inlegronde in Admin &rarr; {form.kitty_name}. Daar kun je
                   ook per speler afwijken, bijvoorbeeld voor iemand die een half seizoen
                   geblesseerd is.
+                </p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.kitty_visible_to_players}
+                         onChange={(e) => handleChange('kitty_visible_to_players', e.target.checked)}
+                         className={checkboxClass} />
+                  <span className="text-sm">Zichtbaar voor het hele team</span>
+                </label>
+                <p className="text-xs text-text-subtle">
+                  Uit = alleen beheerders zien de kas. Aan = iedereen ziet het kassaldo, wie er
+                  nog moet betalen en alle boekingen.
                 </p>
               </div>
             )}

@@ -55,6 +55,7 @@ const useTeamStore = create<TeamState>((set, get) => ({
     training_interval_weeks: 1,
     kitty_enabled: false,
     kitty_name: 'Bierpot',
+    kitty_visible_to_players: false,
   },
 
   setActiveTeam: async (team: Team | null, club: ClubWithRegistry | null) => {
@@ -85,6 +86,7 @@ const useTeamStore = create<TeamState>((set, get) => ({
         training_interval_weeks: team?.training_interval_weeks ?? 1,
         kitty_enabled: team?.kitty_enabled ?? false,
         kitty_name: team?.kitty_name ?? 'Bierpot',
+        kitty_visible_to_players: team?.kitty_visible_to_players ?? false,
       }
     })
     // Colours no longer come from the club record — the player picks a theme in

@@ -455,7 +455,10 @@ export default function More() {
         {[
           { key: 'beschikbaarheid', label: 'Beschikbaarheid' },
           ...(teamSettings.fluitbeurten_enabled ? [{ key: 'fluitbeurten', label: 'Fluitbeurten' }] : []),
-          ...(teamSettings.kitty_enabled ? [{ key: 'kitty', label: teamSettings.kitty_name }] : []),
+          // Beheerders zien de kas altijd; de rest alleen als hij opengezet is.
+          // RLS weigert de gegevens sowieso, dit voorkomt een lege tab.
+          ...(teamSettings.kitty_enabled && (isAdmin || teamSettings.kitty_visible_to_players)
+            ? [{ key: 'kitty', label: teamSettings.kitty_name }] : []),
         ].map(t => (
           <button
             key={t.key}

@@ -68,6 +68,9 @@ export interface TeamSettings {
   // betalen staat in pot_levy_shares, zie src/lib/kitty.ts.
   kitty_enabled: boolean
   kitty_name: string
+  // Uit = alleen beheerders zien de kas. Wordt door RLS afgedwongen, niet alleen
+  // hier -- een tab verbergen weerhoudt een REST-aanroep nergens van.
+  kitty_visible_to_players: boolean
 }
 
 // The boolean-valued subset of TeamSettings — used to type any "hide/gate this if
