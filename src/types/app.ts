@@ -63,11 +63,11 @@ export interface TeamSettings {
   training_default_time: string | null
   training_default_duration_minutes: number
   training_interval_weeks: number
-  // Stap 4: teamkas. kitty_expected_cents is de verwachte inleg per actieve speler;
-  // tussentijds bijstorten = dit bedrag verhogen.
+  // Stap 4: teamkas. Er is bewust GEEN verwacht bedrag per team: er wordt meerdere
+  // keren per seizoen ingelegd en het bedrag verschilt per speler. Wat iemand moet
+  // betalen staat in pot_levy_shares, zie src/lib/kitty.ts.
   kitty_enabled: boolean
   kitty_name: string
-  kitty_expected_cents: number
 }
 
 // The boolean-valued subset of TeamSettings — used to type any "hide/gate this if

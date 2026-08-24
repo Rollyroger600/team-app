@@ -27,9 +27,23 @@ export interface PotShare {
   share_cents: number
 }
 
+export interface PotLevy {
+  id: string
+  description: string
+  levy_date: string
+}
+
+export interface LevyShare {
+  levy_id: string
+  player_id: string
+  amount_cents: number
+}
+
 export interface KittyData {
   transactions: PotTransaction[]
   shares: PotShare[]
+  levies: PotLevy[]
+  levyShares: LevyShare[]
 }
 
 export const TRANSACTION_SELECT =
@@ -39,22 +53,42 @@ export function useKitty(teamId: string | undefined, enabled = true) {
   return useQuery<KittyData>({
     queryKey: ['kitty', teamId],
     queryFn: async () => {
-      const { data: transactions } = await supabase
-        .from('pot_transactions')
-        .select(TRANSACTION_SELECT)
-        .eq('team_id', teamId!)
-        .order('transaction_date', { ascending: false })
-        .order('created_at', { ascending: false })
+      const [txRes, levyRes] = await Promise.all([
+        supabase
+          .from('pot_transactions')
+          .select(TRANSACTION_SELECT)
+          .eq('team_id', teamId!)
+          .order('transaction_date', { ascending: false })
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('pot_levies')
+          .select('id, description, levy_date')
+          .eq('team_id', teamId!)
+          .order('levy_date', { ascending: false }),
+      ])
 
-      const list = (transactions as unknown as PotTransaction[]) || []
-      if (list.length === 0) return { transactions: [], shares: [] }
+      const list = (txRes.data as unknown as PotTransaction[]) || []
+      const levies = (levyRes.data as unknown as PotLevy[]) || []
 
-      const { data: shares } = await supabase
-        .from('pot_transaction_shares')
-        .select('transaction_id, player_id, share_cents')
-        .in('transaction_id', list.map(t => t.id))
+      const [shareRes, levyShareRes] = await Promise.all([
+        list.length > 0
+          ? supabase.from('pot_transaction_shares')
+              .select('transaction_id, player_id, share_cents')
+              .in('transaction_id', list.map(t => t.id))
+          : Promise.resolve({ data: [] }),
+        levies.length > 0
+          ? supabase.from('pot_levy_shares')
+              .select('levy_id, player_id, amount_cents')
+              .in('levy_id', levies.map(l => l.id))
+          : Promise.resolve({ data: [] }),
+      ])
 
-      return { transactions: list, shares: (shares as unknown as PotShare[]) || [] }
+      return {
+        transactions: list,
+        shares: (shareRes.data as unknown as PotShare[]) || [],
+        levies,
+        levyShares: (levyShareRes.data as unknown as LevyShare[]) || [],
+      }
     },
     enabled: !!teamId && enabled,
     // Geld verandert maandelijks, niet per minuut: refetch-on-focus volstaat,
@@ -70,8 +104,8 @@ export interface PlayerBalance {
   voorgeschoten: number
   /** Zijn deel van uitgaven die over een groep verdeeld zijn. */
   aandeel: number
-  /** Wat er van hem verwacht wordt (de vaste inleg). */
-  verwacht: number
+  /** Wat er in totaal aan inlegrondes op zijn naam staat. */
+  verschuldigd: number
   /** Positief = staat voor, negatief = moet nog betalen. */
   saldo: number
 }
@@ -94,15 +128,19 @@ export function kasSaldo(transactions: PotTransaction[]): number {
 
 /**
  * Saldo per speler:
- *   gestort + voorgeschoten − aandeel − verwachte inleg
+ *   gestort + voorgeschoten − aandeel in uitgaven − verschuldigd
  *
  * Negatief betekent: deze speler moet nog betalen.
+ *
+ * Verrekenen gaat hier vanzelf. Wie €50 voorschoot heeft €50 tegoed; komt er een
+ * inlegronde van €100 bij, dan staat er nog €50 open in plaats van €100. Dat is
+ * precies "dan hoeft die persoon minder in te leggen", zonder aparte boeking.
  */
 export function spelerSaldi(
   playerIds: string[],
   transactions: PotTransaction[],
   shares: PotShare[],
-  verwachtPerSpeler: number,
+  levyShares: LevyShare[],
 ): PlayerBalance[] {
   const gestort: Record<string, number> = {}
   const voorgeschoten: Record<string, number> = {}
@@ -117,17 +155,23 @@ export function spelerSaldi(
     aandeel[s.player_id] = (aandeel[s.player_id] ?? 0) + s.share_cents
   }
 
+  const verschuldigd: Record<string, number> = {}
+  for (const l of levyShares) {
+    verschuldigd[l.player_id] = (verschuldigd[l.player_id] ?? 0) + l.amount_cents
+  }
+
   return playerIds.map(id => {
     const g = gestort[id] ?? 0
     const v = voorgeschoten[id] ?? 0
     const a = aandeel[id] ?? 0
+    const d = verschuldigd[id] ?? 0
     return {
       playerId: id,
       gestort: g,
       voorgeschoten: v,
       aandeel: a,
-      verwacht: verwachtPerSpeler,
-      saldo: g + v - a - verwachtPerSpeler,
+      verschuldigd: d,
+      saldo: g + v - a - d,
     }
   })
 }

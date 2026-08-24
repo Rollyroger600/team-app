@@ -14,7 +14,6 @@ interface MemberRow {
 interface KittyPanelProps {
   teamId: string
   kittyName: string
-  expectedCents: number
   currentUserId: string | undefined
 }
 
@@ -25,7 +24,7 @@ interface KittyPanelProps {
  * Iedereen ziet alles — die openheid ís het nut van een bierpot, en het scheelt de
  * penningmeester een hoop appjes.
  */
-export default function KittyPanel({ teamId, kittyName, expectedCents, currentUserId }: KittyPanelProps) {
+export default function KittyPanel({ teamId, kittyName, currentUserId }: KittyPanelProps) {
   const { data: kitty, isLoading } = useKitty(teamId)
   const [toonLog, setToonLog] = useState(false)
 
@@ -47,7 +46,8 @@ export default function KittyPanel({ teamId, kittyName, expectedCents, currentUs
   const transactions = kitty?.transactions ?? []
   const shares = kitty?.shares ?? []
   const kas = kasSaldo(transactions)
-  const saldi = spelerSaldi(members.map(m => m.id), transactions, shares, expectedCents)
+  const levyShares = kitty?.levyShares ?? []
+  const saldi = spelerSaldi(members.map(m => m.id), transactions, shares, levyShares)
   const naam = (id: string) => members.find(m => m.id === id)?.name ?? '?'
 
   const ik = saldi.find(s => s.playerId === currentUserId)
@@ -79,8 +79,8 @@ export default function KittyPanel({ teamId, kittyName, expectedCents, currentUs
               : ik.saldo > 0 ? 'Je staat voor' : 'Je staat gelijk'}
           </p>
           <div className="mt-2 pt-2 border-t border-border grid grid-cols-2 gap-y-1 text-xs">
-            <span className="text-text-muted">Verwachte inleg</span>
-            <span className="text-right">{formatCents(ik.verwacht)}</span>
+            <span className="text-text-muted">Totaal ingelegd moeten worden</span>
+            <span className="text-right">{formatCents(ik.verschuldigd)}</span>
             <span className="text-text-muted">Gestort</span>
             <span className="text-right">{formatCents(ik.gestort)}</span>
             {ik.voorgeschoten > 0 && (<>

@@ -529,7 +529,6 @@ export default function More() {
         <KittyPanel
           teamId={activeTeam.id}
           kittyName={teamSettings.kitty_name}
-          expectedCents={teamSettings.kitty_expected_cents}
           currentUserId={user?.id}
         />
       )}

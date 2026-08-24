@@ -6,6 +6,8 @@ import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
 import { useKitty, type PotTransaction } from '../../lib/kitty'
+import LevyManager from '../../components/ui/LevyManager'
+import PaymentTracker from '../../components/ui/PaymentTracker'
 import { parseEuroToCents, formatCents, splitCents } from '../../lib/money'
 import { formatDate } from '../../lib/utils'
 import { tint } from '../../lib/utils'
@@ -137,6 +139,14 @@ export default function AdminKitty(): React.JSX.Element {
         </p>
       )}
 
+      {activeTeam && (
+        <LevyManager teamId={activeTeam.id} members={members} kitty={kitty} createdBy={profile?.id ?? null} />
+      )}
+
+      {activeTeam && (
+        <PaymentTracker teamId={activeTeam.id} members={members} kitty={kitty} createdBy={profile?.id ?? null} />
+      )}
+
       <form onSubmit={opslaan} className="rounded-xl border p-4 space-y-3 bg-surface border-border">
         <h2 className="font-semibold text-sm flex items-center gap-2"><Plus size={15} /> Nieuwe boeking</h2>
 
@@ -208,7 +218,8 @@ export default function AdminKitty(): React.JSX.Element {
             </label>
             {!verdelen && (
               <p className="text-xs text-text-subtle pl-6">
-                Zonder verdeling draagt de hele pot deze uitgave.
+                Zonder verdeling draagt de hele pot deze uitgave — dat is verreweg het meest.
+                Vink aan om hem in plaats daarvan tegen bepaalde spelers weg te strepen.
               </p>
             )}
 

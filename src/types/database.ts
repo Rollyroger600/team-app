@@ -781,6 +781,84 @@ export type Database = {
           },
         ]
       }
+      pot_levies: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string
+          id: string
+          levy_date: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description: string
+          id?: string
+          levy_date?: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string
+          id?: string
+          levy_date?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pot_levies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pot_levies_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pot_levy_shares: {
+        Row: {
+          amount_cents: number
+          id: string
+          levy_id: string
+          player_id: string
+        }
+        Insert: {
+          amount_cents: number
+          id?: string
+          levy_id: string
+          player_id: string
+        }
+        Update: {
+          amount_cents?: number
+          id?: string
+          levy_id?: string
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pot_levy_shares_levy_id_fkey"
+            columns: ["levy_id"]
+            isOneToOne: false
+            referencedRelation: "pot_levies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pot_levy_shares_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pot_transaction_shares: {
         Row: {
           id: string
@@ -824,6 +902,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          levy_id: string | null
           paid_by: string | null
           team_id: string
           transaction_date: string
@@ -835,6 +914,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          levy_id?: string | null
           paid_by?: string | null
           team_id: string
           transaction_date?: string
@@ -846,6 +926,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          levy_id?: string | null
           paid_by?: string | null
           team_id?: string
           transaction_date?: string
