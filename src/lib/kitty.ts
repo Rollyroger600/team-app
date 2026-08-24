@@ -127,6 +127,23 @@ export function kasSaldo(transactions: PotTransaction[]): number {
 }
 
 /**
+ * Wat er van het kassaldo al vergeven is: de tegoeden van spelers.
+ *
+ * Wie voorschoot heeft een claim op de pot. Die wordt ooit voldaan -- door terug
+ * te betalen (dan zakt de kas) of door te verrekenen met zijn volgende inleg (dan
+ * komt er minder binnen). Hoe dan ook is dat geld niet meer vrij besteedbaar, ook
+ * al staat het nog op de rekening.
+ */
+export function tegoedenTotaal(saldi: PlayerBalance[]): number {
+  return saldi.filter(s => s.saldo > 0).reduce((a, s) => a + s.saldo, 0)
+}
+
+/** Nog te ontvangen: de som van wie achterloopt. */
+export function openstaandTotaal(saldi: PlayerBalance[]): number {
+  return -saldi.filter(s => s.saldo < 0).reduce((a, s) => a + s.saldo, 0)
+}
+
+/**
  * Saldo per speler:
  *   gestort + voorgeschoten − aandeel in uitgaven − verschuldigd
  *

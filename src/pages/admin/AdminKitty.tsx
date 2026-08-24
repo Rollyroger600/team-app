@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
-import { useKitty, kasSaldo, spelerSaldi, type PotTransaction } from '../../lib/kitty'
+import { useKitty, kasSaldo, spelerSaldi, tegoedenTotaal, openstaandTotaal, type PotTransaction } from '../../lib/kitty'
 import LevyManager from '../../components/ui/LevyManager'
 import PaymentTracker from '../../components/ui/PaymentTracker'
 import { parseEuroToCents, formatCents, splitCents } from '../../lib/money'
@@ -123,14 +123,15 @@ export default function AdminKitty(): React.JSX.Element {
   }
 
   const kas = kasSaldo(kitty?.transactions ?? [])
-  // Wat er nog binnen moet komen: alleen de negatieve saldi, want een tegoed is
-  // geen openstaande post.
-  const openstaand = -spelerSaldi(
+  const alleSaldi = spelerSaldi(
     members.map(m => m.id),
     kitty?.transactions ?? [],
     kitty?.shares ?? [],
     kitty?.levyShares ?? [],
-  ).filter(x => x.saldo < 0).reduce((a, x) => a + x.saldo, 0)
+  )
+  const openstaand = openstaandTotaal(alleSaldi)
+  const tegoeden = tegoedenTotaal(alleSaldi)
+  const vrij = kas - tegoeden
 
   const naamVan = (id: string | null) => id ? (members.find(m => m.id === id)?.name ?? '?') : null
   const inputClass = 'w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors focus:border-secondary-soft bg-surface-2 border-border text-text'
@@ -157,7 +158,21 @@ export default function AdminKitty(): React.JSX.Element {
         <p className={`text-3xl font-bold mt-1 ${kas < 0 ? 'text-danger' : ''}`}>{formatCents(kas)}</p>
         <p className="text-xs text-text-subtle mt-0.5">
           {kitty?.transactions.length ?? 0} boeking{(kitty?.transactions.length ?? 0) === 1 ? '' : 'en'}
-          {openstaand !== 0 && ` · nog ${formatCents(openstaand)} te ontvangen`}
+        </p>
+
+        <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-y-1 text-xs">
+          <span className="text-text-muted">Nog te ontvangen</span>
+          <span className="text-right">{formatCents(openstaand)}</span>
+          <span className="text-text-muted">Terug te betalen</span>
+          <span className="text-right">{formatCents(tegoeden)}</span>
+          <span className="font-semibold pt-1">Vrij besteedbaar</span>
+          <span className={`text-right font-semibold pt-1 ${vrij < 0 ? 'text-danger' : ''}`}>
+            {formatCents(vrij)}
+          </span>
+        </div>
+        <p className="text-[11px] text-text-subtle mt-1.5 leading-relaxed">
+          Vrij besteedbaar is wat er in kas staat min de tegoeden van spelers — dat geld is
+          al vergeven, ook al staat het er nog.
         </p>
       </div>
 

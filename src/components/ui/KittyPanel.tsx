@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Wallet, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { useKitty, kasSaldo, spelerSaldi } from '../../lib/kitty'
+import { useKitty, kasSaldo, spelerSaldi, tegoedenTotaal } from '../../lib/kitty'
 import { formatCents } from '../../lib/money'
 import { formatDate, tint } from '../../lib/utils'
 
@@ -54,6 +54,7 @@ export default function KittyPanel({ teamId, kittyName, currentUserId }: KittyPa
   // Alleen wie echt nog moet betalen; een tegoed is geen openstaande post.
   const openstaand = saldi.filter(s => s.saldo < 0).sort((a, b) => a.saldo - b.saldo)
   const totaalOpen = openstaand.reduce((a, s) => a + s.saldo, 0)
+  const tegoeden = tegoedenTotaal(saldi)
 
   return (
     <div className="space-y-3">
@@ -65,6 +66,12 @@ export default function KittyPanel({ teamId, kittyName, currentUserId }: KittyPa
         <p className="text-xs text-text-subtle mt-0.5">
           in kas · {transactions.length} boeking{transactions.length === 1 ? '' : 'en'}
         </p>
+        {tegoeden > 0 && (
+          <p className="text-xs text-text-muted mt-1.5 pt-1.5 border-t border-border">
+            Vrij besteedbaar: <span className="font-semibold text-text">{formatCents(kas - tegoeden)}</span>
+            <span className="text-text-subtle"> · {formatCents(tegoeden)} staat nog open aan voorgeschoten geld</span>
+          </p>
+        )}
       </div>
 
       {ik && (
