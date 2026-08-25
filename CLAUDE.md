@@ -345,13 +345,30 @@ session directly via their `player_credentials.internal_email` / `internal_passw
 `supabase.auth.setSession()`. Always delete any temp file holding the token/password afterward,
 and clean up any test rows you inserted directly via SQL once done verifying.
 
-**The Playwright suite in `tests/` is currently red and cannot guard anything.** It drives the
-real login against `qa-club`/`qa-team` slug fixtures (`.env.test`) that no longer exist in the
-database — only LOHC/Heren 30-1 remain. Re-seeding them against the live project has a visible
-side effect worth knowing before anyone tries: `Login.tsx` auto-skips the club picker only when
-there is exactly **one** club, so adding a QA club makes a club chooser appear at login for every
-real player. Same for QA players — they'd show up in the real name picker. Doing this properly
-needs a second Supabase project; until then, verify manually via the impersonation recipe above.
+**The Playwright suite was removed on 2026-08-24** (it lived in `tests/`, with
+`playwright.config.ts` and `.env.test`). It drove the real login against `qa-club`/`qa-team` slug
+fixtures that no longer exist — only LOHC/Heren 30-1 remain — so every spec failed in `auth.setup`
+before reaching an assertion. It could not be revived in place: re-seeding QA fixtures into the
+live project makes a **club picker appear at login for all 22 real players** (`Login.tsx` only
+auto-skips that step when there is exactly one club), and QA players would show up in the real
+name picker. Doing it properly needs a second Supabase project. Don't re-add browser e2e against
+the production database.
+
+**What replaced it: `npm test` (vitest), unit tests on the pure logic** — `src/lib/*.test.ts`
+next to the module they cover. That is deliberately where the coverage sits, because that is where
+this project's real bugs have been: the `1.005` money-parsing case, the `getDay()` week boundary in
+`homeWeekRange`, tiebreak normalisation, and the kitty balance rules. These functions have no DOM,
+no network and no auth, so they need no fixtures and run in ~250 ms.
+
+Rules for keeping it useful:
+- **A new pure function in `src/lib/` gets a test.** Anything touching Supabase, React or the DOM
+  does *not* — mocking the client teaches you about the mock, not the app. Verify that manually via
+  the impersonation recipe above.
+- **Write the test against measured behaviour, not assumed behaviour.** Probe the function first
+  (`npx vite-node`), then pin what it actually does. A test written from an assumption encodes the
+  assumption.
+- **A suite that has never been red proves nothing.** After adding tests, break the function on
+  purpose and confirm they fail. All 44 were mutation-checked this way when they were written.
 
 ## Conventions
 - UI copy is Dutch. Match existing terminology exactly (e.g. "Beheerder" not "Admin",
@@ -360,7 +377,8 @@ needs a second Supabase project; until then, verify manually via the impersonati
 - `.claude/settings.local.json` and `supabase/.temp/cli-latest` are local tooling artifacts —
   never commit them.
 - Prefer running dev servers via the Browser pane's `preview_start`, not a second `vite`
-  instance in Bash — running both caused flakiness with Playwright's own `webServer` before.
+  instance in Bash. Pin each worktree to its own `--strictPort` port: a stray vite from another
+  worktree will happily answer on 5173 and serve you the wrong code while you measure.
 - When a bug report says a button/feature "doesn't work" but the code looks correct, actually
   reproduce it live (direct API call + a real click in the browser) before assuming and fixing a
   guessed root cause — twice this session a reported bug turned out to already work, and twice

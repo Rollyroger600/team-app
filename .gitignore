@@ -35,10 +35,3 @@ dist-ssr
 .claude/settings.local.json
 supabase/.temp/
 
-# Playwright
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
-/.playwright/
