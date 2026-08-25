@@ -7,10 +7,25 @@ import useAuthStore from '../stores/useAuthStore'
 
 export default function Debug() {
   const navigate = useNavigate()
-  const { user, profile, memberships, clubAdminClubIds, loading, initialized, loadProfile } = useAuthStore()
+  const { user, profile, memberships, loading, initialized, loadProfile } = useAuthStore()
+  // Deze query zat in loadProfile en kostte daar ~650 ms op élke start van de app,
+  // voor een waarde die alleen hier getoond wordt en sinds de samenvouwing van
+  // club_admin in platform_admin niets meer verleent. Nu pas ophalen als iemand
+  // deze pagina echt opent.
+  const [clubAdminClubIds, setClubAdminClubIds] = useState<string[]>([])
   const [session, setSession] = useState<Record<string, unknown> | null>(null)
   const [log, setLog] = useState<string[]>([])
   const [testing, setTesting] = useState(false)
+
+  useEffect(() => {
+    if (!user?.id) return
+    supabase
+      .from('club_memberships')
+      .select('club_id')
+      .eq('player_id', user.id)
+      .eq('role', 'club_admin')
+      .then(({ data }) => setClubAdminClubIds((data ?? []).map(cm => cm.club_id)))
+  }, [user?.id])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
