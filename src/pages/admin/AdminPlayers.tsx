@@ -10,7 +10,7 @@ import { tint } from '../../lib/utils'
 import { createPlayer, resetPlayerPin, changePlayerRole, setPlayerCaptain, getPlayersStatus, impersonatePlayer, type PlayerStatus } from '../../lib/auth'
 import useTeamStore from '../../stores/useTeamStore'
 import useAuthStore from '../../stores/useAuthStore'
-import { useIsTeamOwner } from '../../lib/permissions'
+import { useIsTeamAdmin, useIsTeamOwner } from '../../lib/permissions'
 import InviteManager from '../../components/ui/InviteManager'
 import { useAccessCodes, shareInvite, regenerateCode, type AccessCode } from '../../lib/invites'
 import { formatCode } from '../../lib/accessCodes'
@@ -58,11 +58,21 @@ export default function AdminPlayers(): React.JSX.Element {
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null)
   const [linkFeedback, setLinkFeedback] = useState<Record<string, string>>({})
 
-  // Hoofdbeheerder mag hier net als de platform-admin komen én, sinds 2026-08-16, ook
-  // zelf andere hoofdbeheerders aanwijzen/degraderen binnen het eigen team — zie de
-  // changeRole edge-function actie. platform_admin blijft de enige die dit over alle
-  // teams heen kan, maar binnen dít team is er geen apart onderscheid meer nodig.
-  const canManage = useIsTeamOwner()
+  // Twee niveaus, want de edge function kent ze ook als twee.
+  //
+  // `canManage` is Beheerder-niveau: PIN resetten, spelers aanmaken, impersoneren,
+  // aanvoerder aanwijzen, persoonlijke links. Al die acties gaan in de auth-handler
+  // door `isAdminForTeam()`, dat team_admin én team_owner accepteert.
+  //
+  // `canChangeRoles` is Hoofdbeheerder-niveau en geldt alleen voor het wijzigen van
+  // rollen: `changeRole` eist daar expliciet team_owner of platform_admin.
+  //
+  // Dit stond tot 2026-08-25 allebei op useIsTeamOwner(), waardoor een gewone
+  // Beheerder geen ⋮-menu kreeg en dus geen PIN kon resetten -- terwijl de
+  // achterkant hem dat wél toestond. Bijkomend gevolg: de statusquery hieronder
+  // stond uit, zodat ook de PIN-vinkjes bij iedereen ontbraken.
+  const canManage = useIsTeamAdmin()
+  const canChangeRoles = useIsTeamOwner()
 
   const { data: players = [], isLoading } = useQuery<PlayerMembership[]>({
     queryKey: ['adminPlayers', activeTeam?.id],
@@ -165,7 +175,9 @@ export default function AdminPlayers(): React.JSX.Element {
   }
 
   async function handleSetRole(membership: PlayerMembership, newRole: 'player' | 'team_admin' | 'team_owner'): Promise<void> {
-    if (!canManage || !activeTeam?.id) return
+    // Rollen wijzigen is Hoofdbeheerder-werk; changeRole in de edge function weigert
+    // een gewone Beheerder met een 403. Hier dus dezelfde grens, niet canManage.
+    if (!canChangeRoles || !activeTeam?.id) return
     setChangingRole(membership.player_id)
     const result = await changePlayerRole(membership.player_id, activeTeam.id, newRole)
     setChangingRole(null)
@@ -392,7 +404,7 @@ export default function AdminPlayers(): React.JSX.Element {
                   </button>
                 )}
 
-                {/* Acties-menu — alleen de platform-admin */}
+                {/* Acties-menu — elke Beheerder; de rolknoppen erin zijn Hoofdbeheerder-only. */}
                 {canManage && (
                   <div className="relative flex-shrink-0">
                     <button
@@ -421,7 +433,7 @@ export default function AdminPlayers(): React.JSX.Element {
                           {/* Speler ↔ Beheerder — voor Hoofdbeheerder én platform-admin.
                               Niet getoond voor een Hoofdbeheerder-rij zelf: die rol kan
                               alleen de platform-admin aan/uit zetten, via de knop hieronder. */}
-                          {membership.role !== 'team_owner' && (
+                          {canChangeRoles && membership.role !== 'team_owner' && (
                             <button
                               onClick={() => { setOpenMenuFor(null); handleSetRole(membership, membership.role === 'team_admin' ? 'player' : 'team_admin') }}
                               disabled={changingRole === membership.player_id}
@@ -435,7 +447,7 @@ export default function AdminPlayers(): React.JSX.Element {
                           )}
                           {/* Hoofdbeheerder toekennen/afpakken — elke hoofdbeheerder mag
                               dit binnen zijn eigen team, niet alleen platform_admin. */}
-                          {canManage && (
+                          {canChangeRoles && (
                             <button
                               onClick={() => { setOpenMenuFor(null); handleSetRole(membership, membership.role === 'team_owner' ? 'team_admin' : 'team_owner') }}
                               disabled={changingRole === membership.player_id}
