@@ -1107,9 +1107,14 @@ export default function Matches() {
     [ownMatches, today]
   )
 
+  // `<=` en niet `<`: een wedstrijd die vandaag gespeeld is en waarvan de uitslag
+  // al ingevuld staat, viel anders tussen wal en schip. `ownUpcoming` hierboven
+  // laat hem los zodra er een score staat, en `ownResults` pakte hem pas op vanaf
+  // de dag erna -- dus op de speeldag zelf stond hij nergens. Dat gebeurde bij
+  // élke speelronde; gemeld op 2026-09-06, de dag dat speeldag 1 werd ingevuld.
   const ownResults = useMemo(
     () => ownMatches
-      .filter((m) => m.match_date < today && m.score_home !== null)
+      .filter((m) => m.match_date <= today && m.score_home !== null)
       .sort((a, b) => (a.match_date < b.match_date ? 1 : -1)),
     [ownMatches, today]
   )
@@ -1123,9 +1128,11 @@ export default function Matches() {
 
   // The three lists below only ever render in the "Hele poule" view, so they no
   // longer need an ownOnly branch — the own-team side is fed from `matches`.
+  // Zelfde correctie als bij ownResults hierboven: uitslagen van vandaag horen
+  // meteen zichtbaar te zijn, niet pas morgen.
   const resultsMatches = useMemo(
     () => matches
-      .filter((m) => m.match_date < today && m.score_home !== null)
+      .filter((m) => m.match_date <= today && m.score_home !== null)
       .sort((a, b) => (a.match_date < b.match_date ? 1 : -1)),
     [matches, today]
   )
