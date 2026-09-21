@@ -288,6 +288,24 @@ about policies.
   (`matches_league_match_id_key`, `WHERE league_match_id IS NOT NULL`) is the backstop; a 23505
   from a concurrent double-click is swallowed on purpose.
 
+- **Saving a round in Wedstrijden invoeren updates in place** (since 2026-09-21). It used to
+  `delete()` the whole matchday and `insert()` it again. That gave every league match a new id —
+  and `matches.league_match_id` is `ON DELETE SET NULL`, so the team's own match silently lost its
+  link (rounds 1, 3, 5 and 6 did) — and the insert carried no score, so re-saving a round that was
+  already played wiped all its results. Now saved rows are `update`d by id, new rows inserted, and
+  only rows the admin removed are deleted (with a confirm if one has a result). **Don't
+  reintroduce delete-then-insert on `league_matches`.**
+- **`trg_link_own_match` re-links automatically.** When a league match involving the own team is
+  inserted, or gets a date/teams, the trigger links the own `matches` row with the same date and
+  side that is still unlinked — only if there is exactly one candidate — and copies the score.
+  This covers "2e helft genereren", which still deletes and re-inserts the second half. A lost link
+  is invisible until later: the score doesn't sync, the goals section disappears under Hele poule,
+  and Reistijden berekenen skips the match.
+- **The goals section is reachable for every own match.** Under Eigen team → Uitslagen a match
+  counts as a result from its match day once it has a score, and from the day after without one —
+  so a played match whose score never came through still shows up (as "Uitslag nog niet
+  ingevuld") and goals can be entered. Every own match is in exactly one of Programma/Uitslagen.
+
 ## Umpire duties (fluitbeurten)
 - Two kinds of duty rows in `umpire_duties`: match-linked (via `match_id`, auto-generated 2 per
   home match by "Genereer fluitbeurten") and standalone/"losse" ones (`match_id` null,
