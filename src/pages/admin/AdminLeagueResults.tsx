@@ -1,7 +1,7 @@
 import React from 'react'
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Trophy, Check, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Trophy, Check, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
@@ -131,16 +131,19 @@ interface MatchdayGroupProps {
   teamNames: Record<string, string>
   ownTeamId: string | null
   onSave: (id: string, scoreHome: number | null, scoreAway: number | null) => void
+  /** Staat bij de pagina, zodat één knop alle rondes tegelijk kan openen of sluiten. */
+  open: boolean
+  onToggle: () => void
 }
 
-function MatchdayGroup({ matchday, matches, teamNames, ownTeamId, onSave }: MatchdayGroupProps): React.JSX.Element {
-  const [open, setOpen] = useState(true)
+function MatchdayGroup({ matchday, matches, teamNames, ownTeamId, onSave, open, onToggle }: MatchdayGroupProps): React.JSX.Element {
   const completed = matches.filter((m) => m.score_home !== null && m.score_away !== null).length
 
   return (
     <div className="rounded-xl border overflow-hidden bg-surface border-border">
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={onToggle}
+        aria-expanded={open}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center gap-3">
@@ -174,6 +177,17 @@ export default function AdminLeagueResults(): React.JSX.Element {
   const { activeTeam } = useTeamStore()
   const teamId = activeTeam?.id
   const queryClient = useQueryClient()
+  // Welke speelrondes openstaan. Leeg = alles dicht, en zo opent het scherm.
+  const [openRounds, setOpenRounds] = useState<Set<number>>(() => new Set())
+
+  function toggleRound(md: number): void {
+    setOpenRounds(prev => {
+      const next = new Set(prev)
+      if (next.has(md)) next.delete(md)
+      else next.add(md)
+      return next
+    })
+  }
 
   const { data, isLoading } = useQuery<LeagueResultsQueryData>({
     queryKey: ['adminLeagueResults', teamId],
@@ -244,6 +258,7 @@ export default function AdminLeagueResults(): React.JSX.Element {
     grouped[key].push(m)
   }
   const sortedMatchdays = Object.keys(grouped).map(Number).sort((a, b) => a - b)
+  const anyOpen = sortedMatchdays.some(md => openRounds.has(md))
 
   if (isLoading) {
     return (
@@ -318,6 +333,21 @@ export default function AdminLeagueResults(): React.JSX.Element {
         </div>
       </div>
 
+      {/* Alles in- of uitklappen. Standaard staat alles dicht: met 22 rondes van
+          6 wedstrijden is een volledig opengeklapte lijst ruim 130 regels scrollen
+          om bij de ronde van deze week te komen. */}
+      {sortedMatchdays.length > 1 && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setOpenRounds(anyOpen ? new Set() : new Set(sortedMatchdays))}
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+          >
+            {anyOpen ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />}
+            {anyOpen ? 'Alles inklappen' : 'Alles uitklappen'}
+          </button>
+        </div>
+      )}
+
       {/* Matchdays */}
       {sortedMatchdays.map((md) => (
         <MatchdayGroup
@@ -327,6 +357,8 @@ export default function AdminLeagueResults(): React.JSX.Element {
           teamNames={teamNames}
           ownTeamId={ownTeamId}
           onSave={handleSave}
+          open={openRounds.has(md)}
+          onToggle={() => toggleRound(md)}
         />
       ))}
 

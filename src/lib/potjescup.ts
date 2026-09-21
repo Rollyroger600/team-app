@@ -203,3 +203,28 @@ export function topByPoints(players: PotjescupPlayerRow[], n = 3): PodiumEntry[]
     .slice(0, n)
     .map(p => ({ name: p.full_name, value: p.totalPoints }))
 }
+
+/** Hoogste puntenaantal dat een beheerder zelf kan invullen. */
+export const POTJESCUP_MAX_POINTS = 9
+
+/**
+ * Leest een zelf ingetypt puntenaantal voor de Potjescup.
+ *
+ * Naast de vaste knoppen 0 / 0,5 / 1 kan een beheerder een eigen aantal invullen,
+ * omdat spelers soms extra punten verdienen. Toegestaan: 0 t/m 9 in stappen van
+ * een half -- de halve punt bestond al (van kant gewisseld tijdens de eindpartij),
+ * dus 2,5 is net zo geldig als 2. De database dwingt precies dezelfde grens af
+ * (potjescup_scores_points_check); deze functie zorgt dat je een nette melding
+ * krijgt in plaats van een geweigerde write.
+ *
+ * Komma en punt mogen allebei: op een Nederlands telefoontoetsenbord staat een
+ * komma. Geeft null terug voor alles wat geen geldig aantal is.
+ */
+export function parsePotjescupPoints(input: string): number | null {
+  const s = input.trim().replace(',', '.')
+  if (!/^\d+(\.\d+)?$/.test(s)) return null
+  const n = Number(s)
+  if (!Number.isFinite(n) || n < 0 || n > POTJESCUP_MAX_POINTS) return null
+  if (n * 2 !== Math.floor(n * 2)) return null
+  return n
+}

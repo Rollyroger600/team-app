@@ -1,5 +1,5 @@
 import React from 'react'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Save, Trash2, ChevronDown, Check, AlertCircle, Calendar, Copy, CalendarPlus } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -7,6 +7,8 @@ import { supabase } from '../../lib/supabase'
 import useTeamStore from '../../stores/useTeamStore'
 import { leagueTeamDisplayName } from '../../lib/utils'
 import type { League, LeagueMatch } from '../../types/app'
+import { nextMatchday } from '../../lib/matchdays'
+import { toISODate } from '../../lib/trainings'
 
 interface LeagueTeamDisplay {
   id: string
@@ -194,6 +196,18 @@ export default function AdminLeagueMatches(): React.JSX.Element {
   const leagueTeams = data?.leagueTeams || []
   const ownTeamId = data?.ownTeamId || null
   const existingMatches = data?.existingMatches ?? NO_MATCHES
+
+  // Bij openen naar de eerstvolgende speelronde in plaats van altijd R1 -- midden
+  // in het seizoen is R1 de ronde waar je het minst waarschijnlijk iets aan doet.
+  // Precies één keer, zodra de wedstrijden binnen zijn: na opslaan ververst
+  // existingMatches ook, en dan moet je blijven waar je was.
+  const autoGekozen = useRef(false)
+  useEffect(() => {
+    if (autoGekozen.current || !data) return
+    autoGekozen.current = true
+    const volgende = nextMatchday(existingMatches, toISODate(new Date()))
+    if (volgende !== matchday) setMatchday(volgende)
+  }, [data, existingMatches, matchday])
 
   // Laad rows + gedeelde datum wanneer speelronde wijzigt
   useEffect(() => {

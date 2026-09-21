@@ -175,7 +175,11 @@ about policies.
 
 ## Potjescup (training scrimmage points)
 - Tables `potjescup_sessions` (one per training date) and `potjescup_scores` (one row per active
-  player per session, 0/0.5/1 points — 0.5 covers a player who switched sides mid-scrimmage).
+  player per session). Points are 0 t/m 9 in steps of 0.5 (since 2026-09-21; was only 0/0.5/1):
+  the three buttons cover the usual case — 0.5 is a player who switched sides mid-scrimmage — and
+  a fourth input field takes a custom amount for bonus points. `potjescup_scores_points_check`
+  and `parsePotjescupPoints()` in `src/lib/potjescup.ts` enforce the same rule; change both
+  together.
   Admin CRUD in `src/pages/admin/AdminPotjescup.tsx`; creating a session bulk-inserts a score row
   for every currently-active player so nobody has to be added manually.
 - `usePotjescupStats()` in `src/lib/potjescup.ts` derives the full ranking from
