@@ -301,6 +301,15 @@ about policies.
   This covers "2e helft genereren", which still deletes and re-inserts the second half. A lost link
   is invisible until later: the score doesn't sync, the goals section disappears under Hele poule,
   and Reistijden berekenen skips the match.
+- **Date and kick-off time follow the poule** (`trg_sync_league_schedule_to_match`, since
+  2026-09-21). Times are filled in via Wedstrijden invoeren a few weeks ahead; before this trigger
+  they only landed on `league_matches`, and Home, the gathering banner and the WhatsApp text (which
+  read the own `matches` row) kept showing no time unless someone re-ran "Genereer mijn
+  wedstrijden". The own match follows *changes*: only a field that actually changes in the poule is
+  copied, including clearing a time; a NULL date is never copied (`match_date` is NOT NULL). The
+  gathering time needs no sync — it is computed live from `match_time` in `src/lib/gathering.ts`;
+  `matches.gathering_time` is unused. So: **edit fixture times in Wedstrijden invoeren, not on the
+  own match** — an own-match edit does not flow back and is overwritten by the next poule change.
 - **The goals section is reachable for every own match.** Under Eigen team → Uitslagen a match
   counts as a result from its match day once it has a score, and from the day after without one —
   so a played match whose score never came through still shows up (as "Uitslag nog niet
