@@ -53,6 +53,8 @@ interface SaveMutationVars {
   matchdayNum: number
   toSave: MatchRow[]
   matchdayDateVal: string
+  /** Wedstrijden die in de database staan maar uit deze ronde zijn weggehaald. */
+  removeIds: string[]
 }
 
 function emptyRow(matchday: number): MatchRow {
@@ -243,16 +245,43 @@ export default function AdminLeagueMatches(): React.JSX.Element {
   }
 
   const saveMutation = useMutation<void, Error, SaveMutationVars>({
-    mutationFn: async ({ leagueId, matchdayNum, toSave, matchdayDateVal }: SaveMutationVars): Promise<void> => {
-      await supabase.from('league_matches').delete().eq('league_id', leagueId).eq('matchday', matchdayNum)
-      const inserts = toSave.map((r) => ({
-        league_id: leagueId, matchday: matchdayNum,
+    // Bijwerken op id, niet wissen en opnieuw invoegen.
+    //
+    // Dit deed tot 2026-09-21 eerst delete() op de hele ronde en daarna insert().
+    // Dat had twee gevolgen die pas later zichtbaar werden:
+    //  - elke poulewedstrijd kreeg een nieuw id, en matches.league_match_id is
+    //    ON DELETE SET NULL -- dus de eigen wedstrijd raakte zijn koppeling kwijt.
+    //    Zonder koppeling komt een uitslag niet door naar de eigen wedstrijd en
+    //    verdwijnt het doelpuntenvak onder Hele poule. Rondes 1, 3, 5 en 6 zijn zo
+    //    losgeraakt.
+    //  - de insert nam geen score mee: een al gespeelde ronde opnieuw opslaan (om
+    //    een tijd te corrigeren) wiste alle uitslagen van die ronde.
+    // Nu houdt elke wedstrijd zijn id en zijn uitslag; alleen wat je echt uit de
+    // ronde weghaalt wordt verwijderd.
+    mutationFn: async ({ leagueId, matchdayNum, toSave, matchdayDateVal, removeIds }: SaveMutationVars): Promise<void> => {
+      const velden = (r: MatchRow) => ({
         match_date: r.date || matchdayDateVal || null,
         match_time: r.time ? r.time + ':00' : null,
         home_team_id: r.home_team_id, away_team_id: r.away_team_id,
-      }))
-      const { error: insertErr } = await supabase.from('league_matches').insert(inserts)
-      if (insertErr) throw insertErr
+      })
+
+      const updates = toSave.filter((r) => r._saved)
+      const results = await Promise.all(updates.map((r) =>
+        supabase.from('league_matches').update(velden(r)).eq('id', r._id)))
+      const updateErr = results.find((res) => res.error)?.error
+      if (updateErr) throw updateErr
+
+      const inserts = toSave.filter((r) => !r._saved)
+        .map((r) => ({ league_id: leagueId, matchday: matchdayNum, ...velden(r) }))
+      if (inserts.length > 0) {
+        const { error: insertErr } = await supabase.from('league_matches').insert(inserts)
+        if (insertErr) throw insertErr
+      }
+
+      if (removeIds.length > 0) {
+        const { error: deleteErr } = await supabase.from('league_matches').delete().in('id', removeIds)
+        if (deleteErr) throw deleteErr
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminLeagueMatches', teamId] })
@@ -273,7 +302,19 @@ export default function AdminLeagueMatches(): React.JSX.Element {
       return
     }
 
-    await saveMutation.mutateAsync({ leagueId: league.id, matchdayNum: matchday, toSave, matchdayDateVal: matchdayDate })
+    // Wat er nu in de database staat voor deze ronde, maar niet meer wordt opgeslagen.
+    const keptIds = new Set(toSave.filter((r) => r._saved).map((r) => r._id))
+    const removed = existingMatches.filter((m) => m.matchday === matchday && !keptIds.has(m.id))
+    const removedWithResult = removed.filter((m) => m.score_home !== null || m.score_away !== null)
+    if (removedWithResult.length > 0 && !window.confirm(
+      `${removedWithResult.length} weggehaalde wedstrijd${removedWithResult.length === 1 ? ' heeft' : 'en hebben'} al een uitslag. ` +
+      'Die uitslag verdwijnt mee. Doorgaan?'
+    )) return
+
+    await saveMutation.mutateAsync({
+      leagueId: league.id, matchdayNum: matchday, toSave,
+      matchdayDateVal: matchdayDate, removeIds: removed.map((m) => m.id),
+    })
   }
 
   async function handleMirror(): Promise<void> {

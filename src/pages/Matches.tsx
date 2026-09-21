@@ -527,6 +527,10 @@ function OwnMatchCard({ match, ownName, ownLogo, opponentName, opponentLogo, res
               <span className="font-bold text-base text-text">
                 {match.score_home}–{match.score_away}
               </span>
+            ) : resultMode ? (
+              // Gespeeld maar nog zonder uitslag: geen aanvangstijd tonen onder
+              // Uitslagen, dat leest alsof hij nog moet beginnen.
+              <span className="font-bold text-base text-text-muted">–</span>
             ) : (
               <span className="text-sm font-medium text-text-muted">
                 {formatTime(match.match_time)}
@@ -538,6 +542,9 @@ function OwnMatchCard({ match, ownName, ownLogo, opponentName, opponentLogo, res
             <span className="truncate">{away.name}</span>
           </div>
         </div>
+        {resultMode && !isPlayed && (
+          <p className="text-center text-xs mt-1 text-text-muted">Uitslag nog niet ingevuld</p>
+        )}
         {!match.league_match_id && (
           // Not necessarily a friendly — a cup game has no league counterpart
           // either. "Losse" matches the existing wording for standalone umpire
@@ -1112,9 +1119,14 @@ export default function Matches() {
   // laat hem los zodra er een score staat, en `ownResults` pakte hem pas op vanaf
   // de dag erna -- dus op de speeldag zelf stond hij nergens. Dat gebeurde bij
   // élke speelronde; gemeld op 2026-09-06, de dag dat speeldag 1 werd ingevuld.
+  // Elke eigen wedstrijd staat in precies één van de twee lijsten. Met een score
+  // telt hij vanaf de speeldag zelf als uitslag; zonder score zodra de speeldag
+  // voorbij is. Dat tweede geval viel tot 2026-09-21 uit beide lijsten -- een
+  // gespeelde wedstrijd waarvan de uitslag nog niet was doorgekomen was dan
+  // nergens te zien, en er waren dus ook geen doelpunten bij in te vullen.
   const ownResults = useMemo(
     () => ownMatches
-      .filter((m) => m.match_date <= today && m.score_home !== null)
+      .filter((m) => (m.score_home !== null ? m.match_date <= today : m.match_date < today))
       .sort((a, b) => (a.match_date < b.match_date ? 1 : -1)),
     [ownMatches, today]
   )
