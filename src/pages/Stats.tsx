@@ -82,7 +82,9 @@ export default function Stats() {
                         : null}
                     </span>
                     <span className="flex-1 font-medium truncate">{player.full_name}</span>
-                    <span className="w-9 text-center text-text-soft">{player.matches_played}</span>
+                    <span className="w-9 text-center text-text-soft">
+                      {player.isExternal ? '–' : player.matches_played}
+                    </span>
                     <span className="w-9 text-center text-text-soft">{player.fieldGoals}</span>
                     <span className="w-9 text-center text-text-soft">{player.cornerGoals}</span>
                     <span className="w-9 text-center text-text-soft">{player.penaltyGoals}</span>
@@ -138,6 +140,9 @@ export default function Stats() {
 
           <p className="text-[11px] text-text-muted px-1 leading-relaxed">
             VD = velddoelpunt, SC = doelpunt uit strafcorner, SB = doelpunt uit strafbal
+            {players.some(p => p.isExternal) && (
+              <> · Invaller = doelpunt van een speler buiten de selectie</>
+            )}
           </p>
         </>
       )}

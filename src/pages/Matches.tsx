@@ -7,6 +7,7 @@ import useTeamStore from '../stores/useTeamStore'
 import useAuthStore from '../stores/useAuthStore'
 import { leagueTeamDisplayName, tint } from '../lib/utils'
 import { useOpponentName } from '../lib/opponents'
+import { EXTERNAL_SCORER_LABEL, EXTERNAL_SCORER_VALUE } from '../lib/stats'
 import { useIsTeamOwner } from '../lib/permissions'
 import { compareByTiebreak, normalizeTiebreakOrder, type TiebreakId } from '../lib/standings'
 import TiebreakOrder from '../components/ui/TiebreakOrder'
@@ -72,6 +73,7 @@ interface GoalRow {
   is_penalty: boolean
   is_penalty_corner: boolean
   scorer_id: string | null
+  external_scorer: string | null
   assist_id: string | null
   scorer: { full_name: string | null; nickname: string | null } | null
   assist: { full_name: string | null; nickname: string | null } | null
@@ -131,6 +133,11 @@ function displayNameProfile(profile: { full_name: string | null; nickname: strin
   return profile?.nickname || profile?.full_name?.split(' ')[0] || '?'
 }
 
+/** Een invaller heeft geen profile — dan staat de naam in `external_scorer`. */
+function scorerName(goal: GoalRow): string {
+  return goal.external_scorer || displayNameProfile(goal.scorer)
+}
+
 /** Goals for the team's own matches, grouped by `match_id`. */
 async function loadGoalsMap(matchIds: string[]): Promise<Record<string, GoalRow[]>> {
   const goalsMap: Record<string, GoalRow[]> = {}
@@ -138,7 +145,7 @@ async function loadGoalsMap(matchIds: string[]): Promise<Record<string, GoalRow[
 
   const { data } = await supabase
     .from('goals')
-    .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+    .select('id, match_id, minute, is_own_goal, is_penalty, scorer_id, external_scorer, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
     .in('match_id', matchIds)
     .order('minute', { ascending: true, nullsFirst: false })
 
@@ -213,18 +220,20 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
     e.preventDefault()
     if (!form.scorer_id && !form.is_own_goal) return
     setSaving(true)
+    const isExternal = form.scorer_id === EXTERNAL_SCORER_VALUE
     const { data } = await supabase
       .from('goals')
       .insert({
         match_id: matchId,
-        scorer_id: form.scorer_id || null,
+        scorer_id: isExternal ? null : (form.scorer_id || null),
+        external_scorer: isExternal ? EXTERNAL_SCORER_LABEL : null,
         assist_id: form.assist_id || null,
         minute: form.minute ? parseInt(form.minute) : null,
         is_own_goal: form.is_own_goal,
         is_penalty: form.is_penalty,
         is_penalty_corner: form.is_penalty_corner,
       })
-      .select('id, match_id, minute, is_own_goal, is_penalty, is_penalty_corner, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+      .select('id, match_id, minute, is_own_goal, is_penalty, is_penalty_corner, scorer_id, external_scorer, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
       .single()
     if (data) setGoals(prev => [...prev, data as unknown as GoalRow].sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999)))
     setForm({ scorer_id: '', assist_id: '', minute: '', is_own_goal: false, is_penalty: false, is_penalty_corner: false })
@@ -268,7 +277,7 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
                     {g.minute ? `${g.minute}'` : '–'}
                   </span>
                   <span className="flex-1">
-                    {g.is_own_goal ? `${displayNameProfile(g.scorer)} (eigen doel)` : displayNameProfile(g.scorer)}
+                    {g.is_own_goal ? `${scorerName(g)} (eigen doel)` : scorerName(g)}
                     {g.assist?.full_name && (
                       <span className="ml-1.5 text-text-muted">assist: {displayNameProfile(g.assist)}</span>
                     )}
@@ -298,6 +307,8 @@ function GoalSection({ matchId, goals: initialGoals, members, isAdmin, maxGoals 
                   {members.map(m => (
                     <option key={m.player_id} value={m.player_id}>{displayNameProfile(m.profiles)}</option>
                   ))}
+                  {/* Schutter zonder profile — bijv. een invaller uit een ander team */}
+                  <option value={EXTERNAL_SCORER_VALUE}>{EXTERNAL_SCORER_LABEL}</option>
                 </select>
                 <input
                   type="number" min="1" max="90"

@@ -1,6 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from './supabase'
 
+/**
+ * Een invaller heeft geen profile, dus `goals.scorer_id` kan niet naar hem
+ * verwijzen. Zo'n doelpunt krijgt `scorer_id = null` + `external_scorer` met de
+ * naam ('Invaller'); de assist blijft wel een echte teamgenoot. Hieronder wordt
+ * dat geaggregeerd tot één synthetische rij in de spelers-/topscorerslijst, met
+ * `player_id = 'extern:Invaller'` — geen nep-speler in `team_memberships`, die
+ * zou namelijk ook in de namenkiezer bij login, beschikbaarheid, Potjescup en de
+ * opkomstmatrix opduiken.
+ */
+export const EXTERNAL_PLAYER_PREFIX = 'extern:'
+/** Label dat in de schutter-dropdowns en in de statistieken wordt getoond. */
+export const EXTERNAL_SCORER_LABEL = 'Invaller'
+/** Sentinel-waarde van de "Invaller"-optie in een schutter-dropdown. */
+export const EXTERNAL_SCORER_VALUE = '__extern__'
+
 export interface MatchRef {
   id: string
   opponent: string
@@ -28,6 +43,8 @@ export interface PlayerStatRow {
   penaltyGoals: number
   goals: number
   assists: number
+  /** Geen echte speler maar een invaller-regel (zie EXTERNAL_PLAYER_PREFIX). */
+  isExternal?: boolean
 }
 
 export interface TeamStatsData {
@@ -39,6 +56,7 @@ export interface TeamStatsData {
 
 interface RawGoalRow {
   scorer_id: string | null
+  external_scorer: string | null
   assist_id: string | null
   is_own_goal: boolean
   is_penalty: boolean
@@ -63,7 +81,7 @@ export function useTeamStats(teamId?: string) {
           .eq('team_id', teamId!),
         supabase
           .from('goals')
-          .select('scorer_id, assist_id, is_own_goal, is_penalty, is_penalty_corner, match:matches!goals_match_id_fkey(id, opponent, match_date, is_home, score_home, score_away)')
+          .select('scorer_id, external_scorer, assist_id, is_own_goal, is_penalty, is_penalty_corner, match:matches!goals_match_id_fkey(id, opponent, match_date, is_home, score_home, score_away)')
           .eq('matches.team_id', teamId!)
           .not('match', 'is', null),
       ])
@@ -77,6 +95,8 @@ export function useTeamStats(teamId?: string) {
       type PlayerAgg = { fieldGoals: number; cornerGoals: number; penaltyGoals: number; assists: number }
       const perPlayer: Record<string, PlayerAgg> = {}
       const perMatch: Record<string, Record<string, GoalMatchBreakdown>> = {}
+      // Synthetische spelers (invallers): 'extern:<naam>' -> weergavenaam
+      const externalPlayers: Record<string, string> = {}
 
       const ensurePlayer = (pid: string): PlayerAgg => {
         if (!perPlayer[pid]) perPlayer[pid] = { fieldGoals: 0, cornerGoals: 0, penaltyGoals: 0, assists: 0 }
@@ -97,9 +117,16 @@ export function useTeamStats(teamId?: string) {
           if (g.is_penalty_corner) totalCornerGoals++
         }
 
-        if (!g.is_own_goal && g.scorer_id) {
-          const p = ensurePlayer(g.scorer_id)
-          const m = ensureMatch(g.scorer_id, g.match)
+        const scorerKey = g.scorer_id
+          ? g.scorer_id
+          : g.external_scorer
+            ? `${EXTERNAL_PLAYER_PREFIX}${g.external_scorer}`
+            : null
+
+        if (!g.is_own_goal && scorerKey) {
+          if (!g.scorer_id && g.external_scorer) externalPlayers[scorerKey] = g.external_scorer
+          const p = ensurePlayer(scorerKey)
+          const m = ensureMatch(scorerKey, g.match)
           if (g.is_penalty_corner) { p.cornerGoals++; if (m) m.cornerGoals++ }
           else if (g.is_penalty) { p.penaltyGoals++; if (m) m.penaltyGoals++ }
           else { p.fieldGoals++; if (m) m.fieldGoals++ }
@@ -112,6 +139,23 @@ export function useTeamStats(teamId?: string) {
           if (m) m.assists++
         }
       }
+
+      const emptyAgg = { fieldGoals: 0, cornerGoals: 0, penaltyGoals: 0, assists: 0 }
+
+      const externalRows: PlayerStatRow[] = Object.entries(externalPlayers).map(([pid, name]) => {
+        const p = perPlayer[pid] || emptyAgg
+        return {
+          player_id: pid,
+          full_name: name,
+          matches_played: 0,
+          fieldGoals: p.fieldGoals,
+          cornerGoals: p.cornerGoals,
+          penaltyGoals: p.penaltyGoals,
+          goals: p.fieldGoals + p.cornerGoals + p.penaltyGoals,
+          assists: p.assists,
+          isExternal: true,
+        }
+      })
 
       const players: PlayerStatRow[] = viewRows
         .map(v => {
@@ -127,6 +171,7 @@ export function useTeamStats(teamId?: string) {
             assists: p.assists,
           }
         })
+        .concat(externalRows)
         .sort((a, b) => b.goals - a.goals)
 
       const goalMap: Record<string, GoalMatchBreakdown[]> = {}

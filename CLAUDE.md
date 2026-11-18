@@ -166,6 +166,16 @@ about policies.
   - **SC** (strafcorner): scored + `is_penalty_corner` true
   - **SB** (strafbal): scored + `is_penalty` true
   - **Goals** = VD + SC + SB
+- **Doelpunt van een invaller**: `goals.external_scorer` (TEXT, sinds 2026-11-18) houdt de naam van
+  een schutter zonder profile vast — `scorer_id` blijft dan NULL (een CHECK verbiedt beide tegelijk),
+  de assist blijft een echte `assist_id`. De schutter-dropdowns in `Matches.tsx` (GoalSection) en
+  `AdminMatchGoals.tsx` hebben één extra optie "Invaller"; `EXTERNAL_SCORER_VALUE` /
+  `EXTERNAL_SCORER_LABEL` / `EXTERNAL_PLAYER_PREFIX` staan in `src/lib/stats.ts`. `useTeamStats()`
+  aggregeert zulke doelpunten tot een synthetische rij met `player_id = 'extern:Invaller'` en
+  `isExternal: true`, die gewoon meedoet in de spelerslijst en op het topscorerspodium. Maak hier
+  **geen** nep-speler met een profile + membership van: die duikt dan ook op in de namenkiezer bij
+  login, beschikbaarheid, Potjescup en de opkomstmatrix (allemaal gevoed uit `team_memberships`).
+  Een assist door een invaller kan niet worden vastgelegd — daar is geen `external_assist` voor.
 - `topByGoals()` / `topByGoalsPlusAssists()` produce the top-3 podium entries. `PodiumCard`
   (`src/components/ui/MiniPodium.tsx`) is the generic building block — takes a `sections` array
   of `{ title, statLabel, entries }`; `StatsPodiums` is a thin wrapper around it for the

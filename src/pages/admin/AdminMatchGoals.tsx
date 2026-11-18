@@ -7,6 +7,7 @@ import PageLoader from '../../components/ui/PageLoader'
 import { supabase } from '../../lib/supabase'
 import { formatDate, tint } from '../../lib/utils'
 import { useOpponentName } from '../../lib/opponents'
+import { EXTERNAL_SCORER_LABEL, EXTERNAL_SCORER_VALUE } from '../../lib/stats'
 import type { Match, Profile } from '../../types/app'
 
 interface GoalFormState {
@@ -36,6 +37,7 @@ interface GoalRecord {
   is_penalty: boolean | null
   is_penalty_corner: boolean | null
   scorer_id: string | null
+  external_scorer: string | null
   assist_id: string | null
   scorer: Pick<Profile, 'full_name' | 'nickname'> | null
   assist: Pick<Profile, 'full_name' | 'nickname'> | null
@@ -65,6 +67,11 @@ function displayName(profile: Pick<Profile, 'full_name' | 'nickname'> | null | u
   return profile?.nickname || profile?.full_name?.split(' ')[0] || '?'
 }
 
+/** Een invaller heeft geen profile — dan staat de naam in `external_scorer`. */
+function scorerName(goal: GoalRecord): string {
+  return goal.external_scorer || displayName(goal.scorer)
+}
+
 export default function AdminMatchGoals(): React.JSX.Element {
   const opponentName = useOpponentName()
   const { id } = useParams<{ id: string }>()
@@ -82,7 +89,7 @@ export default function AdminMatchGoals(): React.JSX.Element {
           .select('player_id, profiles(full_name, nickname, jersey_number)')
           .eq('match_id', id!),
         supabase.from('goals')
-          .select('id, minute, is_own_goal, is_penalty, is_penalty_corner, scorer_id, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
+          .select('id, minute, is_own_goal, is_penalty, is_penalty_corner, scorer_id, external_scorer, assist_id, scorer:profiles!goals_scorer_id_fkey(full_name, nickname), assist:profiles!goals_assist_id_fkey(full_name, nickname)')
           .eq('match_id', id!)
           .order('minute', { ascending: true, nullsFirst: false }),
         supabase.from('match_cards')
@@ -122,6 +129,7 @@ export default function AdminMatchGoals(): React.JSX.Element {
   interface GoalInsert {
     match_id: string
     scorer_id: string | null
+    external_scorer: string | null
     assist_id: string | null
     minute: number | null
     is_own_goal: boolean
@@ -167,9 +175,11 @@ export default function AdminMatchGoals(): React.JSX.Element {
   async function addGoal(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()
     if (!gForm.scorer_id && !gForm.is_own_goal) return
+    const isExternal = gForm.scorer_id === EXTERNAL_SCORER_VALUE
     await addGoalMutation.mutateAsync({
       match_id: id!,
-      scorer_id: gForm.scorer_id || null,
+      scorer_id: isExternal ? null : (gForm.scorer_id || null),
+      external_scorer: isExternal ? EXTERNAL_SCORER_LABEL : null,
       assist_id: gForm.assist_id || null,
       minute: gForm.minute ? parseInt(gForm.minute) : null,
       is_own_goal: gForm.is_own_goal,
@@ -265,7 +275,7 @@ export default function AdminMatchGoals(): React.JSX.Element {
                 </span>
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium">
-                    {g.is_own_goal ? `${displayName(g.scorer)} (eigen)` : displayName(g.scorer)}
+                    {g.is_own_goal ? `${scorerName(g)} (eigen)` : scorerName(g)}
                   </span>
                   {g.assist?.full_name && (
                     <span className="text-xs text-text-muted ml-2">assist: {displayName(g.assist)}</span>
@@ -295,6 +305,8 @@ export default function AdminMatchGoals(): React.JSX.Element {
                   {displayName(r.profiles)}
                 </option>
               ))}
+              {/* Schutter zonder profile — bijv. een invaller uit een ander team */}
+              <option value={EXTERNAL_SCORER_VALUE}>{EXTERNAL_SCORER_LABEL}</option>
             </select>
             <input type="number" min="1" max="90"
                    value={gForm.minute}

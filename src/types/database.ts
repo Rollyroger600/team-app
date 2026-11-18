@@ -230,6 +230,7 @@ export type Database = {
         Row: {
           assist_id: string | null
           created_at: string | null
+          external_scorer: string | null
           id: string
           is_own_goal: boolean | null
           is_penalty: boolean | null
@@ -241,6 +242,7 @@ export type Database = {
         Insert: {
           assist_id?: string | null
           created_at?: string | null
+          external_scorer?: string | null
           id?: string
           is_own_goal?: boolean | null
           is_penalty?: boolean | null
@@ -252,6 +254,7 @@ export type Database = {
         Update: {
           assist_id?: string | null
           created_at?: string | null
+          external_scorer?: string | null
           id?: string
           is_own_goal?: boolean | null
           is_penalty?: boolean | null
